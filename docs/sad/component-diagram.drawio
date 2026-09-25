@@ -1,0 +1,104 @@
+<mxfile host="app.diagrams.net" modified="2026-09-25T10:00:00.000Z" agent="student" version="24.0.0">
+  <diagram id="main" name="Page-1">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="c_web" value="Web UI
+(Browser)" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="60" y="60" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_api" value="API / Controller Layer
+(Spring MVC)" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="320" y="60" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_auth" value="Auth Service" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="60" y="200" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_search" value="Search Service" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="240" y="200" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_booking" value="Booking Service" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="420" y="200" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_payment" value="Payment Service" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="600" y="200" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_cancel" value="Cancellation Service" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="60" y="320" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_admin" value="Admin Service" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="240" y="320" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_notif" value="Notification Service" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="420" y="320" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_db" value="MySQL Database" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="240" y="460" width="200" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_pg" value="&lt;&lt;external&gt;&gt;
+Payment Gateway" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="640" y="460" width="200" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_mail" value="&lt;&lt;external&gt;&gt;
+Email / SMS Gateway" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="640" y="320" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e0" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_web" target="c_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_api" target="c_auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_api" target="c_search">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_api" target="c_booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_api" target="c_payment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_api" target="c_cancel">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_api" target="c_admin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_api" target="c_notif">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_auth" target="c_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_search" target="c_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_booking" target="c_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_payment" target="c_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_cancel" target="c_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_admin" target="c_db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_payment" target="ext_pg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_notif" target="ext_mail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_booking" target="c_payment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_booking" target="c_notif">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
