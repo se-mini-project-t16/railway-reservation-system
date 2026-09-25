@@ -1,0 +1,136 @@
+<mxfile host="app.diagrams.net" modified="2026-09-25T10:00:00.000Z" agent="student" version="24.0.0">
+  <diagram id="main" name="Page-1">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_user" value=":Passenger" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=30;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="120" height="820" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ui" value=":Web UI" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=30;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="200" y="20" width="120" height="820" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_book" value=":Booking Service" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=30;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="360" y="20" width="120" height="820" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_db" value=":Database" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=30;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="520" y="20" width="120" height="820" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_pay" value=":Payment Service" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=30;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="680" y="20" width="120" height="820" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_gw" value=":Payment Gateway" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;size=30;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="840" y="20" width="120" height="820" as="geometry" />
+        </mxCell>
+        <mxCell id="m0" value="1. Enter passenger details &amp; Confirm" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="100" y="80" as="sourcePoint" />
+            <mxPoint x="260" y="80" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m1" value="2. createBooking(trainNo, date, passengers)" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="115" as="sourcePoint" />
+            <mxPoint x="420" y="115" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2" value="3. lockSeats(trainNo, date, count)" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="420" y="150" as="sourcePoint" />
+            <mxPoint x="580" y="150" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3" value="4. seats locked" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;dashed=1;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="580" y="185" as="sourcePoint" />
+            <mxPoint x="420" y="185" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m4" value="5. savePendingBooking() -&gt; PNR" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="420" y="220" as="sourcePoint" />
+            <mxPoint x="580" y="220" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m5" value="6. PNR" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;dashed=1;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="580" y="255" as="sourcePoint" />
+            <mxPoint x="420" y="255" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m6" value="7. initiatePayment(PNR, amount)" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="420" y="290" as="sourcePoint" />
+            <mxPoint x="740" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m7" value="8. createPaymentSession()" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="740" y="325" as="sourcePoint" />
+            <mxPoint x="900" y="325" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m8" value="9. paymentUrl" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;dashed=1;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="900" y="360" as="sourcePoint" />
+            <mxPoint x="740" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m9" value="10. paymentUrl" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;dashed=1;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="740" y="395" as="sourcePoint" />
+            <mxPoint x="420" y="395" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m10" value="11. redirect to paymentUrl" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;dashed=1;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="420" y="430" as="sourcePoint" />
+            <mxPoint x="260" y="430" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m11" value="12. user completes payment" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="465" as="sourcePoint" />
+            <mxPoint x="900" y="465" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m12" value="13. paymentCallback(status)" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="900" y="500" as="sourcePoint" />
+            <mxPoint x="740" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m13" value="14. confirmBooking(PNR)" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="740" y="535" as="sourcePoint" />
+            <mxPoint x="420" y="535" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m14" value="15. update status = CONFIRMED" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="420" y="570" as="sourcePoint" />
+            <mxPoint x="580" y="570" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m15" value="16. ok" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;dashed=1;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="580" y="605" as="sourcePoint" />
+            <mxPoint x="420" y="605" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m16" value="17. show e-ticket (PNR)" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;dashed=1;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="420" y="640" as="sourcePoint" />
+            <mxPoint x="260" y="640" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m17" value="18. e-ticket displayed" style="html=1;verticalAlign=bottom;endArrow=open;endSize=8;dashed=1;strokeColor=#000000;fontColor=#000000;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="260" y="675" as="sourcePoint" />
+            <mxPoint x="100" y="675" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
