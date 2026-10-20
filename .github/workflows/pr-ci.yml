@@ -15,6 +15,8 @@ jobs:
   pr-lint:
     name: Lint PR Title and Conventional Commits
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
     steps:
       - name: Validate PR Title Format
         if: github.event_name == 'pull_request'
