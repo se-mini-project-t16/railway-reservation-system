@@ -7,6 +7,10 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   pr-lint:
     name: Lint PR Title and Conventional Commits
@@ -46,8 +50,7 @@ jobs:
       - name: Verify Build (if pom.xml present)
         run: |
           if [ -f pom.xml ]; then
-            mvn clean compile test --batch-mode
+            ./mvnw clean test --batch-mode
           else
             echo "pom.xml not yet committed. Documentation and project structure verified."
           fi
-
