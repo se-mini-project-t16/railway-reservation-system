@@ -2,6 +2,7 @@ package com.railway.reservation.service.impl;
 
 import com.railway.reservation.dto.SeatAvailabilityDto;
 import com.railway.reservation.dto.TrainSearchResponseDto;
+import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.Train;
 import com.railway.reservation.model.TrainClass;
@@ -58,20 +59,7 @@ public class SearchServiceImpl implements SearchService {
         for (Train train : trains) {
             List<SeatAvailabilityDto> classDtos = new ArrayList<>();
             for (TrainClass tc : train.getClasses()) {
-                int bookedSeats = bookingRepository.countBookedSeats(
-                        train.getId(),
-                        tc.getId(),
-                        journeyDate,
-                        ACTIVE_STATUSES
-                );
-                int availableSeats = Math.max(0, tc.getTotalSeats() - bookedSeats);
-                classDtos.add(new SeatAvailabilityDto(
-                        tc.getId(),
-                        tc.getClassName(),
-                        tc.getTotalSeats(),
-                        availableSeats,
-                        tc.getFare()
-                ));
+                classDtos.add(calculateAvailableSeats(train, tc, journeyDate));
             }
 
             dtos.add(new TrainSearchResponseDto(
@@ -88,5 +76,52 @@ public class SearchServiceImpl implements SearchService {
         }
 
         return dtos;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SeatAvailabilityDto getSeatAvailability(Long trainId, String className, LocalDate journeyDate) {
+        if (trainId == null) {
+            throw new IllegalArgumentException("Train ID parameter is required.");
+        }
+        if (className == null || className.trim().isEmpty()) {
+            throw new IllegalArgumentException("Class name parameter is required.");
+        }
+        if (journeyDate == null) {
+            throw new IllegalArgumentException("Journey date parameter is required.");
+        }
+        if (journeyDate.isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("Journey date cannot be in the past.");
+        }
+
+        Train train = trainRepository.findById(trainId)
+                .orElseThrow(() -> new ResourceNotFoundException("Train not found with ID: " + trainId));
+
+        TrainClass trainClass = train.getClasses().stream()
+                .filter(c -> c.getClassName().equalsIgnoreCase(className.trim()))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Class '" + className + "' not found for train: " + train.getTrainNo()));
+
+        return calculateAvailableSeats(train, trainClass, journeyDate);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SeatAvailabilityDto calculateAvailableSeats(Train train, TrainClass trainClass, LocalDate journeyDate) {
+        int bookedSeats = bookingRepository.countBookedSeats(
+                train.getId(),
+                trainClass.getId(),
+                journeyDate,
+                ACTIVE_STATUSES
+        );
+        int availableSeats = Math.max(0, trainClass.getTotalSeats() - bookedSeats);
+        return new SeatAvailabilityDto(
+                trainClass.getId(),
+                trainClass.getClassName(),
+                trainClass.getTotalSeats(),
+                availableSeats,
+                trainClass.getFare()
+        );
     }
 }

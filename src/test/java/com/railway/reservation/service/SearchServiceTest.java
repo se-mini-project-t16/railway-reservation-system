@@ -1,6 +1,8 @@
 package com.railway.reservation.service;
 
+import com.railway.reservation.dto.SeatAvailabilityDto;
 import com.railway.reservation.dto.TrainSearchResponseDto;
+import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.Train;
 import com.railway.reservation.model.TrainClass;
@@ -11,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -19,11 +22,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -146,5 +151,113 @@ class SearchServiceTest {
         List<TrainSearchResponseDto> results = searchService.searchTrains("Chennai", "Bengaluru", tomorrow);
 
         assertThat(results.get(0).getClasses().get(0).getAvailableSeats()).isZero();
+    }
+
+    // ==========================================
+    // RRS-F-005 Seat Availability Calculation Tests
+    // ==========================================
+
+    @Test
+    @DisplayName("RRS-F-005: Calculate available seats for specific train and class (partial booking)")
+    void getSeatAvailability_partialBooking() {
+        LocalDate futureDate = LocalDate.now().plusDays(5);
+        when(trainRepository.findById(10L)).thenReturn(Optional.of(testTrain));
+        when(bookingRepository.countBookedSeats(eq(10L), eq(1L), eq(futureDate), any()))
+                .thenReturn(42);
+
+        SeatAvailabilityDto availability = searchService.getSeatAvailability(10L, "CC", futureDate);
+
+        assertThat(availability.getClassId()).isEqualTo(1L);
+        assertThat(availability.getClassName()).isEqualTo("CC");
+        assertThat(availability.getTotalSeats()).isEqualTo(100);
+        assertThat(availability.getAvailableSeats()).isEqualTo(58);
+        assertThat(availability.getFare()).isEqualByComparingTo("450.00");
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Fully booked train calculates 0 available seats")
+    void getSeatAvailability_fullyBooked() {
+        LocalDate futureDate = LocalDate.now().plusDays(3);
+        when(trainRepository.findById(10L)).thenReturn(Optional.of(testTrain));
+        when(bookingRepository.countBookedSeats(eq(10L), eq(1L), eq(futureDate), any()))
+                .thenReturn(100);
+
+        SeatAvailabilityDto availability = searchService.getSeatAvailability(10L, "CC", futureDate);
+
+        assertThat(availability.getAvailableSeats()).isZero();
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Zero bookings returns total seats as available")
+    void getSeatAvailability_zeroBookings() {
+        LocalDate futureDate = LocalDate.now().plusDays(2);
+        when(trainRepository.findById(10L)).thenReturn(Optional.of(testTrain));
+        when(bookingRepository.countBookedSeats(eq(10L), eq(1L), eq(futureDate), any()))
+                .thenReturn(0);
+
+        SeatAvailabilityDto availability = searchService.getSeatAvailability(10L, "cc", futureDate);
+
+        assertThat(availability.getAvailableSeats()).isEqualTo(100);
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Excludes CANCELLED and FAILED bookings from active seat count")
+    @SuppressWarnings("unchecked")
+    void calculateAvailableSeats_activeStatusesExcludeCancelledAndFailed() {
+        LocalDate futureDate = LocalDate.now().plusDays(4);
+        ArgumentCaptor<List<BookingStatus>> statusCaptor = ArgumentCaptor.forClass(List.class);
+
+        searchService.calculateAvailableSeats(testTrain, testClass, futureDate);
+
+        verify(bookingRepository).countBookedSeats(eq(10L), eq(1L), eq(futureDate), statusCaptor.capture());
+        List<BookingStatus> capturedStatuses = statusCaptor.getValue();
+        assertThat(capturedStatuses)
+                .containsExactlyInAnyOrder(BookingStatus.CONFIRMED, BookingStatus.PENDING)
+                .doesNotContain(BookingStatus.CANCELLED, BookingStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Throws ResourceNotFoundException for unknown train ID")
+    void getSeatAvailability_trainNotFound() {
+        LocalDate futureDate = LocalDate.now().plusDays(1);
+        when(trainRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> searchService.getSeatAvailability(999L, "CC", futureDate))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Train not found with ID: 999");
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Throws ResourceNotFoundException for unknown class on train")
+    void getSeatAvailability_classNotFound() {
+        LocalDate futureDate = LocalDate.now().plusDays(1);
+        when(trainRepository.findById(10L)).thenReturn(Optional.of(testTrain));
+
+        assertThatThrownBy(() -> searchService.getSeatAvailability(10L, "FIRST_AC", futureDate))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Class 'FIRST_AC' not found for train: 12675");
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Validates required parameters for getSeatAvailability")
+    void getSeatAvailability_parameterValidations() {
+        LocalDate futureDate = LocalDate.now().plusDays(1);
+        LocalDate pastDate = LocalDate.now().minusDays(1);
+
+        assertThatThrownBy(() -> searchService.getSeatAvailability(null, "CC", futureDate))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Train ID parameter is required");
+
+        assertThatThrownBy(() -> searchService.getSeatAvailability(10L, "   ", futureDate))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Class name parameter is required");
+
+        assertThatThrownBy(() -> searchService.getSeatAvailability(10L, "CC", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Journey date parameter is required");
+
+        assertThatThrownBy(() -> searchService.getSeatAvailability(10L, "CC", pastDate))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Journey date cannot be in the past");
     }
 }
