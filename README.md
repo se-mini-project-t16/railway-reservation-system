@@ -19,6 +19,21 @@ A web-based Railway Reservation System that allows passengers to search trains, 
 - **Database:** MySQL / H2 (for local testing)
 - **Build & Testing:** Maven, JUnit, Mockito, Postman, Apache JMeter
 
+## Local Setup
+
+The application requires `APP_JWT_SECRET` at startup. It must contain at least 32 UTF-8 bytes. In PowerShell, generate a random value for the current session and start the application:
+
+```powershell
+$jwtRandom = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$jwtBytes = New-Object byte[] 32
+$jwtRandom.GetBytes($jwtBytes)
+$env:APP_JWT_SECRET = [Convert]::ToBase64String($jwtBytes)
+$jwtRandom.Dispose()
+.\mvnw.cmd spring-boot:run
+```
+
+The value above remains in the current PowerShell session only. For deployments, provide `APP_JWT_SECRET` through the deployment platform's secret manager. Never put a real signing secret in source files or commit it to Git.
+
 ## Documentation
 
 ### [1. Software Requirements Specification (SRS)](docs/srs/)
