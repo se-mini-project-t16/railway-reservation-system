@@ -1,9 +1,10 @@
 package com.railway.reservation.controller;
 
-import com.railway.reservation.model.Train;
-import com.railway.reservation.model.TrainClass;
+import com.railway.reservation.model.*;
+import com.railway.reservation.repository.BookingRepository;
 import com.railway.reservation.repository.TrainClassRepository;
 import com.railway.reservation.repository.TrainRepository;
+import com.railway.reservation.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,20 +39,36 @@ class SearchControllerTest {
     @Autowired
     private TrainClassRepository trainClassRepository;
 
+    @Autowired
+    private BookingRepository bookingRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
     private Train savedTrain;
+    private TrainClass ccClass;
+    private TrainClass ecClass;
+    private User testUser;
 
     @BeforeEach
     void setUp() {
+        bookingRepository.deleteAll();
         trainRepository.deleteAll();
+        userRepository.deleteAll();
+
+        testUser = userRepository.save(new User("Passenger One", "passenger1@example.com", "9876543210", "hashedpw", Role.ROLE_PASSENGER));
 
         Train train = new Train("12675", "Kovai Express", "Chennai", "Bengaluru",
                 LocalTime.of(6, 10), LocalTime.of(11, 30));
-        TrainClass cc = new TrainClass("CC", 100, new BigDecimal("450.00"));
-        TrainClass ec = new TrainClass("EC", 40, new BigDecimal("950.00"));
-        train.addClass(cc);
-        train.addClass(ec);
+        ccClass = new TrainClass("CC", 100, new BigDecimal("450.00"));
+        ecClass = new TrainClass("EC", 40, new BigDecimal("950.00"));
+        train.addClass(ccClass);
+        train.addClass(ecClass);
 
         savedTrain = trainRepository.save(train);
+        // refresh references
+        ccClass = savedTrain.getClasses().stream().filter(c -> c.getClassName().equals("CC")).findFirst().orElseThrow();
+        ecClass = savedTrain.getClasses().stream().filter(c -> c.getClassName().equals("EC")).findFirst().orElseThrow();
     }
 
     @Test
@@ -192,5 +209,151 @@ class SearchControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].trainNo").value("12675"));
+    }
+
+    // ====================================================
+    // RRS-F-005 Seat Availability Endpoint & Integration Tests
+    // ====================================================
+
+    @Test
+    @DisplayName("RRS-F-005: GET /api/v1/trains/{id}/availability returns available seats and fare")
+    void getSeatAvailability_successful() throws Exception {
+        String journeyDate = LocalDate.now().plusDays(3).toString();
+
+        mockMvc.perform(get("/api/v1/trains/" + savedTrain.getId() + "/availability")
+                        .param("class", "CC")
+                        .param("date", journeyDate)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.className").value("CC"))
+                .andExpect(jsonPath("$.totalSeats").value(100))
+                .andExpect(jsonPath("$.availableSeats").value(100))
+                .andExpect(jsonPath("$.fare").value(450.00));
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Dynamically computes available seats excluding CANCELLED and FAILED bookings")
+    void getSeatAvailability_dynamicComputationWithBookings() throws Exception {
+        LocalDate travelDate = LocalDate.now().plusDays(4);
+
+        // 1. CONFIRMED booking with 3 passengers
+        Booking confirmedBooking = new Booking("PNR0000001", testUser, savedTrain, ccClass, travelDate, new BigDecimal("1350.00"));
+        confirmedBooking.setStatus(BookingStatus.CONFIRMED);
+        confirmedBooking.addPassenger(new Passenger("P1", 25, "M", "CC-1"));
+        confirmedBooking.addPassenger(new Passenger("P2", 26, "F", "CC-2"));
+        confirmedBooking.addPassenger(new Passenger("P3", 27, "M", "CC-3"));
+        bookingRepository.save(confirmedBooking);
+
+        // 2. PENDING booking with 2 passengers (also holds seats)
+        Booking pendingBooking = new Booking("PNR0000002", testUser, savedTrain, ccClass, travelDate, new BigDecimal("900.00"));
+        pendingBooking.setStatus(BookingStatus.PENDING);
+        pendingBooking.addPassenger(new Passenger("P4", 30, "M", "CC-4"));
+        pendingBooking.addPassenger(new Passenger("P5", 31, "F", "CC-5"));
+        bookingRepository.save(pendingBooking);
+
+        // 3. CANCELLED booking with 4 passengers (MUST BE EXCLUDED)
+        Booking cancelledBooking = new Booking("PNR0000003", testUser, savedTrain, ccClass, travelDate, new BigDecimal("1800.00"));
+        cancelledBooking.setStatus(BookingStatus.CANCELLED);
+        cancelledBooking.addPassenger(new Passenger("P6", 35, "M", "CC-6"));
+        cancelledBooking.addPassenger(new Passenger("P7", 36, "F", "CC-7"));
+        cancelledBooking.addPassenger(new Passenger("P8", 37, "M", "CC-8"));
+        cancelledBooking.addPassenger(new Passenger("P9", 38, "F", "CC-9"));
+        bookingRepository.save(cancelledBooking);
+
+        // 4. FAILED booking with 2 passengers (MUST BE EXCLUDED)
+        Booking failedBooking = new Booking("PNR0000004", testUser, savedTrain, ccClass, travelDate, new BigDecimal("900.00"));
+        failedBooking.setStatus(BookingStatus.FAILED);
+        failedBooking.addPassenger(new Passenger("P10", 40, "M", "CC-10"));
+        failedBooking.addPassenger(new Passenger("P11", 41, "F", "CC-11"));
+        bookingRepository.save(failedBooking);
+
+        // 5. Booking on a DIFFERENT date (MUST NOT affect travelDate)
+        Booking diffDateBooking = new Booking("PNR0000005", testUser, savedTrain, ccClass, travelDate.plusDays(2), new BigDecimal("450.00"));
+        diffDateBooking.setStatus(BookingStatus.CONFIRMED);
+        diffDateBooking.addPassenger(new Passenger("P12", 45, "M", "CC-1"));
+        bookingRepository.save(diffDateBooking);
+
+        // 6. Booking on a DIFFERENT class (EC instead of CC) (MUST NOT affect CC)
+        Booking diffClassBooking = new Booking("PNR0000006", testUser, savedTrain, ecClass, travelDate, new BigDecimal("950.00"));
+        diffClassBooking.setStatus(BookingStatus.CONFIRMED);
+        diffClassBooking.addPassenger(new Passenger("P13", 50, "F", "EC-1"));
+        bookingRepository.save(diffClassBooking);
+
+        // Expected booked seats for CC on travelDate: 3 (CONFIRMED) + 2 (PENDING) = 5
+        // Expected available seats for CC: 100 - 5 = 95
+        mockMvc.perform(get("/api/v1/trains/" + savedTrain.getId() + "/availability")
+                        .param("class", "CC")
+                        .param("date", travelDate.toString())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.className").value("CC"))
+                .andExpect(jsonPath("$.totalSeats").value(100))
+                .andExpect(jsonPath("$.availableSeats").value(95));
+
+        // Also verify the main search endpoint dynamically reflects 95 available seats
+        mockMvc.perform(get(SEARCH_URL)
+                        .param("src", "Chennai")
+                        .param("dst", "Bengaluru")
+                        .param("date", travelDate.toString())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].classes[?(@.className == 'CC')].availableSeats").value(contains(95)))
+                .andExpect(jsonPath("$[0].classes[?(@.className == 'EC')].availableSeats").value(contains(39)));
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Availability endpoint returns 404 for non-existent train")
+    void getSeatAvailability_trainNotFound() throws Exception {
+        String journeyDate = LocalDate.now().plusDays(2).toString();
+
+        mockMvc.perform(get("/api/v1/trains/99999/availability")
+                        .param("class", "CC")
+                        .param("date", journeyDate))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(containsString("Train not found with ID: 99999")));
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Availability endpoint returns 404 for non-existent class")
+    void getSeatAvailability_classNotFound() throws Exception {
+        String journeyDate = LocalDate.now().plusDays(2).toString();
+
+        mockMvc.perform(get("/api/v1/trains/" + savedTrain.getId() + "/availability")
+                        .param("class", "3A")
+                        .param("date", journeyDate))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(containsString("Class '3A' not found for train")));
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Availability endpoint returns 400 for missing class parameter")
+    void getSeatAvailability_missingClass() throws Exception {
+        String journeyDate = LocalDate.now().plusDays(2).toString();
+
+        mockMvc.perform(get("/api/v1/trains/" + savedTrain.getId() + "/availability")
+                        .param("date", journeyDate))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("Class name ('class') parameter is required")));
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Availability endpoint returns 400 for missing date parameter")
+    void getSeatAvailability_missingDate() throws Exception {
+        mockMvc.perform(get("/api/v1/trains/" + savedTrain.getId() + "/availability")
+                        .param("class", "CC"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("Journey date ('date') parameter is required")));
+    }
+
+    @Test
+    @DisplayName("RRS-F-005: Availability endpoint returns 400 for past date")
+    void getSeatAvailability_pastDate() throws Exception {
+        String yesterday = LocalDate.now().minusDays(1).toString();
+
+        mockMvc.perform(get("/api/v1/trains/" + savedTrain.getId() + "/availability")
+                        .param("class", "CC")
+                        .param("date", yesterday))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("Journey date cannot be in the past")));
     }
 }
