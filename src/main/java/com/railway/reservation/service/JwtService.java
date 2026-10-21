@@ -1,0 +1,48 @@
+package com.railway.reservation.service;
+
+import com.railway.reservation.model.User;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Date;
+
+@Service
+public class JwtService {
+
+    private final SecretKey signingKey;
+    private final long expirationMillis;
+
+    public JwtService(
+            @Value("${app.jwt.secret}") String secret,
+            @Value("${app.jwt.expiration-ms}") long expirationMillis) {
+        byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (secretBytes.length < 32) {
+            throw new IllegalArgumentException("APP_JWT_SECRET must contain at least 32 UTF-8 bytes.");
+        }
+        if (expirationMillis <= 0) {
+            throw new IllegalArgumentException("JWT expiration must be a positive number of milliseconds.");
+        }
+
+        this.signingKey = Keys.hmacShaKeyFor(secretBytes);
+        this.expirationMillis = expirationMillis;
+    }
+
+    public String generateToken(User user) {
+        Instant issuedAt = Instant.now();
+        Instant expiresAt = issuedAt.plusMillis(expirationMillis);
+
+        return Jwts.builder()
+                .subject(user.getEmail())
+                .claim("userId", user.getId())
+                .claim("role", user.getRole().name())
+                .issuedAt(Date.from(issuedAt))
+                .expiration(Date.from(expiresAt))
+                .signWith(signingKey)
+                .compact();
+    }
+}

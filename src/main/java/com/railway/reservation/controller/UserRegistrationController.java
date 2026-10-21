@@ -2,6 +2,9 @@ package com.railway.reservation.controller;
 
 import com.railway.reservation.dto.RegisterRequestDto;
 import com.railway.reservation.dto.RegisterResponseDto;
+import com.railway.reservation.dto.LoginRequestDto;
+import com.railway.reservation.dto.LoginResponseDto;
+import com.railway.reservation.service.AuthenticationService;
 import com.railway.reservation.service.UserRegistrationService;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,14 +26,23 @@ import java.util.Map;
 public class UserRegistrationController {
 
     private final UserRegistrationService registrationService;
+    private final AuthenticationService authenticationService;
 
-    public UserRegistrationController(UserRegistrationService registrationService) {
+    public UserRegistrationController(
+            UserRegistrationService registrationService,
+            AuthenticationService authenticationService) {
         this.registrationService = registrationService;
+        this.authenticationService = authenticationService;
     }
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(registrationService.register(request));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequestDto request) {
+        return ResponseEntity.ok(authenticationService.login(request));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
