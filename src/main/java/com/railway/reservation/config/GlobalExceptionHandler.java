@@ -1,7 +1,9 @@
 package com.railway.reservation.config;
 
+import com.railway.reservation.exception.DuplicateTrainException;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.exception.SeatUnavailableException;
+import com.railway.reservation.exception.TrainDeletionException;
 import jakarta.servlet.http.HttpServletRequest;
 import com.railway.reservation.service.DuplicateEmailException;
 import com.railway.reservation.service.InvalidCredentialsException;
@@ -79,6 +81,32 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateEmailException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicateEmail(
             DuplicateEmailException ex, HttpServletRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", "Conflict");
+        body.put("message", ex.getMessage());
+        body.put("path", request.getRequestURI());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(DuplicateTrainException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateTrain(
+            DuplicateTrainException ex, HttpServletRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", "Conflict");
+        body.put("message", ex.getMessage());
+        body.put("path", request.getRequestURI());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(TrainDeletionException.class)
+    public ResponseEntity<Map<String, Object>> handleTrainDeletion(
+            TrainDeletionException ex, HttpServletRequest request) {
         Map<String, Object> body = new HashMap<>();
         body.put("timestamp", LocalDateTime.now());
         body.put("status", HttpStatus.CONFLICT.value());
