@@ -16,6 +16,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findByPnr(String pnr);
     List<Booking> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<Booking> findByTrainIdAndJourneyDate(Long trainId, LocalDate journeyDate);
+    boolean existsByTrainId(Long trainId);
 
     @Query("SELECT COALESCE(SUM(SIZE(b.passengers)), 0) FROM Booking b " +
            "WHERE b.train.id = :trainId AND b.trainClass.id = :classId " +

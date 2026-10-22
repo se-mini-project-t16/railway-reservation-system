@@ -1,6 +1,8 @@
 package com.railway.reservation.service;
 
 import com.railway.reservation.model.User;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,5 +46,30 @@ public class JwtService {
                 .expiration(Date.from(expiresAt))
                 .signWith(signingKey)
                 .compact();
+    }
+
+    public Claims parseAndValidateToken(String token) {
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            parseAndValidateToken(token);
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public String getEmailFromToken(String token) {
+        return parseAndValidateToken(token).getSubject();
+    }
+
+    public String getRoleFromToken(String token) {
+        return parseAndValidateToken(token).get("role", String.class);
     }
 }
