@@ -15,12 +15,22 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -85,6 +95,135 @@ class UserLoginControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(response).doesNotContain(RAW_PASSWORD).doesNotContain("passwordHash");
+    }
+
+    @Test
+    void locksAccountAfterFiveFailedAttemptsAndBlocksCorrectPassword() throws Exception {
+        User user = createUser("kishan@example.com");
+
+        for (int attempt = 0; attempt < 5; attempt++) {
+            mockMvc.perform(post(LOGIN_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(loginRequest("kishan@example.com", "incorrect-password")))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.message").value("Invalid credentials."));
+        }
+
+        User lockedUser = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(lockedUser.getFailedLoginAttempts()).isEqualTo(5);
+        assertThat(lockedUser.getLockedUntil()).isAfter(LocalDateTime.now());
+
+        mockMvc.perform(post(LOGIN_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginRequest("kishan@example.com", RAW_PASSWORD)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Invalid credentials."));
+
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getFailedLoginAttempts()).isEqualTo(5);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void persistsLockoutAcrossCommittedLoginRequests() throws Exception {
+        String email = "lockout-" + UUID.randomUUID() + "@example.com";
+        User user = createUser(email);
+
+        try {
+            for (int attempt = 1; attempt <= 5; attempt++) {
+                mockMvc.perform(post(LOGIN_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(loginRequest(email, "incorrect-password")))
+                        .andExpect(status().isUnauthorized())
+                        .andExpect(jsonPath("$.message").value("Invalid credentials."));
+
+                User persistedUser = userRepository.findById(user.getId()).orElseThrow();
+                assertThat(persistedUser.getFailedLoginAttempts()).isEqualTo(attempt);
+                if (attempt < 5) {
+                    assertThat(persistedUser.getLockedUntil()).isNull();
+                } else {
+                    assertThat(persistedUser.getLockedUntil()).isAfter(LocalDateTime.now());
+                }
+            }
+
+            User lockedUser = userRepository.findById(user.getId()).orElseThrow();
+            LocalDateTime persistedLockExpiry = lockedUser.getLockedUntil();
+
+            mockMvc.perform(post(LOGIN_URL)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(loginRequest(email, RAW_PASSWORD)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.message").value("Invalid credentials."));
+
+            User afterCorrectPasswordAttempt = userRepository.findById(user.getId()).orElseThrow();
+            assertThat(afterCorrectPasswordAttempt.getFailedLoginAttempts()).isEqualTo(5);
+            assertThat(afterCorrectPasswordAttempt.getLockedUntil()).isEqualTo(persistedLockExpiry);
+        } finally {
+            userRepository.deleteById(user.getId());
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void concurrentFailedLoginsAreCountedWithoutLostUpdates() throws Exception {
+        String email = "lockout-race-" + UUID.randomUUID() + "@example.com";
+        User user = createUser(email);
+        int concurrentAttempts = 5;
+        CountDownLatch ready = new CountDownLatch(concurrentAttempts);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(concurrentAttempts);
+        List<Future<Integer>> responses = new ArrayList<>();
+
+        try {
+            for (int attempt = 0; attempt < concurrentAttempts; attempt++) {
+                responses.add(executor.submit(() -> {
+                    ready.countDown();
+                    if (!start.await(5, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("Timed out waiting to start concurrent login request.");
+                    }
+                    return mockMvc.perform(post(LOGIN_URL)
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(loginRequest(email, "incorrect-password")))
+                            .andReturn().getResponse().getStatus();
+                }));
+            }
+
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            for (Future<Integer> response : responses) {
+                assertThat(response.get(15, TimeUnit.SECONDS)).isEqualTo(401);
+            }
+
+            User persistedUser = userRepository.findById(user.getId()).orElseThrow();
+            assertThat(persistedUser.getFailedLoginAttempts()).isEqualTo(concurrentAttempts);
+            assertThat(persistedUser.getLockedUntil()).isAfter(LocalDateTime.now());
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            boolean terminated = executor.awaitTermination(5, TimeUnit.SECONDS);
+            try {
+                userRepository.deleteById(user.getId());
+            } finally {
+                assertThat(terminated).as("concurrent login requests should finish before cleanup").isTrue();
+            }
+        }
+    }
+
+    @Test
+    void successfulLoginResetsFailuresAndExpiredLock() throws Exception {
+        User user = createUser("kishan@example.com");
+        user.setFailedLoginAttempts(2);
+        user.setLockedUntil(LocalDateTime.now().minusMinutes(1));
+        userRepository.save(user);
+
+        mockMvc.perform(post(LOGIN_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(loginRequest("kishan@example.com", RAW_PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isString());
+
+        User loggedInUser = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(loggedInUser.getFailedLoginAttempts()).isZero();
+        assertThat(loggedInUser.getLockedUntil()).isNull();
     }
 
     @Test
