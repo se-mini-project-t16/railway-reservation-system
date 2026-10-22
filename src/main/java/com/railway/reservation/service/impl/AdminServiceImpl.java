@@ -57,7 +57,7 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
-        Train savedTrain = trainRepository.save(train);
+        Train savedTrain = trainRepository.saveAndFlush(train);
         return mapToResponseDto(savedTrain);
     }
 
@@ -79,6 +79,8 @@ public class AdminServiceImpl implements AdminService {
         train.setArrivalTime(updateTrainDto.getArrivalTime());
 
         train.getClasses().clear();
+        trainRepository.flush();
+
         if (updateTrainDto.getClasses() != null) {
             for (TrainClassDto classDto : updateTrainDto.getClasses()) {
                 TrainClass trainClass = new TrainClass(
@@ -90,7 +92,7 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
-        Train updatedTrain = trainRepository.save(train);
+        Train updatedTrain = trainRepository.saveAndFlush(train);
         return mapToResponseDto(updatedTrain);
     }
 
@@ -104,6 +106,7 @@ public class AdminServiceImpl implements AdminService {
         }
 
         trainRepository.delete(train);
+        trainRepository.flush();
     }
 
     private TrainResponseDto mapToResponseDto(Train train) {
