@@ -15,5 +15,7 @@ public interface BookingService {
      * Retrieves booking details by PNR (RRS-F-011).
      */
     BookingResponseDto getBookingByPnr(String pnr);
+
+    BookingResponseDto getTicketByPnr(String pnr, Long userId);
 }
 

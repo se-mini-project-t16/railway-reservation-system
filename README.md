@@ -36,6 +36,10 @@ $jwtRandom.Dispose()
 
 The value above remains in the current PowerShell session only. For deployments, provide `APP_JWT_SECRET` through the deployment platform's secret manager. Never put a real signing secret in source files or commit it to Git.
 
+## Booking tickets
+
+After signing in, send the returned JWT as `Authorization: Bearer <token>` to retrieve your ticket details at `GET /api/v1/bookings/{pnr}` or download the same ticket as a PDF from `GET /api/v1/bookings/{pnr}/ticket.pdf`. Ticket lookups are restricted to the authenticated booking owner. The current application does not implement payment confirmation, so ticket responses are labeled `NOT_VERIFIED`; a confirmed booking status alone is not represented as proof of payment.
+
 ## Documentation
 
 ### [1. Software Requirements Specification (SRS)](docs/srs/)

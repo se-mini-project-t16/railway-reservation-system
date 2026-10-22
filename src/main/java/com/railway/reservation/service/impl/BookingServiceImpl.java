@@ -120,6 +120,17 @@ public class BookingServiceImpl implements BookingService {
         return mapToResponseDto(booking, passengerDtos);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public BookingResponseDto getTicketByPnr(String pnr, Long userId) {
+        Booking booking = bookingRepository.findByPnrAndUserId(pnr, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found."));
+        List<PassengerDto> passengerDtos = booking.getPassengers().stream()
+                .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo()))
+                .toList();
+        return mapToResponseDto(booking, passengerDtos);
+    }
+
     private String generateUniquePnr() {
         String pnr;
         do {
@@ -157,6 +168,8 @@ public class BookingServiceImpl implements BookingService {
         dto.setJourneyDate(booking.getJourneyDate());
         dto.setBookingTime(booking.getCreatedAt());
         dto.setPassengers(passengerDtos);
+        // The project has no payment confirmation flow; never infer payment success from booking status.
+        dto.setPaymentStatus("NOT_VERIFIED");
 
         return dto;
     }

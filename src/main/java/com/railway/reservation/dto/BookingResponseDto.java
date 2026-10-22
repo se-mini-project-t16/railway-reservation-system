@@ -33,6 +33,7 @@ public class BookingResponseDto {
     private LocalDate journeyDate;
     private LocalDateTime bookingTime;
     private List<PassengerDto> passengers;
+    private String paymentStatus;
 
     public BookingResponseDto() {}
 
@@ -89,5 +90,8 @@ public class BookingResponseDto {
 
     public List<PassengerDto> getPassengers() { return passengers; }
     public void setPassengers(List<PassengerDto> passengers) { this.passengers = passengers; }
+
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
 }
 

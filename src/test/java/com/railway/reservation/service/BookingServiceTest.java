@@ -95,6 +95,7 @@ class BookingServiceTest {
         assertNotNull(response.getPnr());
         assertEquals(10, response.getPnr().length());
         assertEquals(BookingStatus.CONFIRMED, response.getStatus());
+        assertEquals("NOT_VERIFIED", response.getPaymentStatus());
         assertEquals(BigDecimal.valueOf(2300.00), response.getTotalFare());
         assertEquals(2, response.getPassengers().size());
         assertEquals("AC3-11", response.getPassengers().get(0).getSeatNo());
@@ -169,6 +170,16 @@ class BookingServiceTest {
         when(bookingRepository.findByPnr("INVALIDPNR")).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> bookingService.getBookingByPnr("INVALIDPNR"));
+    }
+
+    @Test
+    @DisplayName("Ticket lookup scopes PNR to the authenticated owner")
+    void testGetTicketByPnr_EnforcesOwnership() {
+        when(bookingRepository.findByPnrAndUserId("OWNEDPNR", 1L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> bookingService.getTicketByPnr("OWNEDPNR", 1L));
+        verify(bookingRepository).findByPnrAndUserId("OWNEDPNR", 1L);
+        verify(bookingRepository, never()).findByPnr("OWNEDPNR");
     }
 }
 

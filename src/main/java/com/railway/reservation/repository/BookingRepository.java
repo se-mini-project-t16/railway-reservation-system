@@ -14,6 +14,7 @@ import java.util.Optional;
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findByPnr(String pnr);
+    Optional<Booking> findByPnrAndUserId(String pnr, Long userId);
     List<Booking> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<Booking> findByTrainIdAndJourneyDate(Long trainId, LocalDate journeyDate);
 
