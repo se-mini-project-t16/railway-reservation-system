@@ -13,11 +13,13 @@ A web-based Railway Reservation System that allows passengers to search trains, 
 
 ## Technology Stack
 
-- **Backend:** Java, Spring Boot (Spring Web MVC, Spring Data JPA, Hibernate, Bean Validation)
+- **Backend:** Java 25 (LTS), Spring Boot 4.1.1 (Spring Web MVC, Spring Data JPA, Hibernate, Bean Validation)
 - **Security:** Spring Security, JWT, BCrypt
-- **Frontend:** Thymeleaf / React, Tailwind CSS / Bootstrap
-- **Database:** MySQL / H2 (for local testing)
-- **Build & Testing:** Maven, JUnit, Mockito, Postman, Apache JMeter
+- **Frontend:** HTML5, CSS3, Bootstrap 5, Modern JavaScript
+- **Database:** MySQL / H2 In-Memory (for zero-setup local testing)
+- **Build & Testing:** Maven, JUnit 5, Mockito, Spring Test
+
+> **Platform Modernization Note:** The initial software requirements and design specifications (SRS/SAD/STP) originally designated Java 17 and Spring Boot 3.3.4 as the project baseline. The active implementation platform has been modernized to **Java 25 (LTS)** and **Spring Boot 4.1.1**, maintaining 100% functional traceability with all specification requirements.
 
 ## Local Setup
 
