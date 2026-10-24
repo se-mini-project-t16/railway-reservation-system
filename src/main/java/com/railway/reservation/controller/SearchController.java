@@ -1,5 +1,7 @@
 package com.railway.reservation.controller;
 
+import com.railway.reservation.validation.SafeTextRules;
+
 import com.railway.reservation.dto.SeatAvailabilityDto;
 import com.railway.reservation.dto.TrainSearchResponseDto;
 import com.railway.reservation.service.SearchService;
@@ -47,6 +49,9 @@ public class SearchController {
             throw new IllegalArgumentException("Invalid journey date format. Expected format: YYYY-MM-DD.");
         }
 
+        SafeTextRules.requireSafe("Source station ('src')", src);
+        SafeTextRules.requireSafe("Destination station ('dst')", dst);
+
         List<TrainSearchResponseDto> results = searchService.searchTrains(src.trim(), dst.trim(), journeyDate);
         if (results.isEmpty()) {
             return ResponseEntity.ok()
@@ -76,6 +81,8 @@ public class SearchController {
         } catch (DateTimeParseException ex) {
             throw new IllegalArgumentException("Invalid journey date format. Expected format: YYYY-MM-DD.");
         }
+
+        SafeTextRules.requireSafe("Class name ('class')", className);
 
         SeatAvailabilityDto availability = searchService.getSeatAvailability(trainId, className.trim(), journeyDate);
         return ResponseEntity.ok(availability);

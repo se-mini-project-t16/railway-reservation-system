@@ -1,5 +1,7 @@
 package com.railway.reservation.dto;
 
+import com.railway.reservation.validation.SafeText;
+
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -12,6 +14,7 @@ public class TrainClassDto {
 
     @NotBlank(message = "Class name must not be blank")
     @Size(max = 50, message = "Class name cannot exceed 50 characters")
+    @SafeText
     private String className;
 
     @Min(value = 1, message = "Total seats must be at least 1")

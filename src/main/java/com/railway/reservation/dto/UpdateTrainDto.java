@@ -1,5 +1,7 @@
 package com.railway.reservation.dto;
 
+import com.railway.reservation.validation.SafeText;
+
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -15,18 +17,22 @@ public class UpdateTrainDto {
 
     @NotBlank(message = "Train number must not be blank")
     @Size(max = 20, message = "Train number cannot exceed 20 characters")
+    @SafeText
     private String trainNo;
 
     @NotBlank(message = "Train name must not be blank")
     @Size(max = 120, message = "Train name cannot exceed 120 characters")
+    @SafeText
     private String name;
 
     @NotBlank(message = "Source station must not be blank")
     @Size(max = 80, message = "Source station cannot exceed 80 characters")
+    @SafeText
     private String sourceStation;
 
     @NotBlank(message = "Destination station must not be blank")
     @Size(max = 80, message = "Destination station cannot exceed 80 characters")
+    @SafeText
     private String destinationStation;
 
     @NotNull(message = "Departure time is required")
