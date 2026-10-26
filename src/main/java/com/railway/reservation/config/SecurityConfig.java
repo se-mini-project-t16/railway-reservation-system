@@ -75,6 +75,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/health/**").permitAll()
                 .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
                 .requestMatchers("/api/v1/trains/**").permitAll()
+                .requestMatchers("/api/v1/bookings/**").permitAll()
+                .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/favicon.ico").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .anyRequest().permitAll() // Allow initial sprint development, lock down per module
             )
