@@ -1,5 +1,7 @@
 package com.railway.reservation.dto;
 
+import com.railway.reservation.validation.SafeText;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
@@ -12,6 +14,7 @@ public class RegisterRequestDto {
 
     @NotBlank
     @Size(max = 100)
+    @SafeText
     private String name;
 
     @NotBlank
