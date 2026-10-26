@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Railway Reservation System - Fast, responsive booking, train search, real-time seat availability, and PNR status lookup.">
+  <title>Railway Reservation System — Book Train Tickets</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Application Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <a href="#" class="brand" id="brandHomeLink" aria-label="Railway Reservation Home">
+        <span class="brand-icon" aria-hidden="true">🚆</span>
+        <div class="brand-text">
+          <h1>Railway Reservation System</h1>
+          <span class="subtext">Official Ticket Booking &amp; Seat Availability Portal</span>
+        </div>
+      </a>
+
+      <div class="header-actions">
+        <div class="timer-badge" id="uxTimerBadge" title="TC-UX-01 Booking Journey Timer (Target: &lt; 5 minutes)">
+          <span aria-hidden="true">⏱️</span>
+          <span>Time: <strong id="timerDisplay">00:00</strong></span>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" id="openPnrModalBtn" aria-haspopup="dialog">
+          🔍 Check PNR Status
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="container" id="mainContent">
+
+    <!-- Flash Notification Container (SAD Section 4.6) -->
+    <div id="flashContainer" role="region" aria-label="Notifications" aria-live="polite"></div>
+
+    <!-- Step 1: Train Search Card -->
+    <section class="card" id="searchCard" aria-labelledby="searchHeading">
+      <h2 class="card-title" id="searchHeading">
+        <span>🔎</span> Search Trains &amp; Seat Availability
+      </h2>
+      <p class="card-subtitle">
+        Enter your journey route and date to query available trains, timings, classes, and real-time seat availability.
+      </p>
+
+      <form id="trainSearchForm" novalidate>
+        <div class="form-grid">
+          <!-- Source Station -->
+          <div class="form-group" id="srcGroup">
+            <label for="srcInput">
+              From Station <span class="required" aria-hidden="true">*</span>
+            </label>
+            <input type="text"
+                   id="srcInput"
+                   name="src"
+                   class="form-control"
+                   placeholder="e.g. Chennai"
+                   autocomplete="off"
+                   required
+                   aria-required="true"
+                   aria-describedby="srcHint srcError">
+            <span class="field-hint" id="srcHint">Departure station name</span>
+            <span class="invalid-feedback" id="srcError" role="alert">Source station is required.</span>
+          </div>
+
+          <!-- Swap Stations Button -->
+          <button type="button"
+                  id="swapStationsBtn"
+                  class="btn-icon-swap"
+                  title="Swap From and To stations"
+                  aria-label="Swap From and To stations">
+            ⇄
+          </button>
+
+          <!-- Destination Station -->
+          <div class="form-group" id="dstGroup">
+            <label for="dstInput">
+              To Station <span class="required" aria-hidden="true">*</span>
+            </label>
+            <input type="text"
+                   id="dstInput"
+                   name="dst"
+                   class="form-control"
+                   placeholder="e.g. Bengaluru"
+                   autocomplete="off"
+                   required
+                   aria-required="true"
+                   aria-describedby="dstHint dstError">
+            <span class="field-hint" id="dstHint">Arrival destination station</span>
+            <span class="invalid-feedback" id="dstError" role="alert">Destination station is required.</span>
+          </div>
+
+          <!-- Journey Date -->
+          <div class="form-group" id="dateGroup">
+            <label for="dateInput">
+              Journey Date <span class="required" aria-hidden="true">*</span>
+            </label>
+            <input type="date"
+                   id="dateInput"
+                   name="date"
+                   class="form-control"
+                   required
+                   aria-required="true"
+                   aria-describedby="dateHint dateError">
+            <span class="field-hint" id="dateHint">Date cannot be in the past</span>
+            <span class="invalid-feedback" id="dateError" role="alert">Valid journey date is required.</span>
+          </div>
+
+          <!-- Search Button -->
+          <div class="form-group">
+            <button type="submit" id="searchSubmitBtn" class="btn btn-primary" style="width: 100%;">
+              <span id="searchBtnSpinner" class="spinner" style="display: none;" aria-hidden="true"></span>
+              <span id="searchBtnText">Find Trains</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Route Chips -->
+        <div class="quick-chips">
+          <span class="chip-label">Popular routes:</span>
+          <button type="button" class="chip" data-src="Chennai" data-dst="Bengaluru">Chennai ➔ Bengaluru</button>
+          <button type="button" class="chip" data-src="Bengaluru" data-dst="Chennai">Bengaluru ➔ Chennai</button>
+          <button type="button" class="chip" data-src="Mumbai" data-dst="Delhi">Mumbai ➔ Delhi</button>
+          <button type="button" class="chip" data-src="Delhi" data-dst="Mumbai">Delhi ➔ Mumbai</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Step 2: Search Results Section -->
+    <section id="resultsSection" style="display: none;" aria-labelledby="resultsHeading">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+          <h2 class="card-title" id="resultsHeading" style="margin: 0;">
+            <span>📋</span> Available Trains (<span id="resultsCount">0</span>)
+          </h2>
+          <span id="resultsRouteSummary" style="font-weight: 600; color: var(--primary);"></span>
+        </div>
+
+        <div id="trainsListContainer" class="train-results-container"></div>
+      </div>
+    </section>
+
+    <!-- Step 3: Passenger Details & Booking Section -->
+    <section id="bookingSection" style="display: none;" aria-labelledby="bookingHeading">
+      <div class="card">
+        <h2 class="card-title" id="bookingHeading">
+          <span>🎫</span> Passenger Details &amp; Ticket Reservation
+        </h2>
+        <p class="card-subtitle">
+          Confirm passenger information to reserve seats and generate your confirmed PNR ticket.
+        </p>
+
+        <!-- Selected Train Recap -->
+        <div id="bookingRecap" class="summary-box" style="margin-bottom: 1.5rem; background: #f8fafc; border-color: #cbd5e1;">
+          <div>
+            <div style="font-weight: 700; font-size: 1.05rem;" id="recapTrainName">Train</div>
+            <div style="color: var(--text-muted); font-size: 0.85rem;" id="recapRoute">Route</div>
+          </div>
+          <div>
+            <span style="font-weight: 600;">Selected Class: </span>
+            <span id="recapClass" style="background: var(--primary-light); color: var(--primary); padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 700;">CC</span>
+            <span style="margin-left: 0.75rem; font-weight: 600;">Fare per seat: </span>
+            <span id="recapFare" style="color: var(--secondary); font-weight: 700;">₹0.00</span>
+          </div>
+        </div>
+
+        <form id="passengerBookingForm" novalidate>
+          <!-- User / Account ID selection -->
+          <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f1f5f9; border-radius: var(--radius); border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+              <div style="flex: 1; min-width: 250px;">
+                <label for="userIdInput" style="font-weight: 600; font-size: 0.9rem;">
+                  Booking Account User ID <span class="required" aria-hidden="true">*</span>
+                </label>
+                <input type="number"
+                       id="userIdInput"
+                       class="form-control"
+                       placeholder="e.g. 1"
+                       min="1"
+                       required
+                       style="margin-top: 0.25rem;">
+                <span class="field-hint">Enter your registered User ID, or use Quick Guest Account</span>
+              </div>
+              <div>
+                <button type="button" class="btn btn-secondary btn-sm" id="quickRegisterBtn">
+                  ⚡ Auto-Create Demo Passenger Account
+                </button>
+              </div>
+            </div>
+            <span class="invalid-feedback" id="userIdError" style="display: none; margin-top: 0.35rem;">Please provide a valid User ID.</span>
+          </div>
+
+          <!-- Passenger Rows -->
+          <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem;">Passenger List (Max 6)</h3>
+          <div style="overflow-x: auto;">
+            <table class="passenger-table" id="passengersTable">
+              <thead>
+                <tr>
+                  <th style="width: 5%;">#</th>
+                  <th style="width: 45%;">Full Name <span class="required">*</span></th>
+                  <th style="width: 20%;">Age (1-120) <span class="required">*</span></th>
+                  <th style="width: 20%;">Gender <span class="required">*</span></th>
+                  <th style="width: 10%; text-align: center;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="passengerRowsContainer">
+                <!-- Dynamically generated rows -->
+              </tbody>
+            </table>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <button type="button" class="btn btn-secondary btn-sm" id="addPassengerBtn">
+              + Add Another Passenger
+            </button>
+          </div>
+
+          <!-- Live Fare Total and Booking Submit -->
+          <div class="summary-box">
+            <div>
+              <div style="font-size: 0.9rem; color: #166534;">Total Journey Fare:</div>
+              <div class="summary-total" id="totalFareDisplay">₹0.00</div>
+              <div style="font-size: 0.8rem; color: #166534;" id="passengerCountSummary">1 Passenger</div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem;">
+              <button type="button" class="btn btn-secondary" id="cancelBookingStepBtn">Cancel</button>
+              <button type="submit" class="btn btn-success" id="confirmBookingBtn">
+                <span id="bookingBtnSpinner" class="spinner" style="display: none;" aria-hidden="true"></span>
+                <span id="bookingBtnText">Confirm &amp; Book Ticket</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Step 4: Booking Confirmation Section -->
+    <section id="confirmationSection" style="display: none;" aria-labelledby="confirmationHeading">
+      <div class="confirmation-card">
+        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+          <span style="font-size: 2rem;">✅</span>
+          <div>
+            <h2 id="confirmationHeading" style="font-size: 1.4rem; font-weight: 800; color: #14532d; margin: 0;">
+              Booking Successfully Confirmed!
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+              Your ticket has been booked and seats have been allocated. Keep your PNR for future reference.
+            </p>
+          </div>
+        </div>
+
+        <div style="margin: 1.5rem 0; text-align: center;">
+          <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">PASSENGER RECORD NUMBER (PNR)</div>
+          <div class="pnr-highlight" id="confirmedPnrDisplay">XXXXXXXXXX</div>
+          <div>
+            <button type="button" class="btn btn-secondary btn-sm" id="copyPnrBtn">
+              📋 Copy PNR
+            </button>
+          </div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1.5rem;">
+          <div class="form-grid" style="align-items: start;">
+            <div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">TRAIN &amp; ROUTE</div>
+              <div style="font-weight: 700;" id="confTrainDetails">-</div>
+              <div style="font-size: 0.85rem;" id="confRouteDetails">-</div>
+            </div>
+            <div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">JOURNEY DATE &amp; TIMINGS</div>
+              <div style="font-weight: 700;" id="confJourneyDate">-</div>
+              <div style="font-size: 0.85rem;" id="confTimings">-</div>
+            </div>
+            <div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">CLASS &amp; FARE</div>
+              <div style="font-weight: 700;" id="confClassDetails">-</div>
+              <div style="font-size: 0.85rem; color: var(--secondary); font-weight: 700;" id="confTotalFare">-</div>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem;">Confirmed Passengers &amp; Seat Numbers</h3>
+        <div style="overflow-x: auto; margin-bottom: 1.5rem;">
+          <table class="passenger-table" id="confirmedPassengersTable">
+            <thead>
+              <tr>
+                <th>Seat No</th>
+                <th>Passenger Name</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="confirmedPassengersBody"></tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secondary" onclick="window.print()">🖨️ Print Ticket</button>
+          <button type="button" class="btn btn-primary" id="bookAnotherBtn">Book Another Ticket</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- PNR Status Modal -->
+  <div class="modal-overlay" id="pnrModal" role="dialog" aria-modal="true" aria-labelledby="pnrModalTitle">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="pnrModalTitle" style="font-size: 1.25rem; font-weight: 700; margin: 0;">Check PNR Status</h2>
+        <button type="button" class="modal-close" id="closePnrModalBtn" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <form id="pnrSearchForm" style="margin-bottom: 1rem;">
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text"
+                 id="pnrInput"
+                 class="form-control"
+                 placeholder="Enter 10-character PNR"
+                 maxlength="10"
+                 required
+                 style="text-transform: uppercase;">
+          <button type="submit" class="btn btn-primary" id="pnrSearchSubmitBtn">
+            <span id="pnrBtnSpinner" class="spinner" style="display: none;" aria-hidden="true"></span>
+            <span>Check</span>
+          </button>
+        </div>
+        <span class="invalid-feedback" id="pnrInputError" style="display: none; margin-top: 0.35rem;">Please enter a valid 10-character PNR.</span>
+      </form>
+
+      <div id="pnrResultContainer" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="container" style="margin: 0 auto;">
+      <p>Railway Reservation System &bull; Software Engineering Mini-Project (UE24CS341A) &bull; Team 16</p>
+      <p style="margin-top: 0.25rem; font-size: 0.775rem;">Compliant with SRS RRS-NF-003 and SAD Section 4.6 UX Guidelines</p>
+    </div>
+  </footer>
+
+  <!-- Application Logic -->
+  <script src="js/app.js"></script>
+</body>
+</html>
