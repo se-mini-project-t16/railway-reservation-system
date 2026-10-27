@@ -3,11 +3,13 @@ package com.railway.reservation.service.impl;
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
 import com.railway.reservation.dto.PassengerDto;
+import com.railway.reservation.dto.PaymentSessionDto;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.exception.SeatUnavailableException;
 import com.railway.reservation.model.*;
 import com.railway.reservation.repository.*;
 import com.railway.reservation.service.BookingService;
+import com.railway.reservation.service.PaymentService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,18 +30,21 @@ public class BookingServiceImpl implements BookingService {
     private final TrainRepository trainRepository;
     private final TrainClassRepository trainClassRepository;
     private final PassengerRepository passengerRepository;
+    private final PaymentService paymentService;
 
     public BookingServiceImpl(
             BookingRepository bookingRepository,
             UserRepository userRepository,
             TrainRepository trainRepository,
             TrainClassRepository trainClassRepository,
-            PassengerRepository passengerRepository) {
+            PassengerRepository passengerRepository,
+            PaymentService paymentService) {
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
         this.trainRepository = trainRepository;
         this.trainClassRepository = trainClassRepository;
         this.passengerRepository = passengerRepository;
+        this.paymentService = paymentService;
     }
 
     @Override
@@ -81,9 +86,9 @@ public class BookingServiceImpl implements BookingService {
         // 6. Generate unique 10-character PNR
         String pnr = generateUniquePnr();
 
-        // 7. Create and persist Booking record
+        // 7. Create and persist Booking record with PENDING status awaiting payment (RRS-F-008, SAD Section 4.2.1)
         Booking booking = new Booking(pnr, user, train, trainClass, request.getJourneyDate(), totalFare);
-        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setStatus(BookingStatus.PENDING);
         booking = bookingRepository.save(booking);
 
         // 8. Assign seats and persist passengers (RRS-F-007)
@@ -104,7 +109,10 @@ public class BookingServiceImpl implements BookingService {
             passengerDtos.add(new PassengerDto(passenger.getName(), passenger.getAge(), passenger.getGender(), seatNo));
         }
 
-        return mapToResponseDto(booking, passengerDtos);
+        // 9. Initiate Payment Session with Sandbox Payment Gateway (RRS-F-008, TC-PAY-01)
+        PaymentSessionDto paymentSession = paymentService.initiatePaymentSession(booking);
+
+        return mapToResponseDto(booking, passengerDtos, paymentSession);
     }
 
     @Override
@@ -132,6 +140,16 @@ public class BookingServiceImpl implements BookingService {
         return pnr;
     }
 
+    private BookingResponseDto mapToResponseDto(Booking booking, List<PassengerDto> passengerDtos, PaymentSessionDto paymentSession) {
+        BookingResponseDto dto = mapToResponseDto(booking, passengerDtos);
+        if (paymentSession != null) {
+            dto.setPaymentUrl(paymentSession.getPaymentUrl());
+            dto.setPaymentStatus(paymentSession.getStatus());
+            dto.setGatewayRef(paymentSession.getGatewayRef());
+        }
+        return dto;
+    }
+
     private BookingResponseDto mapToResponseDto(Booking booking, List<PassengerDto> passengerDtos) {
         BookingResponseDto dto = new BookingResponseDto();
         dto.setPnr(booking.getPnr());
@@ -157,6 +175,15 @@ public class BookingServiceImpl implements BookingService {
         dto.setJourneyDate(booking.getJourneyDate());
         dto.setBookingTime(booking.getCreatedAt());
         dto.setPassengers(passengerDtos);
+
+        if (booking.getPayment() != null) {
+            dto.setPaymentStatus(booking.getPayment().getStatus());
+            dto.setGatewayRef(booking.getPayment().getGatewayRef());
+            dto.setPaymentUrl("/payment.html?pnr=" + booking.getPnr() +
+                    "&gatewayRef=" + booking.getPayment().getGatewayRef() +
+                    "&amount=" + booking.getTotalFare() +
+                    "&trainNo=" + booking.getTrain().getTrainNo());
+        }
 
         return dto;
     }

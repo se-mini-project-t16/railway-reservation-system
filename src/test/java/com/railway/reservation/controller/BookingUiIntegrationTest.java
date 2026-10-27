@@ -219,7 +219,8 @@ class BookingUiIntegrationTest {
                         .content(objectMapper.writeValueAsString(bookingRequest)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.pnr").isNotEmpty())
-                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.paymentUrl").isNotEmpty())
                 .andExpect(jsonPath("$.totalFare").value(900.00))
                 .andExpect(jsonPath("$.passengers[0].seatNo").value("CC-1"))
                 .andExpect(jsonPath("$.passengers[1].seatNo").value("CC-2"))
@@ -232,7 +233,7 @@ class BookingUiIntegrationTest {
         mockMvc.perform(get("/api/v1/bookings/" + generatedPnr))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pnr").value(generatedPnr))
-                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.passengers").isArray());
 
         long durationMs = System.currentTimeMillis() - startTime;

@@ -38,7 +38,9 @@ public class Payment {
         this.amount = amount;
         this.gatewayRef = gatewayRef;
         this.status = status;
-        this.paidAt = LocalDateTime.now();
+        this.paidAt = ("CONFIRMED".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status))
+                ? LocalDateTime.now()
+                : null;
     }
 
     public Long getId() { return id; }
