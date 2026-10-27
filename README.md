@@ -23,8 +23,15 @@ A web-based Railway Reservation System that allows passengers to search trains, 
 
 ## Local Setup
 
-The application requires `APP_JWT_SECRET` at startup. It must contain at least 32 UTF-8 bytes. In PowerShell, generate a random value for the current session and start the application:
+The application requires `APP_JWT_SECRET` at startup (minimum 32 UTF-8 bytes).
 
+**Linux / macOS (Bash / Zsh):**
+```bash
+export APP_JWT_SECRET=$(openssl rand -base64 32)
+./mvnw spring-boot:run
+```
+
+**Windows (PowerShell):**
 ```powershell
 $jwtRandom = [System.Security.Cryptography.RandomNumberGenerator]::Create()
 $jwtBytes = New-Object byte[] 32
@@ -34,7 +41,14 @@ $jwtRandom.Dispose()
 .\mvnw.cmd spring-boot:run
 ```
 
-The value above remains in the current PowerShell session only. For deployments, provide `APP_JWT_SECRET` through the deployment platform's secret manager. Never put a real signing secret in source files or commit it to Git.
+Once started, open `http://localhost:8080` in your web browser.
+
+### Running Automated Tests
+
+Execute the full regression test suite (127 unit, integration, RBAC security, and XSS/SQLi rejection tests):
+```bash
+./mvnw test
+```
 
 ## Documentation
 
@@ -42,16 +56,17 @@ The value above remains in the current PowerShell session only. For deployments,
 
 Defines 16 functional requirements (`RRS-F-001` to `RRS-F-016`), 5 non-functional requirements (`RRS-NF-001` to `RRS-NF-005`), and 5 security requirements (`RRS-SR-001` to `RRS-SR-005`), along with UML use-case diagrams for the overall system and booking subsystem, and a Requirements Traceability Matrix (RTM).
 
-- [`srs-railway-reservation-system.pdf`](docs/srs/srs-railway-reservation-system.pdf) | [`srs-railway-reservation-system.docx`](docs/srs/srs-railway-reservation-system.docx)
-
 ### [2. Software Architecture and Design Specification (SAD)](docs/sad/)
 
 Models the 3-tier layered architecture, component responsibilities, STRIDE threat model, database schema, REST API endpoints (`/api/v1`), UML component diagram, and UML sequence diagrams for ticket booking and cancellation flows.
-
-- [`sad-railway-reservation-system.pdf`](docs/sad/sad-railway-reservation-system.pdf) | [`sad-railway-reservation-system.docx`](docs/sad/sad-railway-reservation-system.docx)
 
 ### [3. Software Test Plan (STP)](docs/test-plan/)
 
 Outlines the unit, integration, system, performance, and security testing strategy, test schedule, environment setup, and 12 test cases (`TC-REG-01` through `TC-SEC-03`) mapped to the SRS requirements.
 
-- [`test-plan-railway-reservation-system.pdf`](docs/test-plan/test-plan-railway-reservation-system.pdf) | [`test-plan-railway-reservation-system.docx`](docs/test-plan/test-plan-railway-reservation-system.docx)
+### [4. Sprint 01 Demonstration Video](docs/demo/)
+
+Complete end-to-end silent video demonstration (1 min 15 sec) illustrating the application startup, train search, real-time seat availability check, demo account auto-fill, ticket booking with PNR allocation, printable ERS slip, and PNR status lookup.
+
+- Walkthrough documentation: [`docs/demo/README.md`](docs/demo/README.md)
+- Video file: [`docs/demo/sprint-01-demo.mp4`](docs/demo/sprint-01-demo.mp4)
