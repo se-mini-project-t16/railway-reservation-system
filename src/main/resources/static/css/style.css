@@ -1,4 +1,4 @@
-/* Railway Reservation System - Responsive Stylesheet (SAD Section 4.6) */
+/* Railway Reservation System - Professional Transit Portal Stylesheet (SAD Section 4.6) */
 :root {
   --primary: #1e3a8a;
   --primary-hover: #1e40af;
@@ -11,7 +11,7 @@
   --text-primary: #1e293b;
   --text-muted: #64748b;
   --border: #e2e8f0;
-  --border-focus: #3b82f6;
+  --border-focus: #2563eb;
   --danger: #dc2626;
   --danger-light: #fef2f2;
   --success: #16a34a;
@@ -19,10 +19,10 @@
   --warning: #d97706;
   --warning-light: #fffbeb;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --radius: 8px;
-  --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+  --radius: 6px;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 *, *::before, *::after {
@@ -41,12 +41,13 @@ body {
   flex-direction: column;
 }
 
-/* Header & Navigation */
+/* Header & Navigation - Institutional Solid Rail Navy */
 header.app-header {
-  background: linear-gradient(135deg, var(--primary) 0%, #1e1b4b 100%);
+  background-color: #0f2942;
+  border-bottom: 3px solid #2563eb;
   color: #ffffff;
-  padding: 1rem 1.5rem;
-  box-shadow: var(--shadow-md);
+  padding: 0.85rem 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -65,25 +66,36 @@ header.app-header {
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.85rem;
   text-decoration: none;
   color: #ffffff;
 }
 
 .brand-icon {
-  font-size: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background-color: #1a3b5c;
+  border: 1px solid #2d557d;
+  border-radius: var(--radius);
+  color: #60a5fa;
+  flex-shrink: 0;
 }
 
 .brand-text h1 {
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.01em;
   line-height: 1.2;
 }
 
 .brand-text .subtext {
-  font-size: 0.8rem;
-  color: #93c5fd;
+  font-size: 0.775rem;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .header-actions {
@@ -93,17 +105,43 @@ header.app-header {
 }
 
 .timer-badge {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+  background: #173859;
+  border: 1px solid #285480;
+  color: #e2e8f0;
   padding: 0.35rem 0.75rem;
-  border-radius: 20px;
+  border-radius: 4px;
+  font-size: 0.825rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  letter-spacing: 0.02em;
+}
+
+.timer-badge svg {
+  color: #93c5fd;
+  flex-shrink: 0;
+}
+
+.btn-header-pnr {
+  background-color: transparent;
+  color: #ffffff;
+  border: 1px solid #476a8d;
+  padding: 0.45rem 0.85rem;
+  border-radius: 4px;
   font-size: 0.85rem;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.45rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-header-pnr:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: #93c5fd;
+  color: #ffffff;
 }
 
 /* Main Container */
@@ -188,13 +226,18 @@ main.container {
 }
 
 .card-title {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: var(--dark);
   margin-bottom: 0.35rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
+}
+
+.card-title svg {
+  color: var(--primary);
+  flex-shrink: 0;
 }
 
 .card-subtitle {
@@ -619,8 +662,8 @@ main.container {
 
 /* Booking Summary Card */
 .summary-box {
-  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
-  border: 1px solid #bbf7d0;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
   border-radius: var(--radius);
   padding: 1.25rem;
   margin-top: 1rem;
@@ -639,36 +682,27 @@ main.container {
 
 /* Confirmation Receipt */
 .confirmation-card {
-  border: 2px solid var(--success);
+  border: 1px solid #86efac;
+  border-top: 4px solid #16a34a;
   background-color: #ffffff;
   border-radius: var(--radius);
   padding: 2rem;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   position: relative;
-  overflow: hidden;
-}
-
-.confirmation-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 6px;
-  background-color: var(--success);
 }
 
 .pnr-highlight {
-  font-size: 1.75rem;
+  font-size: 1.6rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  color: var(--primary);
-  background: var(--primary-light);
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius);
+  letter-spacing: 0.12em;
+  color: #0f2942;
+  background: #f1f5f9;
+  border: 1.5px dashed #94a3b8;
+  padding: 0.5rem 1.25rem;
+  border-radius: 4px;
   display: inline-block;
   margin: 0.75rem 0;
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 /* Modal */

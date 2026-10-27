@@ -302,13 +302,8 @@
       const emptyState = document.createElement('div');
       emptyState.className = 'empty-state';
 
-      const icon = document.createElement('div');
-      icon.className = 'empty-state-icon';
-      icon.textContent = '🚫';
-      emptyState.appendChild(icon);
-
       const title = document.createElement('h3');
-      title.textContent = 'No trains found for selected route and date';
+      title.textContent = 'No Trains Found for Route';
       emptyState.appendChild(title);
 
       const p = document.createElement('p');
@@ -416,7 +411,7 @@
           liveRefreshBtn.style.padding = '0.1rem 0.4rem';
           liveRefreshBtn.style.fontSize = '0.7rem';
           liveRefreshBtn.title = 'Refresh live availability from backend';
-          liveRefreshBtn.textContent = '🔄 Check';
+          liveRefreshBtn.textContent = 'Check';
           liveRefreshBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             await checkLiveAvailability(train.trainId, cls.className, date, seatsBadge);
@@ -646,7 +641,7 @@
       showFlash('Failed to reach user registration endpoint. Please enter your User ID manually.', 'error');
     } finally {
       quickRegisterBtn.disabled = false;
-      quickRegisterBtn.textContent = '⚡ Auto-Create Demo Passenger Account';
+      quickRegisterBtn.textContent = 'Auto-Fill Demo Account';
     }
   });
 

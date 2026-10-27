@@ -13,20 +13,37 @@
   <header class="app-header">
     <div class="header-container">
       <a href="#" class="brand" id="brandHomeLink" aria-label="Railway Reservation Home">
-        <span class="brand-icon" aria-hidden="true">🚆</span>
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="3" width="16" height="16" rx="2"/>
+            <path d="M4 11h16"/>
+            <path d="M12 3v8"/>
+            <path d="m8 19-2 3"/>
+            <path d="m18 22-2-3"/>
+            <circle cx="8" cy="15" r="1"/>
+            <circle cx="16" cy="15" r="1"/>
+          </svg>
+        </div>
         <div class="brand-text">
           <h1>Railway Reservation System</h1>
-          <span class="subtext">Official Ticket Booking &amp; Seat Availability Portal</span>
+          <span class="subtext">National Rail Ticketing &amp; Availability Portal</span>
         </div>
       </a>
 
       <div class="header-actions">
         <div class="timer-badge" id="uxTimerBadge" title="TC-UX-01 Booking Journey Timer (Target: &lt; 5 minutes)">
-          <span aria-hidden="true">⏱️</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
           <span>Time: <strong id="timerDisplay">00:00</strong></span>
         </div>
-        <button type="button" class="btn btn-secondary btn-sm" id="openPnrModalBtn" aria-haspopup="dialog">
-          🔍 Check PNR Status
+        <button type="button" class="btn-header-pnr" id="openPnrModalBtn" aria-haspopup="dialog">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          Check PNR Status
         </button>
       </div>
     </div>
@@ -41,7 +58,11 @@
     <!-- Step 1: Train Search Card -->
     <section class="card" id="searchCard" aria-labelledby="searchHeading">
       <h2 class="card-title" id="searchHeading">
-        <span>🔎</span> Search Trains &amp; Seat Availability
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        Search Trains &amp; Seat Availability
       </h2>
       <p class="card-subtitle">
         Enter your journey route and date to query available trains, timings, classes, and real-time seat availability.
@@ -135,7 +156,15 @@
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
           <h2 class="card-title" id="resultsHeading" style="margin: 0;">
-            <span>📋</span> Available Trains (<span id="resultsCount">0</span>)
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 6h13"/>
+              <path d="M8 12h13"/>
+              <path d="M8 18h13"/>
+              <line x1="3" y1="6" x2="3.01" y2="6"/>
+              <line x1="3" y1="12" x2="3.01" y2="12"/>
+              <line x1="3" y1="18" x2="3.01" y2="18"/>
+            </svg>
+            Available Trains (<span id="resultsCount">0</span>)
           </h2>
           <span id="resultsRouteSummary" style="font-weight: 600; color: var(--primary);"></span>
         </div>
@@ -148,7 +177,13 @@
     <section id="bookingSection" style="display: none;" aria-labelledby="bookingHeading">
       <div class="card">
         <h2 class="card-title" id="bookingHeading">
-          <span>🎫</span> Passenger Details &amp; Ticket Reservation
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/>
+            <path d="M13 5v2"/>
+            <path d="M13 17v2"/>
+            <path d="M13 11v2"/>
+          </svg>
+          Passenger Details &amp; Ticket Reservation
         </h2>
         <p class="card-subtitle">
           Confirm passenger information to reserve seats and generate your confirmed PNR ticket.
@@ -187,7 +222,7 @@
               </div>
               <div>
                 <button type="button" class="btn btn-secondary btn-sm" id="quickRegisterBtn">
-                  ⚡ Auto-Create Demo Passenger Account
+                  Auto-Fill Demo Account
                 </button>
               </div>
             </div>
@@ -242,24 +277,32 @@
     <!-- Step 4: Booking Confirmation Section -->
     <section id="confirmationSection" style="display: none;" aria-labelledby="confirmationHeading">
       <div class="confirmation-card">
-        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-          <span style="font-size: 2rem;">✅</span>
+        <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 0.5rem;">
+          <div style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: #dcfce7; border-radius: 50%; color: #16a34a; flex-shrink: 0;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
           <div>
-            <h2 id="confirmationHeading" style="font-size: 1.4rem; font-weight: 800; color: #14532d; margin: 0;">
-              Booking Successfully Confirmed!
+            <h2 id="confirmationHeading" style="font-size: 1.35rem; font-weight: 800; color: #14532d; margin: 0;">
+              Ticket Successfully Booked &amp; Confirmed
             </h2>
             <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
-              Your ticket has been booked and seats have been allocated. Keep your PNR for future reference.
+              Your reservation is confirmed. Electronic reservation slip (ERS) generated below.
             </p>
           </div>
         </div>
 
         <div style="margin: 1.5rem 0; text-align: center;">
-          <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted);">PASSENGER RECORD NUMBER (PNR)</div>
+          <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.05em;">PASSENGER RECORD NUMBER (PNR)</div>
           <div class="pnr-highlight" id="confirmedPnrDisplay">XXXXXXXXXX</div>
           <div>
             <button type="button" class="btn btn-secondary btn-sm" id="copyPnrBtn">
-              📋 Copy PNR
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 4px;">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Copy PNR
             </button>
           </div>
         </div>
@@ -301,7 +344,14 @@
         </div>
 
         <div style="display: flex; gap: 0.75rem; justify-content: flex-end; flex-wrap: wrap;">
-          <button type="button" class="btn btn-secondary" onclick="window.print()">🖨️ Print Ticket</button>
+          <button type="button" class="btn btn-secondary" onclick="window.print()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 4px;">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            Print Ticket
+          </button>
           <button type="button" class="btn btn-primary" id="bookAnotherBtn">Book Another Ticket</button>
         </div>
       </div>
