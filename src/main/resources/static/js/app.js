@@ -617,8 +617,8 @@
 
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const regPayload = {
-      name: `Guest Passenger ${randomSuffix}`,
-      email: `guest${randomSuffix}@railwaydemo.com`,
+      name: 'Demo Passenger',
+      email: `demo${randomSuffix}@railwaydemo.com`,
       phone: `987654${randomSuffix}`,
       password: `Password@${randomSuffix}`
     };
@@ -635,7 +635,28 @@
         userIdInput.value = data.userId;
         userIdInput.classList.remove('is-invalid');
         userIdError.style.display = 'none';
-        showFlash(`Demo passenger account created! User ID #${data.userId} auto-populated.`, 'success');
+
+        // Also pre-fill the primary passenger row to streamline the demo journey
+        const firstRow = passengerRowsContainer.querySelector('tr');
+        if (firstRow) {
+          const nameInput = firstRow.querySelector('.passenger-name');
+          const ageInput = firstRow.querySelector('.passenger-age');
+          const genderSelect = firstRow.querySelector('.passenger-gender');
+
+          if (nameInput) {
+            nameInput.value = data.name || 'Demo Passenger';
+            nameInput.classList.remove('is-invalid');
+          }
+          if (ageInput) {
+            ageInput.value = '28';
+            ageInput.classList.remove('is-invalid');
+          }
+          if (genderSelect) {
+            genderSelect.value = 'Male';
+          }
+        }
+
+        showFlash(`Demo account #${data.userId} registered and passenger details populated.`, 'success');
       } else {
         showFlash('Could not auto-generate demo user. Please manually enter an existing User ID.', 'warning');
       }
