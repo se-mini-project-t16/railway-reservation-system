@@ -41,13 +41,13 @@ body {
   flex-direction: column;
 }
 
-/* Header & Navigation - Institutional Solid Rail Navy */
+/* Header & Navigation - Clean Institutional Deep White Portal Bar */
 header.app-header {
-  background-color: #0f2942;
-  border-bottom: 3px solid #2563eb;
-  color: #ffffff;
+  background-color: #ffffff;
+  border-bottom: 1px solid #cbd5e1;
+  color: #0f172a;
   padding: 0.85rem 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -68,34 +68,36 @@ header.app-header {
   align-items: center;
   gap: 0.85rem;
   text-decoration: none;
-  color: #ffffff;
+  color: inherit;
 }
 
 .brand-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  background-color: #1a3b5c;
-  border: 1px solid #2d557d;
+  width: 38px;
+  height: 38px;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
   border-radius: var(--radius);
-  color: #60a5fa;
+  color: #1e40af;
   flex-shrink: 0;
 }
 
 .brand-text h1 {
   font-size: 1.25rem;
   font-weight: 700;
+  color: #0f172a;
   letter-spacing: -0.01em;
   line-height: 1.2;
 }
 
 .brand-text .subtext {
   font-size: 0.775rem;
-  color: #94a3b8;
+  color: #64748b;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  font-weight: 600;
 }
 
 .header-actions {
@@ -105,9 +107,9 @@ header.app-header {
 }
 
 .timer-badge {
-  background: #173859;
-  border: 1px solid #285480;
-  color: #e2e8f0;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #334155;
   padding: 0.35rem 0.75rem;
   border-radius: 4px;
   font-size: 0.825rem;
@@ -119,14 +121,18 @@ header.app-header {
 }
 
 .timer-badge svg {
-  color: #93c5fd;
+  color: #475569;
   flex-shrink: 0;
 }
 
+.timer-badge strong {
+  color: #0f172a;
+}
+
 .btn-header-pnr {
-  background-color: transparent;
-  color: #ffffff;
-  border: 1px solid #476a8d;
+  background-color: #ffffff;
+  color: #1e3a8a;
+  border: 1px solid #cbd5e1;
   padding: 0.45rem 0.85rem;
   border-radius: 4px;
   font-size: 0.85rem;
@@ -139,9 +145,13 @@ header.app-header {
 }
 
 .btn-header-pnr:hover {
-  background-color: rgba(255, 255, 255, 0.12);
-  border-color: #93c5fd;
-  color: #ffffff;
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+  color: #1e40af;
+}
+
+.btn-header-pnr svg {
+  color: #1e3a8a;
 }
 
 /* Main Container */
@@ -783,5 +793,83 @@ footer.app-footer {
   }
   .classes-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Print Stylesheet for Official E-Ticket Reservation Slip */
+@media print {
+  /* Hide all non-ticket interactive and navigation elements */
+  header.app-header,
+  footer.app-footer,
+  #flashContainer,
+  #searchCard,
+  #resultsSection,
+  #bookingSection,
+  #pnrModal,
+  .quick-chips,
+  .btn,
+  .btn-sm,
+  #copyPnrBtn,
+  #bookAnotherBtn,
+  .modal-overlay {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  main.container {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #confirmationSection {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .confirmation-card {
+    border: 2px solid #0f172a !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    padding: 1.5rem !important;
+    margin: 0 !important;
+    page-break-inside: avoid;
+  }
+
+  .confirmation-card::before {
+    display: none !important;
+  }
+
+  .pnr-highlight {
+    border: 2px dashed #0f172a !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    font-size: 1.5rem !important;
+    padding: 0.5rem 1.25rem !important;
+  }
+
+  .passenger-table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    margin-top: 1rem !important;
+  }
+
+  .passenger-table th,
+  .passenger-table td {
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    padding: 0.6rem !important;
+  }
+
+  .passenger-table th {
+    background-color: #f1f5f9 !important;
   }
 }

@@ -204,7 +204,9 @@
   }
 
   srcInput.addEventListener('input', validateStationInputs);
+  srcInput.addEventListener('change', validateStationInputs);
   dstInput.addEventListener('input', validateStationInputs);
+  dstInput.addEventListener('change', validateStationInputs);
   dateInput.addEventListener('input', () => {
     if (!dateInput.value) {
       dateGroup.classList.add('has-error');
