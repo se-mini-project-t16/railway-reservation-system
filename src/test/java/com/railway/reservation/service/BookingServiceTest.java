@@ -3,6 +3,7 @@ package com.railway.reservation.service;
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
 import com.railway.reservation.dto.PassengerDto;
+import com.railway.reservation.dto.PaymentSessionDto;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.exception.SeatUnavailableException;
 import com.railway.reservation.model.*;
@@ -45,6 +46,9 @@ class BookingServiceTest {
 
     @Mock
     private PassengerRepository passengerRepository;
+
+    @Mock
+    private PaymentService paymentService;
 
     @InjectMocks
     private BookingServiceImpl bookingService;
@@ -89,19 +93,31 @@ class BookingServiceTest {
             return b;
         });
 
+        PaymentSessionDto mockPayment = new PaymentSessionDto(
+                1L, "TXN-TEST12345", "MOCKPNR123", BigDecimal.valueOf(2300.00),
+                "PENDING", "/payment.html?pnr=MOCKPNR123&gatewayRef=TXN-TEST12345",
+                "SANDBOX_MOCK", "12601", "Mangalore Mail", "Chennai Central", "Mangalore Central",
+                LocalDate.now().plusDays(2), 2, java.time.LocalDateTime.now()
+        );
+        when(paymentService.initiatePaymentSession(any(Booking.class))).thenReturn(mockPayment);
+
         BookingResponseDto response = bookingService.createBooking(request);
 
         assertNotNull(response);
         assertNotNull(response.getPnr());
         assertEquals(10, response.getPnr().length());
-        assertEquals(BookingStatus.CONFIRMED, response.getStatus());
+        assertEquals(BookingStatus.PENDING, response.getStatus());
         assertEquals(BigDecimal.valueOf(2300.00), response.getTotalFare());
         assertEquals(2, response.getPassengers().size());
         assertEquals("AC3-11", response.getPassengers().get(0).getSeatNo());
         assertEquals("AC3-12", response.getPassengers().get(1).getSeatNo());
+        assertEquals("/payment.html?pnr=MOCKPNR123&gatewayRef=TXN-TEST12345", response.getPaymentUrl());
+        assertEquals("TXN-TEST12345", response.getGatewayRef());
+        assertEquals("PENDING", response.getPaymentStatus());
 
         verify(passengerRepository, times(2)).save(any(Passenger.class));
         verify(bookingRepository, times(1)).save(any(Booking.class));
+        verify(paymentService, times(1)).initiatePaymentSession(any(Booking.class));
     }
 
     @Test

@@ -34,6 +34,11 @@ public class BookingResponseDto {
     private LocalDateTime bookingTime;
     private List<PassengerDto> passengers;
 
+    // Payment info (RRS-F-008)
+    private String paymentUrl;
+    private String paymentStatus;
+    private String gatewayRef;
+
     public BookingResponseDto() {}
 
     public String getPnr() { return pnr; }
@@ -89,5 +94,14 @@ public class BookingResponseDto {
 
     public List<PassengerDto> getPassengers() { return passengers; }
     public void setPassengers(List<PassengerDto> passengers) { this.passengers = passengers; }
+
+    public String getPaymentUrl() { return paymentUrl; }
+    public void setPaymentUrl(String paymentUrl) { this.paymentUrl = paymentUrl; }
+
+    public String getPaymentStatus() { return paymentStatus; }
+    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+
+    public String getGatewayRef() { return gatewayRef; }
+    public void setGatewayRef(String gatewayRef) { this.gatewayRef = gatewayRef; }
 }
 

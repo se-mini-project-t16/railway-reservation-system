@@ -763,6 +763,16 @@
       }
 
       const confirmedBooking = await res.json();
+
+      // RRS-F-008: Redirect to Payment Gateway
+      if (confirmedBooking.paymentUrl) {
+        showFlash(`Seats reserved! Redirecting to secure payment gateway (₹${confirmedBooking.totalFare})...`, 'info');
+        setTimeout(() => {
+          window.location.href = confirmedBooking.paymentUrl;
+        }, 800);
+        return;
+      }
+
       displayBookingConfirmation(confirmedBooking);
 
     } catch (err) {
@@ -971,5 +981,28 @@
     }
     return timeStr;
   }
+
+  // --- Handle Return from Payment Gateway (RRS-F-008, TC-PAY-01) ---
+  (async function checkPaymentReturn() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const pnrParam = urlParams.get('pnr');
+    const paymentStatus = urlParams.get('payment');
+    const refParam = urlParams.get('ref');
+
+    if (pnrParam && paymentStatus === 'success') {
+      try {
+        const res = await fetch(`/api/v1/bookings/${encodeURIComponent(pnrParam)}`);
+        if (res.ok) {
+          const bookingData = await res.json();
+          displayBookingConfirmation(bookingData);
+          showFlash(`Payment authorized successfully (Ref: ${refParam || 'SANDBOX'}). Electronic ticket confirmed!`, 'success');
+        }
+      } catch (e) {
+        console.error('Error fetching booking after payment:', e);
+      }
+    } else if (pnrParam && paymentStatus === 'cancelled') {
+      showFlash(`Payment session for PNR ${pnrParam} was cancelled.`, 'warning');
+    }
+  })();
 
 })();

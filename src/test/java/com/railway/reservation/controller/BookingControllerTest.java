@@ -50,9 +50,12 @@ class BookingControllerTest {
 
         BookingResponseDto response = new BookingResponseDto();
         response.setPnr("PNR1234567");
-        response.setStatus(BookingStatus.CONFIRMED);
+        response.setStatus(BookingStatus.PENDING);
         response.setTotalFare(BigDecimal.valueOf(1150.00));
         response.setPassengers(List.of(new PassengerDto("John Doe", 30, "Male", "AC3-1")));
+        response.setPaymentUrl("/payment.html?pnr=PNR1234567&gatewayRef=TXN-123456");
+        response.setGatewayRef("TXN-123456");
+        response.setPaymentStatus("PENDING");
 
         when(bookingService.createBooking(any(BookingRequestDto.class))).thenReturn(response);
 
@@ -61,7 +64,9 @@ class BookingControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.pnr").value("PNR1234567"))
-                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.paymentUrl").value("/payment.html?pnr=PNR1234567&gatewayRef=TXN-123456"))
+                .andExpect(jsonPath("$.gatewayRef").value("TXN-123456"))
                 .andExpect(jsonPath("$.passengers[0].seatNo").value("AC3-1"));
     }
 
