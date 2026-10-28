@@ -62,6 +62,8 @@
 
   // Confirmation Section
   const confirmationSection = document.getElementById('confirmationSection');
+  const confirmationHeading = document.getElementById('confirmationHeading');
+  const confirmationSubtitle = document.getElementById('confirmationSubtitle');
   const confirmedPnrDisplay = document.getElementById('confirmedPnrDisplay');
   const copyPnrBtn = document.getElementById('copyPnrBtn');
   const confTrainDetails = document.getElementById('confTrainDetails');
@@ -70,6 +72,7 @@
   const confTimings = document.getElementById('confTimings');
   const confClassDetails = document.getElementById('confClassDetails');
   const confTotalFare = document.getElementById('confTotalFare');
+  const confPaymentStatus = document.getElementById('confPaymentStatus');
   const confirmedPassengersBody = document.getElementById('confirmedPassengersBody');
   const bookAnotherBtn = document.getElementById('bookAnotherBtn');
 
@@ -83,6 +86,18 @@
   const pnrResultContainer = document.getElementById('pnrResultContainer');
   const pnrSearchSubmitBtn = document.getElementById('pnrSearchSubmitBtn');
   const pnrBtnSpinner = document.getElementById('pnrBtnSpinner');
+
+  // Login Modal
+  const openLoginModalBtn = document.getElementById('openLoginModalBtn');
+  const closeLoginModalBtn = document.getElementById('closeLoginModalBtn');
+  const loginModal = document.getElementById('loginModal');
+  const loginForm = document.getElementById('loginForm');
+  const loginEmail = document.getElementById('loginEmail');
+  const loginPassword = document.getElementById('loginPassword');
+  const loginStatus = document.getElementById('loginStatus');
+  const loginSubmitBtn = document.getElementById('loginSubmitBtn');
+  const loginSubmitText = document.getElementById('loginSubmitText');
+  const loginSpinner = document.getElementById('loginSpinner');
 
   // --- Usability Timer (TC-UX-01) ---
   setInterval(() => {
@@ -610,6 +625,105 @@
     resultsSection.scrollIntoView({ behavior: 'smooth' });
   });
 
+  // --- Existing-user authentication helpers (RRS-F-002, RRS-F-010) ---
+  function decodeJwtPayload(token) {
+    try {
+      const part = token.split('.')[1];
+      if (!part) return null;
+      const base64 = part.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+      return JSON.parse(atob(padded));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function isTokenExpired(token) {
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.exp !== 'number') {
+      return true;
+    }
+    return payload.exp * 1000 <= Date.now();
+  }
+
+  function clearStoredToken() {
+    try {
+      sessionStorage.removeItem('jwtToken');
+    } catch (_) {
+      // Storage may be unavailable.
+    }
+    try {
+      localStorage.removeItem('jwtToken');
+    } catch (_) {
+      // Storage may be unavailable.
+    }
+  }
+
+  function getStoredToken() {
+    let token = null;
+    try {
+      token = sessionStorage.getItem('jwtToken') || localStorage.getItem('jwtToken');
+    } catch (_) {
+      return null;
+    }
+    if (!token) return null;
+    if (isTokenExpired(token)) {
+      clearStoredToken();
+      return null;
+    }
+    return token;
+  }
+
+  function userIdFromToken(token) {
+    const payload = decodeJwtPayload(token);
+    return payload && Number.isInteger(payload.userId) ? payload.userId : null;
+  }
+
+  async function signIn(email, password) {
+    const res = await fetch('/api/v1/users/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    if (!res.ok) {
+      return { ok: false, status: res.status };
+    }
+
+    const data = await res.json();
+    if (!data || !data.token) {
+      return { ok: false, status: 0 };
+    }
+
+    try {
+      sessionStorage.setItem('jwtToken', data.token);
+    } catch (_) {
+      return { ok: false, status: 0 };
+    }
+
+    // The JWT already carries userId. Decoding it is a display convenience only;
+    // the server remains the authority for authentication and ownership.
+    const userId = userIdFromToken(data.token);
+    if (userId && userIdInput) {
+      userIdInput.value = userId;
+      userIdInput.classList.remove('is-invalid');
+      userIdError.style.display = 'none';
+    }
+
+    return { ok: true, status: 200 };
+  }
+
+  function openLoginModal(message) {
+    if (!loginModal) return;
+    if (loginStatus) loginStatus.textContent = message || '';
+    loginModal.classList.add('active');
+    if (loginEmail) loginEmail.focus();
+  }
+
+  function closeLoginModal() {
+    if (loginModal) loginModal.classList.remove('active');
+  }
+
   // --- Quick Guest / Passenger Account Creation ---
   quickRegisterBtn.addEventListener('click', async () => {
     quickRegisterBtn.disabled = true;
@@ -635,6 +749,13 @@
         userIdInput.value = data.userId;
         userIdInput.classList.remove('is-invalid');
         userIdError.style.display = 'none';
+
+        // Establish a genuine JWT session for this demo account. The protected
+        // full-ticket and PDF endpoints require this token.
+        const loginResult = await signIn(regPayload.email, regPayload.password);
+        if (!loginResult.ok) {
+          console.warn('Demo account created but sign-in failed with status', loginResult.status);
+        }
 
         // Also pre-fill the primary passenger row to streamline the demo journey
         const firstRow = passengerRowsContainer.querySelector('tr');
@@ -773,7 +894,8 @@
         return;
       }
 
-      displayBookingConfirmation(confirmedBooking);
+      // Never render the full e-ticket from an unverified booking response.
+      showFlash('Booking created, but payment could not be initiated. The e-ticket becomes available only after verified payment.', 'warning');
 
     } catch (err) {
       showFlash(`Error connecting to booking service: ${err.message}`, 'error');
@@ -796,6 +918,31 @@
     confTimings.textContent = `Dep: ${formatTime(booking.departureTime)} | Arr: ${formatTime(booking.arrivalTime)}`;
     confClassDetails.textContent = `${booking.className} (₹${booking.farePerSeat} / seat)`;
     confTotalFare.textContent = `Total: ₹${booking.totalFare}`;
+
+    // Payment status comes from the server-side Payment record, never from a
+    // frontend query parameter such as ?payment=success.
+    const paymentStatus = String(booking.paymentStatus || 'NOT VERIFIED').toUpperCase();
+    const isPaymentVerified = ['SUCCESS', 'CONFIRMED', 'PAID'].includes(paymentStatus);
+    const isBookingConfirmed = booking.status === 'CONFIRMED' && isPaymentVerified;
+
+    confPaymentStatus.textContent = paymentStatus.replace(/_/g, ' ');
+    confPaymentStatus.style.color = isPaymentVerified ? '#166534' : '#b45309';
+
+    if (isBookingConfirmed) {
+      confirmationHeading.textContent = 'Ticket Successfully Booked & Confirmed';
+      confirmationSubtitle.textContent = 'Your reservation and payment are confirmed. Electronic reservation slip (ERS) generated below.';
+    } else if (paymentStatus === 'FAILED') {
+      confirmationHeading.textContent = 'Booking Payment Failed';
+      confirmationSubtitle.textContent = 'The payment was not successful. This slip is not valid for travel.';
+    } else {
+      confirmationHeading.textContent = 'Ticket Booked - Payment Not Verified';
+      confirmationSubtitle.textContent = 'Your seats are reserved, but payment is still pending verification. This slip is provisional.';
+    }
+
+    const downloadPdfBtn = document.getElementById('downloadPdfTicketBtn');
+    if (downloadPdfBtn && booking && booking.pnr) {
+      downloadPdfBtn.setAttribute('data-pnr', booking.pnr);
+    }
 
     // Passengers & assigned seat numbers
     while (confirmedPassengersBody.firstChild) {
@@ -886,6 +1033,59 @@
     }
   });
 
+  // --- Existing User Login Modal Actions ---
+  openLoginModalBtn.addEventListener('click', () => openLoginModal(''));
+  closeLoginModalBtn.addEventListener('click', closeLoginModal);
+  loginModal.addEventListener('click', (e) => {
+    if (e.target === loginModal) {
+      closeLoginModal();
+    }
+  });
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value;
+
+    if (!email || !password) {
+      loginStatus.textContent = 'Enter your email and password.';
+      return;
+    }
+
+    loginSubmitBtn.disabled = true;
+    loginSpinner.style.display = 'inline-block';
+    loginSubmitText.textContent = 'Signing in...';
+    loginStatus.textContent = '';
+
+    try {
+      const result = await signIn(email, password);
+      if (result.ok) {
+        loginPassword.value = '';
+        closeLoginModal();
+        showFlash('Signed in successfully. E-ticket access is enabled for the signed-in account.', 'success');
+
+        const params = new URLSearchParams(window.location.search);
+        const pendingPnr = params.get('pnr');
+        if (pendingPnr) {
+          await loadFullTicketForPnr(pendingPnr);
+        }
+      } else if (result.status === 401) {
+        loginStatus.textContent = 'Invalid email or password.';
+      } else if (result.status === 400) {
+        loginStatus.textContent = 'Please check your email and password.';
+      } else {
+        loginStatus.textContent = 'Unable to sign in right now.';
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      loginStatus.textContent = 'Network error while signing in.';
+    } finally {
+      loginSubmitBtn.disabled = false;
+      loginSpinner.style.display = 'none';
+      loginSubmitText.textContent = 'Sign In';
+    }
+  });
+
   pnrSearchForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const pnr = pnrInput.value.trim().toUpperCase();
@@ -942,22 +1142,27 @@
       routeLine.textContent = `Route: ${data.sourceStation} ➔ ${data.destinationStation} on ${data.journeyDate}`;
       box.appendChild(routeLine);
 
-      if (data.passengers && data.passengers.length > 0) {
-        const passHeader = document.createElement('div');
-        passHeader.style.fontWeight = '600';
-        passHeader.style.marginTop = '0.75rem';
-        passHeader.style.fontSize = '0.85rem';
-        passHeader.textContent = 'PASSENGERS:';
-        box.appendChild(passHeader);
+      const fareLine = document.createElement('div');
+      fareLine.style.fontSize = '0.9rem';
+      fareLine.style.marginTop = '0.35rem';
+      fareLine.textContent = `Total Fare: ₹${data.totalFare ?? '-'}`;
+      box.appendChild(fareLine);
 
-        data.passengers.forEach(p => {
-          const pDiv = document.createElement('div');
-          pDiv.style.fontSize = '0.85rem';
-          pDiv.style.padding = '0.2rem 0';
-          pDiv.textContent = `• ${p.name} (Age: ${p.age}, ${p.gender}) — Seat: ${p.seatNo || 'Allocated'}`;
-          box.appendChild(pDiv);
-        });
-      }
+      const seatsLine = document.createElement('div');
+      seatsLine.style.fontSize = '0.9rem';
+      seatsLine.style.marginTop = '0.35rem';
+      const seatNumbers = Array.isArray(data.seatNumbers) ? data.seatNumbers : [];
+      seatsLine.textContent = seatNumbers.length > 0
+        ? `Seats: ${seatNumbers.join(', ')}`
+        : 'Seats: Not assigned';
+      box.appendChild(seatsLine);
+
+      const privacyNote = document.createElement('div');
+      privacyNote.style.fontSize = '0.8rem';
+      privacyNote.style.color = 'var(--text-muted)';
+      privacyNote.style.marginTop = '0.5rem';
+      privacyNote.textContent = 'Passenger names are not shown in public PNR status. Sign in to view your full e-ticket after payment verification.';
+      box.appendChild(privacyNote);
 
       pnrResultContainer.appendChild(box);
 
@@ -982,27 +1187,122 @@
     return timeStr;
   }
 
-  // --- Handle Return from Payment Gateway (RRS-F-008, TC-PAY-01) ---
+  async function loadFullTicketForPnr(pnr) {
+    const token = getStoredToken();
+    if (!token) {
+      openLoginModal('Sign in to view your full e-ticket and download the PDF.');
+      showFlash('Sign in to view your e-ticket. The full ticket is available only after server-side payment verification.', 'info');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/ticket`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        const booking = await res.json();
+        displayBookingConfirmation(booking);
+        return;
+      }
+
+      if (res.status === 401) {
+        clearStoredToken();
+        openLoginModal('Your session expired. Sign in again to view your e-ticket.');
+        showFlash('Session expired. Please sign in again.', 'warning');
+        return;
+      }
+
+      if (res.status === 409) {
+        const errorBody = await res.json().catch(() => ({}));
+        showFlash(errorBody.message || 'Payment is still pending verification. The e-ticket and PDF are available only after verified payment.', 'warning');
+        return;
+      }
+
+      if (res.status === 404) {
+        showFlash(`No ticket found for PNR ${pnr} on the signed-in account.`, 'danger');
+        return;
+      }
+
+      showFlash(`Unable to load e-ticket (HTTP ${res.status}).`, 'danger');
+    } catch (err) {
+      console.error('Error loading ticket:', err);
+      showFlash('Network error while loading e-ticket.', 'danger');
+    }
+  }
+
+  // --- Handle Return from Payment Gateway (RRS-F-008, RRS-F-010) ---
   (async function checkPaymentReturn() {
     const urlParams = new URLSearchParams(window.location.search);
     const pnrParam = urlParams.get('pnr');
     const paymentStatus = urlParams.get('payment');
-    const refParam = urlParams.get('ref');
 
     if (pnrParam && paymentStatus === 'success') {
-      try {
-        const res = await fetch(`/api/v1/bookings/${encodeURIComponent(pnrParam)}`);
-        if (res.ok) {
-          const bookingData = await res.json();
-          displayBookingConfirmation(bookingData);
-          showFlash(`Payment authorized successfully (Ref: ${refParam || 'SANDBOX'}). Electronic ticket confirmed!`, 'success');
-        }
-      } catch (e) {
-        console.error('Error fetching booking after payment:', e);
-      }
+      // The URL is only a navigation hint. The full ticket endpoint enforces
+      // server-side payment verification and ownership.
+      await loadFullTicketForPnr(pnrParam);
     } else if (pnrParam && paymentStatus === 'cancelled') {
       showFlash(`Payment session for PNR ${pnrParam} was cancelled.`, 'warning');
     }
   })();
+
+
+  // --- Secure PDF Download Handler (RRS-F-010, RRS-SR-004) ---
+  const downloadPdfBtn = document.getElementById('downloadPdfTicketBtn');
+  if (downloadPdfBtn) {
+    downloadPdfBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const pnr = downloadPdfBtn.getAttribute('data-pnr') || (confirmedPnrDisplay ? confirmedPnrDisplay.textContent.trim() : '');
+      if (!pnr || pnr === 'XXXXXXXXXX' || pnr === 'CONFIRMED') {
+        showFlash('No active booking PNR available for PDF download.', 'warning');
+        return;
+      }
+
+      // The server enforces both verified payment and ticket ownership.
+      const token = getStoredToken();
+
+      if (!token) {
+        showFlash(
+          `Sign in to download the ticket PDF for PNR ${pnr}. PDFs are available only after server-side payment verification.`,
+          'info'
+        );
+        openLoginModal('Sign in to download your ticket PDF.');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/ticket.pdf`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const blob = await response.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = downloadUrl;
+          a.download = `ticket-${pnr}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(downloadUrl);
+        } else if (response.status === 401) {
+          clearStoredToken();
+          openLoginModal('Your session expired. Sign in again to download the PDF.');
+          showFlash('Session expired. Please sign in again.', 'warning');
+        } else if (response.status === 409) {
+          const errorBody = await response.json().catch(() => ({}));
+          showFlash(errorBody.message || 'Payment has not been verified. PDF download is unavailable until payment is confirmed.', 'warning');
+        } else if (response.status === 403) {
+          showFlash('You are not authorized to download this ticket PDF.', 'danger');
+        } else if (response.status === 404) {
+          showFlash('Ticket not found for the signed-in account.', 'danger');
+        } else {
+          showFlash(`Unable to download ticket PDF (HTTP ${response.status}).`, 'danger');
+        }
+      } catch (err) {
+        console.error('PDF download error:', err);
+        showFlash('Network error while requesting ticket PDF.', 'danger');
+      }
+    });
+  }
 
 })();

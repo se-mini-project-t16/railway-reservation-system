@@ -4,6 +4,8 @@ import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
 import com.railway.reservation.dto.PassengerDto;
 import com.railway.reservation.dto.PaymentSessionDto;
+import com.railway.reservation.dto.PnrStatusResponseDto;
+import com.railway.reservation.exception.PaymentNotVerifiedException;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.exception.SeatUnavailableException;
 import com.railway.reservation.model.*;
@@ -159,32 +161,110 @@ class BookingServiceTest {
     }
 
     @Test
-    @DisplayName("TC-PNR-01: Successfully retrieve booking by valid PNR")
-    void testGetBookingByPnr_Success() {
-        Booking booking = new Booking("TESTPNR123", sampleUser, sampleTrain, sampleClass, LocalDate.now().plusDays(2), BigDecimal.valueOf(1150.00));
-        booking.setId(500L);
-        booking.setStatus(BookingStatus.CONFIRMED);
-        Passenger p = new Passenger("Alice Smith", 28, "Female", "AC3-1");
-        booking.addPassenger(p);
-
+    @DisplayName("TC-PNR-01: Public PNR status returns reduced non-identifying data")
+    void testGetPublicPnrStatus_ReducedProjection() {
+        Booking booking = bookingWithPassengers("TESTPNR123");
         when(bookingRepository.findByPnr("TESTPNR123")).thenReturn(Optional.of(booking));
 
-        BookingResponseDto response = bookingService.getBookingByPnr("TESTPNR123");
+        PnrStatusResponseDto response = bookingService.getPublicPnrStatus("TESTPNR123");
 
         assertNotNull(response);
-        assertEquals("TESTPNR123", response.getPnr());
-        assertEquals(BookingStatus.CONFIRMED, response.getStatus());
-        assertEquals("12601", response.getTrainNo());
-        assertEquals(1, response.getPassengers().size());
-        assertEquals("Alice Smith", response.getPassengers().get(0).getName());
+        assertEquals("TESTPNR123", response.pnr());
+        assertEquals(BookingStatus.CONFIRMED, response.status());
+        assertEquals("12601", response.trainNo());
+        assertEquals("Mangalore Mail", response.trainName());
+        assertEquals("Chennai Central", response.sourceStation());
+        assertEquals("Mangalore Central", response.destinationStation());
+        assertEquals("AC 3 Tier", response.className());
+        assertEquals(BigDecimal.valueOf(1150.00), response.totalFare());
+        assertEquals(List.of("AC3-1"), response.seatNumbers());
     }
 
     @Test
-    @DisplayName("TC-PNR-01 (Negative): Return error when PNR does not exist")
-    void testGetBookingByPnr_NotFound() {
+    @DisplayName("TC-PNR-01 (Negative): Public PNR status returns not found for invalid PNR")
+    void testGetPublicPnrStatus_NotFound() {
         when(bookingRepository.findByPnr("INVALIDPNR")).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> bookingService.getBookingByPnr("INVALIDPNR"));
+        assertThrows(ResourceNotFoundException.class, () -> bookingService.getPublicPnrStatus("INVALIDPNR"));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Verified owner receives the full ticket")
+    void testGetTicketByPnr_VerifiedOwner() {
+        Booking booking = bookingWithVerifiedPayment("OWNEDPNR", "SUCCESS");
+        when(bookingRepository.findByPnrAndUserId("OWNEDPNR", 1L)).thenReturn(Optional.of(booking));
+
+        BookingResponseDto response = bookingService.getTicketByPnr("OWNEDPNR", 1L);
+
+        assertEquals("Alice Smith", response.getPassengers().get(0).getName());
+        assertEquals("SUCCESS", response.getPaymentStatus());
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Pending payment blocks full ticket access")
+    void testGetTicketByPnr_PendingPaymentBlocked() {
+        Booking booking = bookingWithPayment("OWNEDPNR", "PENDING");
+        when(bookingRepository.findByPnrAndUserId("OWNEDPNR", 1L)).thenReturn(Optional.of(booking));
+
+        assertThrows(PaymentNotVerifiedException.class, () -> bookingService.getTicketByPnr("OWNEDPNR", 1L));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Failed payment blocks full ticket access")
+    void testGetTicketByPnr_FailedPaymentBlocked() {
+        Booking booking = bookingWithPayment("OWNEDPNR", "FAILED");
+        booking.setStatus(BookingStatus.FAILED);
+        when(bookingRepository.findByPnrAndUserId("OWNEDPNR", 1L)).thenReturn(Optional.of(booking));
+
+        assertThrows(PaymentNotVerifiedException.class, () -> bookingService.getTicketByPnr("OWNEDPNR", 1L));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Ticket lookup scopes PNR to the authenticated owner")
+    void testGetTicketByPnr_EnforcesOwnership() {
+        when(bookingRepository.findByPnrAndUserId("OWNEDPNR", 1L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> bookingService.getTicketByPnr("OWNEDPNR", 1L));
+        verify(bookingRepository).findByPnrAndUserId("OWNEDPNR", 1L);
+        verify(bookingRepository, never()).findByPnr("OWNEDPNR");
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Admin ticket access requires verified payment")
+    void testGetTicketByPnrForAdmin_RequiresVerifiedPayment() {
+        Booking pending = bookingWithPayment("ADMINPNR", "PENDING");
+        when(bookingRepository.findByPnr("ADMINPNR")).thenReturn(Optional.of(pending));
+        assertThrows(PaymentNotVerifiedException.class,
+                () -> bookingService.getTicketByPnrForAdmin("ADMINPNR"));
+
+        Booking verified = bookingWithVerifiedPayment("ADMINPNR", "CONFIRMED");
+        when(bookingRepository.findByPnr("ADMINPNR")).thenReturn(Optional.of(verified));
+        BookingResponseDto response = bookingService.getTicketByPnrForAdmin("ADMINPNR");
+        assertEquals("ADMINPNR", response.getPnr());
+        assertEquals(BookingStatus.CONFIRMED, response.getStatus());
+    }
+
+    private Booking bookingWithPassengers(String pnr) {
+        Booking booking = new Booking(pnr, sampleUser, sampleTrain, sampleClass,
+                LocalDate.now().plusDays(2), BigDecimal.valueOf(1150.00));
+        booking.setId(500L);
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.addPassenger(new Passenger("Alice Smith", 28, "Female", "AC3-1"));
+        return booking;
+    }
+
+    private Booking bookingWithPayment(String pnr, String paymentStatus) {
+        Booking booking = bookingWithPassengers(pnr);
+        booking.setStatus(BookingStatus.PENDING);
+        Payment payment = new Payment(booking, BigDecimal.valueOf(1150.00), "TXN-TEST123", paymentStatus);
+        booking.setPayment(payment);
+        return booking;
+    }
+
+    private Booking bookingWithVerifiedPayment(String pnr, String paymentStatus) {
+        Booking booking = bookingWithPayment(pnr, paymentStatus);
+        booking.setStatus(BookingStatus.CONFIRMED);
+        return booking;
     }
 }
 

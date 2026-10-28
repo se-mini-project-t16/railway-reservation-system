@@ -1,6 +1,7 @@
 package com.railway.reservation.config;
 
 import com.railway.reservation.exception.DuplicateTrainException;
+import com.railway.reservation.exception.PaymentNotVerifiedException;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.exception.SeatUnavailableException;
 import com.railway.reservation.exception.TrainDeletionException;
@@ -37,6 +38,19 @@ public class GlobalExceptionHandler {
         body.put("path", request.getRequestURI());
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(PaymentNotVerifiedException.class)
+    public ResponseEntity<Map<String, Object>> handlePaymentNotVerified(
+            PaymentNotVerifiedException ex, HttpServletRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", "Conflict");
+        body.put("message", ex.getMessage());
+        body.put("path", request.getRequestURI());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)
