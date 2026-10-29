@@ -7,3 +7,4 @@ Outlines the test strategy, testing levels (unit, integration, system, performan
 ## Deliverables
 
 - **Test Plan Document:** [`test-plan-railway-reservation-system.pdf`](./test-plan-railway-reservation-system.pdf) | [`test-plan-railway-reservation-system.docx`](./test-plan-railway-reservation-system.docx)
+- **Issue #17 Search Performance Benchmark:** [`issue17-search-benchmark.md`](../performance/issue17-search-benchmark.md)
