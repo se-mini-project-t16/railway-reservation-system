@@ -1,5 +1,6 @@
 package com.railway.reservation.config;
 
+import com.railway.reservation.exception.CancellationNotAllowedException;
 import com.railway.reservation.exception.DuplicateTrainException;
 import com.railway.reservation.exception.PaymentNotVerifiedException;
 import com.railway.reservation.exception.ResourceNotFoundException;
@@ -77,6 +78,19 @@ public class GlobalExceptionHandler {
         body.put("path", request.getRequestURI());
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(CancellationNotAllowedException.class)
+    public ResponseEntity<Map<String, Object>> handleCancellationNotAllowed(
+            CancellationNotAllowedException ex, HttpServletRequest request) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", "Bad Request");
+        body.put("message", ex.getMessage());
+        body.put("path", request.getRequestURI());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

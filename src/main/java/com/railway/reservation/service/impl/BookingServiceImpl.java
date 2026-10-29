@@ -19,8 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 public class BookingServiceImpl implements BookingService {
@@ -102,9 +104,28 @@ public class BookingServiceImpl implements BookingService {
             classPrefix = classPrefix.substring(0, 3);
         }
 
+        // Reuse the lowest seat numbers not held by an active booking, so seats
+        // released by cancellation (RRS-F-012) go back to the pool without duplicates
+        Set<Integer> takenSeats = new HashSet<>();
+        String seatPrefix = classPrefix + "-";
+        for (String taken : bookingRepository.findActiveSeatNumbers(
+                train.getId(), trainClass.getId(), request.getJourneyDate(), activeStatuses)) {
+            if (taken != null && taken.startsWith(seatPrefix)) {
+                try {
+                    takenSeats.add(Integer.parseInt(taken.substring(seatPrefix.length())));
+                } catch (NumberFormatException ignored) {
+                    // Not in the classPrefix-N format; cannot collide with generated numbers
+                }
+            }
+        }
+
+        int nextSeat = 0;
         for (int i = 0; i < requestedSeats; i++) {
             PassengerDto pDto = request.getPassengers().get(i);
-            String seatNo = classPrefix + "-" + (alreadyBooked + i + 1);
+            do {
+                nextSeat++;
+            } while (takenSeats.contains(nextSeat));
+            String seatNo = seatPrefix + nextSeat;
 
             Passenger passenger = new Passenger(pDto.getName().trim(), pDto.getAge(), pDto.getGender().trim(), seatNo);
             booking.addPassenger(passenger);

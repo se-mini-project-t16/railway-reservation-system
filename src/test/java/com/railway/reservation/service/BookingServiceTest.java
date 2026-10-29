@@ -89,6 +89,8 @@ class BookingServiceTest {
         when(trainRepository.findById(10L)).thenReturn(Optional.of(sampleTrain));
         when(trainClassRepository.findById(100L)).thenReturn(Optional.of(sampleClass));
         when(bookingRepository.countBookedSeats(eq(10L), eq(100L), any(LocalDate.class), anyList())).thenReturn(10);
+        when(bookingRepository.findActiveSeatNumbers(eq(10L), eq(100L), any(LocalDate.class), anyList()))
+                .thenReturn(java.util.stream.IntStream.rangeClosed(1, 10).mapToObj(n -> "AC3-" + n).toList());
         when(bookingRepository.findByPnr(anyString())).thenReturn(Optional.empty());
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> {
             Booking b = invocation.getArgument(0);
@@ -121,6 +123,37 @@ class BookingServiceTest {
         verify(passengerRepository, times(2)).save(any(Passenger.class));
         verify(bookingRepository, times(1)).save(any(Booking.class));
         verify(paymentService, times(1)).initiatePaymentSession(any(Booking.class));
+    }
+
+    @Test
+    @DisplayName("TC-CAN-01: Seats released by a cancellation are reassigned without duplicating active seats")
+    void testCreateBooking_ReusesReleasedSeatNumbers() {
+        BookingRequestDto request = new BookingRequestDto(
+                1L, 10L, 100L, LocalDate.now().plusDays(2),
+                List.of(
+                        new PassengerDto("Alice Smith", 28, "Female"),
+                        new PassengerDto("Bob Smith", 32, "Male")
+                )
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleUser));
+        when(trainRepository.findById(10L)).thenReturn(Optional.of(sampleTrain));
+        when(trainClassRepository.findById(100L)).thenReturn(Optional.of(sampleClass));
+        // AC3-1 and AC3-3 were cancelled; AC3-2 and AC3-4 are still held
+        when(bookingRepository.countBookedSeats(eq(10L), eq(100L), any(LocalDate.class), anyList())).thenReturn(2);
+        when(bookingRepository.findActiveSeatNumbers(eq(10L), eq(100L), any(LocalDate.class), anyList()))
+                .thenReturn(List.of("AC3-2", "AC3-4"));
+        when(bookingRepository.findByPnr(anyString())).thenReturn(Optional.empty());
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> {
+            Booking b = invocation.getArgument(0);
+            b.setId(501L);
+            return b;
+        });
+
+        BookingResponseDto response = bookingService.createBooking(request);
+
+        assertEquals("AC3-1", response.getPassengers().get(0).getSeatNo());
+        assertEquals("AC3-3", response.getPassengers().get(1).getSeatNo());
     }
 
     @Test
