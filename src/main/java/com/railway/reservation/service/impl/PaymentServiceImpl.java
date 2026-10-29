@@ -1,8 +1,11 @@
 package com.railway.reservation.service.impl;
 
+import com.railway.reservation.dto.PaymentCallbackRequestDto;
+import com.railway.reservation.dto.PaymentCallbackResponseDto;
 import com.railway.reservation.dto.PaymentSessionDto;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.Booking;
+import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.Payment;
 import com.railway.reservation.repository.BookingRepository;
 import com.railway.reservation.repository.PaymentRepository;
@@ -14,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -92,6 +96,92 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException("No payment session found for PNR: " + pnr));
 
         return mapToDto(payment, booking);
+    }
+
+    @Override
+    @Transactional
+    public PaymentCallbackResponseDto handlePaymentCallback(PaymentCallbackRequestDto callbackRequest) {
+        if (callbackRequest == null) {
+            throw new IllegalArgumentException("Payment callback payload must not be null");
+        }
+
+        String gatewayRef = callbackRequest.getGatewayRef().trim();
+        String pnr = callbackRequest.getPnr().trim();
+        String status = callbackRequest.getStatus().trim();
+
+        // 1. Locate payment session by gatewayRef
+        Payment payment = paymentRepository.findByGatewayRef(gatewayRef)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment record not found for gateway reference: " + gatewayRef));
+
+        Booking booking = payment.getBooking();
+        if (booking == null) {
+            throw new ResourceNotFoundException("No booking associated with payment reference: " + gatewayRef);
+        }
+
+        // 2. Prevent tampering: Ensure booking PNR matches (STRIDE Tampering)
+        if (!booking.getPnr().equalsIgnoreCase(pnr)) {
+            logger.error("AUDIT SECURITY ALERT: Payment gateway reference {} PNR mismatch! Expected {}, Received {} [STRIDE Tampering]",
+                    gatewayRef, booking.getPnr(), pnr);
+            throw new IllegalArgumentException("Gateway reference does not match the provided booking PNR");
+        }
+
+        // 3. Prevent amount mismatch / price tampering if amount is provided
+        if (callbackRequest.getAmount() != null) {
+            BigDecimal expectedAmount = payment.getAmount().setScale(2, RoundingMode.HALF_UP);
+            BigDecimal receivedAmount = callbackRequest.getAmount().setScale(2, RoundingMode.HALF_UP);
+            if (expectedAmount.compareTo(receivedAmount) != 0) {
+                logger.error("AUDIT SECURITY ALERT: Payment amount tampering! Expected {}, Received {} for gatewayRef={}",
+                        expectedAmount, receivedAmount, gatewayRef);
+                throw new IllegalArgumentException("Payment amount mismatch: Expected " + expectedAmount + ", received " + receivedAmount);
+            }
+        }
+
+        boolean isSuccess = "SUCCESS".equalsIgnoreCase(status) || "CONFIRMED".equalsIgnoreCase(status);
+
+        if (isSuccess) {
+            // RRS-F-009, TC-BK-01: Update booking to CONFIRMED, record gateway_ref and paid_at
+            payment.setStatus("SUCCESS");
+            payment.setPaidAt(LocalDateTime.now());
+            paymentRepository.save(payment);
+
+            booking.setStatus(BookingStatus.CONFIRMED);
+            bookingRepository.save(booking);
+
+            // STRIDE Repudiation Mitigation: Log verified payment with user id and timestamp
+            logger.info("AUDIT: Payment SUCCESS verified. gatewayRef={}, pnr={}, amount={}, paidAt={}, userId={} [RRS-F-009, TC-BK-01]",
+                    gatewayRef, booking.getPnr(), payment.getAmount(), payment.getPaidAt(), booking.getUser().getId());
+
+            return new PaymentCallbackResponseDto(
+                    gatewayRef,
+                    booking.getPnr(),
+                    "SUCCESS",
+                    BookingStatus.CONFIRMED,
+                    payment.getAmount(),
+                    payment.getPaidAt(),
+                    "Payment verified successfully. Booking is now CONFIRMED."
+            );
+        } else {
+            // RRS-F-009, TC-PAY-02: Update booking to FAILED, immediately release held seats
+            payment.setStatus("FAILED");
+            paymentRepository.save(payment);
+
+            booking.setStatus(BookingStatus.FAILED);
+            bookingRepository.save(booking);
+
+            // STRIDE Repudiation Mitigation: Log failed payment with user id and timestamp
+            logger.warn("AUDIT: Payment FAILED/DECLINED. gatewayRef={}, pnr={}, amount={}, timestamp={}, userId={}. Held seats released. [RRS-F-009, TC-PAY-02]",
+                    gatewayRef, booking.getPnr(), payment.getAmount(), LocalDateTime.now(), booking.getUser().getId());
+
+            return new PaymentCallbackResponseDto(
+                    gatewayRef,
+                    booking.getPnr(),
+                    "FAILED",
+                    BookingStatus.FAILED,
+                    payment.getAmount(),
+                    null,
+                    "Payment failed or was declined. Booking is marked as FAILED and held seats have been released."
+            );
+        }
     }
 
     private String generateUniqueGatewayRef() {

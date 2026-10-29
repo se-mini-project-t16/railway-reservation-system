@@ -413,19 +413,63 @@
       }
 
       // Simulate Successful Payment
-      document.getElementById('confirmPayBtn').addEventListener('click', () => {
+      document.getElementById('confirmPayBtn').addEventListener('click', async () => {
         const btn = document.getElementById('confirmPayBtn');
         btn.disabled = true;
         document.getElementById('payBtnText').textContent = 'Authorizing Payment...';
 
-        setTimeout(() => {
+        try {
+          const res = await fetch('/api/v1/payments/callback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+              pnr: pnr,
+              gatewayRef: gatewayRef,
+              status: 'SUCCESS',
+              amount: parseFloat(amount)
+            })
+          });
+
+          if (!res.ok) {
+            let errText = 'Payment authorization rejected by server';
+            try {
+              const errJson = await res.json();
+              if (errJson && errJson.message) errText = errJson.message;
+            } catch (_) {}
+            alert('Payment Error: ' + errText);
+            btn.disabled = false;
+            document.getElementById('payBtnText').textContent = 'Pay ₹' + amount + ' (Retry)';
+            return;
+          }
+
           // Redirect back to main application with confirmed PNR
           window.location.href = '/?pnr=' + encodeURIComponent(pnr) + '&payment=success&ref=' + encodeURIComponent(gatewayRef);
-        }, 1200);
+        } catch (err) {
+          alert('Network Error during payment: ' + err.message);
+          btn.disabled = false;
+          document.getElementById('payBtnText').textContent = 'Pay ₹' + amount + ' (Retry)';
+        }
       });
 
-      // Cancel Payment
-      document.getElementById('cancelPayBtn').addEventListener('click', () => {
+      // Cancel / Decline Payment (RRS-F-009, TC-PAY-02: Release held seats)
+      document.getElementById('cancelPayBtn').addEventListener('click', async () => {
+        const cancelBtn = document.getElementById('cancelPayBtn');
+        cancelBtn.disabled = true;
+        cancelBtn.textContent = 'Releasing Seats...';
+
+        try {
+          await fetch('/api/v1/payments/callback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+              pnr: pnr,
+              gatewayRef: gatewayRef,
+              status: 'FAILED',
+              amount: parseFloat(amount)
+            })
+          });
+        } catch (_) {}
+
         window.location.href = '/?pnr=' + encodeURIComponent(pnr) + '&payment=cancelled';
       });
     })();

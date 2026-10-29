@@ -1000,8 +1000,8 @@
       } catch (e) {
         console.error('Error fetching booking after payment:', e);
       }
-    } else if (pnrParam && paymentStatus === 'cancelled') {
-      showFlash(`Payment session for PNR ${pnrParam} was cancelled.`, 'warning');
+    } else if (pnrParam && (paymentStatus === 'cancelled' || paymentStatus === 'failed')) {
+      showFlash(`Payment for PNR ${pnrParam} was cancelled or declined. Held seats have been released.`, 'warning');
     }
   })();
 
