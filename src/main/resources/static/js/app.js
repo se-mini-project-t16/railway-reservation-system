@@ -1148,21 +1148,31 @@
       fareLine.textContent = `Total Fare: ₹${data.totalFare ?? '-'}`;
       box.appendChild(fareLine);
 
-      const seatsLine = document.createElement('div');
-      seatsLine.style.fontSize = '0.9rem';
-      seatsLine.style.marginTop = '0.35rem';
-      const seatNumbers = Array.isArray(data.seatNumbers) ? data.seatNumbers : [];
-      seatsLine.textContent = seatNumbers.length > 0
-        ? `Seats: ${seatNumbers.join(', ')}`
-        : 'Seats: Not assigned';
-      box.appendChild(seatsLine);
+      if (Array.isArray(data.passengers) && data.passengers.length > 0) {
+        const passLine = document.createElement('div');
+        passLine.style.fontSize = '0.9rem';
+        passLine.style.marginTop = '0.35rem';
+        passLine.innerHTML = '<strong>Passengers:</strong> ' + data.passengers
+          .map(p => `${p.name || 'Passenger'} (Seat: ${p.seatNo || p.seatNumber || 'Confirmed'})`)
+          .join(', ');
+        box.appendChild(passLine);
+      } else {
+        const seatsLine = document.createElement('div');
+        seatsLine.style.fontSize = '0.9rem';
+        seatsLine.style.marginTop = '0.35rem';
+        const seatNumbers = Array.isArray(data.seatNumbers) ? data.seatNumbers : [];
+        seatsLine.textContent = seatNumbers.length > 0
+          ? `Seats: ${seatNumbers.join(', ')}`
+          : 'Seats: Not assigned';
+        box.appendChild(seatsLine);
+      }
 
-      const privacyNote = document.createElement('div');
-      privacyNote.style.fontSize = '0.8rem';
-      privacyNote.style.color = 'var(--text-muted)';
-      privacyNote.style.marginTop = '0.5rem';
-      privacyNote.textContent = 'Passenger names are not shown in public PNR status. Sign in to view your full e-ticket after payment verification.';
-      box.appendChild(privacyNote);
+      const note = document.createElement('div');
+      note.style.fontSize = '0.8rem';
+      note.style.color = 'var(--text-muted)';
+      note.style.marginTop = '0.5rem';
+      note.textContent = 'Sign in to view and download your full PDF e-ticket.';
+      box.appendChild(note);
 
       pnrResultContainer.appendChild(box);
 
@@ -1231,18 +1241,20 @@
     }
   }
 
-  // --- Handle Return from Payment Gateway (RRS-F-008, RRS-F-010) ---
+  // --- Handle Return from Payment Gateway (RRS-F-008, RRS-F-009, RRS-F-010) ---
   (async function checkPaymentReturn() {
     const urlParams = new URLSearchParams(window.location.search);
     const pnrParam = urlParams.get('pnr');
     const paymentStatus = urlParams.get('payment');
+    const refParam = urlParams.get('ref');
 
     if (pnrParam && paymentStatus === 'success') {
-      // The URL is only a navigation hint. The full ticket endpoint enforces
-      // server-side payment verification and ownership.
       await loadFullTicketForPnr(pnrParam);
-    } else if (pnrParam && paymentStatus === 'cancelled') {
-      showFlash(`Payment session for PNR ${pnrParam} was cancelled.`, 'warning');
+      if (refParam) {
+        showFlash(`Payment authorized successfully (Ref: ${refParam}). Electronic ticket confirmed!`, 'success');
+      }
+    } else if (pnrParam && (paymentStatus === 'cancelled' || paymentStatus === 'failed')) {
+      showFlash(`Payment for PNR ${pnrParam} was cancelled or declined. Held seats have been released.`, 'warning');
     }
   })();
 

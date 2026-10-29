@@ -12,6 +12,7 @@ import com.railway.reservation.model.*;
 import com.railway.reservation.repository.*;
 import com.railway.reservation.service.BookingService;
 import com.railway.reservation.service.PaymentService;
+import com.railway.reservation.validation.SafeTextRules;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -120,6 +121,17 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional(readOnly = true)
+    public BookingResponseDto getBookingByPnr(String pnr) {
+        Booking booking = findBookingByPnr(pnr);
+        List<PassengerDto> passengerDtos = booking.getPassengers().stream()
+                .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo()))
+                .toList();
+
+        return mapToResponseDto(booking, passengerDtos);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PnrStatusResponseDto getPublicPnrStatus(String pnr) {
         return mapToPublicDto(findBookingByPnr(pnr));
     }
@@ -143,7 +155,13 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private Booking findBookingByPnr(String pnr) {
-        return bookingRepository.findByPnr(pnr)
+        if (pnr == null || pnr.trim().isEmpty()) {
+            throw new ResourceNotFoundException("Booking not found with PNR: " + pnr);
+        }
+        SafeTextRules.requireSafe("PNR", pnr);
+        String cleanPnr = pnr.trim();
+        return bookingRepository.findByPnr(cleanPnr)
+                .or(() -> bookingRepository.findByPnr(cleanPnr.toUpperCase()))
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found with PNR: " + pnr));
     }
 
@@ -249,4 +267,3 @@ public class BookingServiceImpl implements BookingService {
         return dto;
     }
 }
-

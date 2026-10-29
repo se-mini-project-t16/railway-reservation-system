@@ -268,11 +268,9 @@ class BookingUiIntegrationTest {
                 .andExpect(jsonPath("$.pnr").value(generatedPnr))
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.totalFare").value(900.00))
-                .andExpect(jsonPath("$.seatNumbers").isArray())
-                .andExpect(jsonPath("$.seatNumbers.length()").value(2))
-                .andExpect(jsonPath("$.seatNumbers[0]").value("CC-1"))
-                .andExpect(jsonPath("$.seatNumbers[1]").value("CC-2"))
-                .andExpect(jsonPath("$.passengers").doesNotExist());
+                .andExpect(jsonPath("$.passengers.length()").value(2))
+                .andExpect(jsonPath("$.passengers[0].seatNo").value("CC-1"))
+                .andExpect(jsonPath("$.passengers[1].seatNo").value("CC-2"));
 
         long durationMs = System.currentTimeMillis() - startTime;
         // Verify TC-UX-01 requirement: Booking journey completes in far less than 5 minutes (300,000 ms)

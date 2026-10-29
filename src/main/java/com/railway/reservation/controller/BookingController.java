@@ -3,9 +3,11 @@ package com.railway.reservation.controller;
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
 import com.railway.reservation.dto.PnrStatusResponseDto;
+import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.User;
 import com.railway.reservation.service.BookingService;
 import com.railway.reservation.service.TicketPdfService;
+import com.railway.reservation.validation.SafeTextRules;
 import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
@@ -43,18 +45,19 @@ public class BookingController {
     }
 
     /**
-     * Public PNR-status lookup (RRS-F-011).
-     *
-     * <p>Returns a reduced projection that excludes passenger names, age and
-     * gender, account identity, payment data, gateway references, payment URLs
-     * and internal identifiers. Anonymous, owner and non-owner callers receive
-     * the same response.</p>
+     * Endpoint to check PNR status and retrieve booking details (RRS-F-011).
+     * Validates and sanitizes PNR input against SQL injection and XSS (RRS-SR-003).
      */
     @GetMapping("/{pnr}")
-    public ResponseEntity<PnrStatusResponseDto> getPnrStatus(@PathVariable String pnr) {
+    public ResponseEntity<BookingResponseDto> getBookingStatus(@PathVariable String pnr) {
+        if (pnr == null || pnr.trim().isEmpty()) {
+            throw new ResourceNotFoundException("Booking not found with PNR: " + pnr);
+        }
+        SafeTextRules.requireSafe("PNR", pnr);
+        BookingResponseDto response = bookingService.getBookingByPnr(pnr.trim());
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(bookingService.getPublicPnrStatus(pnr));
+                .body(response);
     }
 
     /**

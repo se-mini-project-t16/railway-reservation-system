@@ -13,6 +13,11 @@ public interface BookingService {
     BookingResponseDto createBooking(BookingRequestDto request);
 
     /**
+     * Retrieves booking details by PNR (RRS-F-011).
+     */
+    BookingResponseDto getBookingByPnr(String pnr);
+
+    /**
      * Retrieves the reduced public PNR-status projection (RRS-F-011).
      * The same response is returned for anonymous, owner and non-owner callers.
      */

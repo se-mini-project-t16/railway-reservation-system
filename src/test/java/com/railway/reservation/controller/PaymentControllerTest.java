@@ -1,9 +1,12 @@
 package com.railway.reservation.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.railway.reservation.dto.PaymentCallbackRequestDto;
+import com.railway.reservation.dto.PaymentCallbackResponseDto;
 import com.railway.reservation.dto.PaymentInitiateRequestDto;
 import com.railway.reservation.dto.PaymentSessionDto;
 import com.railway.reservation.exception.ResourceNotFoundException;
+import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.service.PaymentService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -118,6 +122,83 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.pnr").value("PNR1122334"))
                 .andExpect(jsonPath("$.gatewayRef").value("TXN-REF99999"))
                 .andExpect(jsonPath("$.amount").value(550.00));
+    }
+
+    @Test
+    @DisplayName("TC-BK-01: POST /api/v1/payments/callback with SUCCESS confirms booking")
+    void testHandleCallback_Success() throws Exception {
+        PaymentCallbackRequestDto request = new PaymentCallbackRequestDto(
+                "TXN-CALL123", "PNR1234567", "SUCCESS", BigDecimal.valueOf(1150.00));
+
+        PaymentCallbackResponseDto response = new PaymentCallbackResponseDto(
+                "TXN-CALL123", "PNR1234567", "SUCCESS", BookingStatus.CONFIRMED,
+                BigDecimal.valueOf(1150.00), LocalDateTime.now(), "Payment verified successfully. Booking is now CONFIRMED."
+        );
+
+        when(paymentService.handlePaymentCallback(any(PaymentCallbackRequestDto.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/payments/callback")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gatewayRef").value("TXN-CALL123"))
+                .andExpect(jsonPath("$.pnr").value("PNR1234567"))
+                .andExpect(jsonPath("$.paymentStatus").value("SUCCESS"))
+                .andExpect(jsonPath("$.bookingStatus").value("CONFIRMED"))
+                .andExpect(jsonPath("$.amount").value(1150.00));
+    }
+
+    @Test
+    @DisplayName("TC-PAY-02: POST /api/v1/payments/callback with FAILED updates booking to FAILED")
+    void testHandleCallback_Failed() throws Exception {
+        PaymentCallbackRequestDto request = new PaymentCallbackRequestDto(
+                "TXN-CALL123", "PNR1234567", "FAILED", BigDecimal.valueOf(1150.00));
+
+        PaymentCallbackResponseDto response = new PaymentCallbackResponseDto(
+                "TXN-CALL123", "PNR1234567", "FAILED", BookingStatus.FAILED,
+                BigDecimal.valueOf(1150.00), null, "Payment failed. Booking marked as FAILED."
+        );
+
+        when(paymentService.handlePaymentCallback(any(PaymentCallbackRequestDto.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/payments/callback")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentStatus").value("FAILED"))
+                .andExpect(jsonPath("$.bookingStatus").value("FAILED"));
+    }
+
+    @Test
+    @DisplayName("TC-PAY-02: POST /api/v1/payments/callback returns 400 Bad Request on blank parameters")
+    void testHandleCallback_BlankParameters() throws Exception {
+        PaymentCallbackRequestDto request = new PaymentCallbackRequestDto("", "", "");
+
+        mockMvc.perform(post("/api/v1/payments/callback")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("TC-BK-01: POST /api/v1/payments/verify with SUCCESS confirms booking")
+    void testVerifyPayment_Success() throws Exception {
+        PaymentCallbackRequestDto request = new PaymentCallbackRequestDto(
+                "TXN-VERIFY123", "PNR7654321", "SUCCESS", BigDecimal.valueOf(2300.00));
+
+        PaymentCallbackResponseDto response = new PaymentCallbackResponseDto(
+                "TXN-VERIFY123", "PNR7654321", "SUCCESS", BookingStatus.CONFIRMED,
+                BigDecimal.valueOf(2300.00), LocalDateTime.now(), "Payment verified successfully."
+        );
+
+        when(paymentService.handlePaymentCallback(any(PaymentCallbackRequestDto.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/payments/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.gatewayRef").value("TXN-VERIFY123"))
+                .andExpect(jsonPath("$.bookingStatus").value("CONFIRMED"));
     }
 }
 
