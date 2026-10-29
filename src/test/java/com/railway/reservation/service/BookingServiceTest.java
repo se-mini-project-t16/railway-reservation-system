@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -180,11 +181,99 @@ class BookingServiceTest {
     }
 
     @Test
+    @DisplayName("TC-PNR-01: Case-insensitive PNR lookup finds uppercase record")
+    void testGetBookingByPnr_CaseInsensitive() {
+        Booking booking = new Booking("TESTPNR123", sampleUser, sampleTrain, sampleClass, LocalDate.now().plusDays(2), BigDecimal.valueOf(1150.00));
+        booking.setId(500L);
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.addPassenger(new Passenger("Alice Smith", 28, "Female", "AC3-1"));
+
+        when(bookingRepository.findByPnr("testpnr123")).thenReturn(Optional.empty());
+        when(bookingRepository.findByPnr("TESTPNR123")).thenReturn(Optional.of(booking));
+
+        BookingResponseDto response = bookingService.getBookingByPnr("testpnr123");
+
+        assertNotNull(response);
+        assertEquals("TESTPNR123", response.getPnr());
+        assertEquals(BookingStatus.CONFIRMED, response.getStatus());
+    }
+
+    @Test
+    @DisplayName("TC-PNR-01: Retrieve booking with CANCELLED status")
+    void testGetBookingByPnr_CancelledBooking() {
+        Booking booking = new Booking("CANCELPNR1", sampleUser, sampleTrain, sampleClass, LocalDate.now().plusDays(2), BigDecimal.valueOf(1150.00));
+        booking.setId(501L);
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.addPassenger(new Passenger("Bob Brown", 45, "Male", "AC3-2"));
+
+        when(bookingRepository.findByPnr("CANCELPNR1")).thenReturn(Optional.of(booking));
+
+        BookingResponseDto response = bookingService.getBookingByPnr("CANCELPNR1");
+
+        assertNotNull(response);
+        assertEquals("CANCELPNR1", response.getPnr());
+        assertEquals(BookingStatus.CANCELLED, response.getStatus());
+    }
+
+    @Test
+    @DisplayName("TC-PNR-01: Retrieve booking with PENDING status and Payment details")
+    void testGetBookingByPnr_PendingWithPayment() {
+        Booking booking = new Booking("PENDPNR001", sampleUser, sampleTrain, sampleClass, LocalDate.now().plusDays(2), BigDecimal.valueOf(1150.00));
+        booking.setId(502L);
+        booking.setStatus(BookingStatus.PENDING);
+        booking.addPassenger(new Passenger("Carol White", 22, "Female", "AC3-3"));
+
+        Payment payment = new Payment(booking, BigDecimal.valueOf(1150.00), "TXN-GATEWAY-001", "PENDING");
+        booking.setPayment(payment);
+
+        when(bookingRepository.findByPnr("PENDPNR001")).thenReturn(Optional.of(booking));
+
+        BookingResponseDto response = bookingService.getBookingByPnr("PENDPNR001");
+
+        assertNotNull(response);
+        assertEquals("PENDPNR001", response.getPnr());
+        assertEquals(BookingStatus.PENDING, response.getStatus());
+        assertEquals("PENDING", response.getPaymentStatus());
+        assertEquals("TXN-GATEWAY-001", response.getGatewayRef());
+        assertNotNull(response.getPaymentUrl());
+    }
+
+    @Test
+    @DisplayName("TC-PNR-01: Retrieve booking with FAILED status")
+    void testGetBookingByPnr_FailedBooking() {
+        Booking booking = new Booking("FAILPNR001", sampleUser, sampleTrain, sampleClass, LocalDate.now().plusDays(2), BigDecimal.valueOf(1150.00));
+        booking.setId(503L);
+        booking.setStatus(BookingStatus.FAILED);
+        booking.addPassenger(new Passenger("David Black", 50, "Male", "AC3-4"));
+
+        when(bookingRepository.findByPnr("FAILPNR001")).thenReturn(Optional.of(booking));
+
+        BookingResponseDto response = bookingService.getBookingByPnr("FAILPNR001");
+
+        assertNotNull(response);
+        assertEquals("FAILPNR001", response.getPnr());
+        assertEquals(BookingStatus.FAILED, response.getStatus());
+    }
+
+    @Test
     @DisplayName("TC-PNR-01 (Negative): Return error when PNR does not exist")
     void testGetBookingByPnr_NotFound() {
         when(bookingRepository.findByPnr("INVALIDPNR")).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> bookingService.getBookingByPnr("INVALIDPNR"));
     }
-}
 
+    @Test
+    @DisplayName("TC-PNR-01 (Negative): Throw ResourceNotFoundException for blank or null PNR")
+    void testGetBookingByPnr_BlankPnr() {
+        assertThrows(ResourceNotFoundException.class, () -> bookingService.getBookingByPnr("   "));
+        assertThrows(ResourceNotFoundException.class, () -> bookingService.getBookingByPnr(null));
+    }
+
+    @Test
+    @DisplayName("TC-SEC-03: Throw IllegalArgumentException for SQL injection or XSS payload [RRS-SR-003]")
+    void testGetBookingByPnr_SecuritySanitization() {
+        assertThrows(IllegalArgumentException.class, () -> bookingService.getBookingByPnr("<script>alert(1)</script>"));
+        assertThrows(IllegalArgumentException.class, () -> bookingService.getBookingByPnr("admin' OR '1'='1"));
+    }
+}
