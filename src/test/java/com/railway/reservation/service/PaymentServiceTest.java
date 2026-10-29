@@ -1,5 +1,7 @@
 package com.railway.reservation.service;
 
+import com.railway.reservation.dto.PaymentCallbackRequestDto;
+import com.railway.reservation.dto.PaymentCallbackResponseDto;
 import com.railway.reservation.dto.PaymentSessionDto;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.*;
@@ -196,6 +198,112 @@ class PaymentServiceTest {
         assertEquals("SANDBOX_EXTERNAL", session.getGatewayProvider());
         assertTrue(session.getPaymentUrl().startsWith("https://sandbox.payment-gateway.org/checkout?"));
         assertTrue(session.getPaymentUrl().contains("pnr=PNR9876543"));
+    }
+
+    @Test
+    @DisplayName("TC-BK-01: handlePaymentCallback confirms booking and records paidAt on SUCCESS")
+    void testHandlePaymentCallback_Success() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-SUCCESS123", "PENDING");
+        sampleBooking.setStatus(BookingStatus.PENDING);
+        payment.setBooking(sampleBooking);
+
+        when(paymentRepository.findByGatewayRef("TXN-SUCCESS123")).thenReturn(Optional.of(payment));
+
+        PaymentCallbackRequestDto callbackDto = new PaymentCallbackRequestDto(
+                "TXN-SUCCESS123", "PNR9876543", "SUCCESS", BigDecimal.valueOf(2300.00));
+
+        PaymentCallbackResponseDto response = paymentService.handlePaymentCallback(callbackDto);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getPaymentStatus());
+        assertEquals(BookingStatus.CONFIRMED, response.getBookingStatus());
+        assertNotNull(response.getPaidAt());
+        assertEquals("PNR9876543", response.getPnr());
+        assertEquals("TXN-SUCCESS123", response.getGatewayRef());
+
+        assertEquals(BookingStatus.CONFIRMED, sampleBooking.getStatus());
+        assertEquals("SUCCESS", payment.getStatus());
+        assertNotNull(payment.getPaidAt());
+
+        verify(paymentRepository, times(1)).save(payment);
+        verify(bookingRepository, times(1)).save(sampleBooking);
+    }
+
+    @Test
+    @DisplayName("TC-PAY-02: handlePaymentCallback marks booking as FAILED and releases seats on FAILED/DECLINED")
+    void testHandlePaymentCallback_Failed() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-FAIL123", "PENDING");
+        sampleBooking.setStatus(BookingStatus.PENDING);
+        payment.setBooking(sampleBooking);
+
+        when(paymentRepository.findByGatewayRef("TXN-FAIL123")).thenReturn(Optional.of(payment));
+
+        PaymentCallbackRequestDto callbackDto = new PaymentCallbackRequestDto(
+                "TXN-FAIL123", "PNR9876543", "FAILED", BigDecimal.valueOf(2300.00));
+
+        PaymentCallbackResponseDto response = paymentService.handlePaymentCallback(callbackDto);
+
+        assertNotNull(response);
+        assertEquals("FAILED", response.getPaymentStatus());
+        assertEquals(BookingStatus.FAILED, response.getBookingStatus());
+        assertNull(response.getPaidAt());
+
+        assertEquals(BookingStatus.FAILED, sampleBooking.getStatus());
+        assertEquals("FAILED", payment.getStatus());
+
+        verify(paymentRepository, times(1)).save(payment);
+        verify(bookingRepository, times(1)).save(sampleBooking);
+    }
+
+    @Test
+    @DisplayName("TC-PAY-02: Throw ResourceNotFoundException when gatewayRef is unknown in callback")
+    void testHandlePaymentCallback_GatewayRefNotFound() {
+        when(paymentRepository.findByGatewayRef("UNKNOWN_TXN")).thenReturn(Optional.empty());
+
+        PaymentCallbackRequestDto callbackDto = new PaymentCallbackRequestDto(
+                "UNKNOWN_TXN", "PNR9876543", "SUCCESS", BigDecimal.valueOf(2300.00));
+
+        assertThrows(ResourceNotFoundException.class, () ->
+                paymentService.handlePaymentCallback(callbackDto));
+    }
+
+    @Test
+    @DisplayName("TC-PAY-02: Throw IllegalArgumentException when PNR does not match gatewayRef (STRIDE Tampering)")
+    void testHandlePaymentCallback_PnrMismatch() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-TAMPER123", "PENDING");
+        payment.setBooking(sampleBooking);
+
+        when(paymentRepository.findByGatewayRef("TXN-TAMPER123")).thenReturn(Optional.of(payment));
+
+        PaymentCallbackRequestDto callbackDto = new PaymentCallbackRequestDto(
+                "TXN-TAMPER123", "WRONG_PNR", "SUCCESS", BigDecimal.valueOf(2300.00));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                paymentService.handlePaymentCallback(callbackDto));
+        assertTrue(ex.getMessage().contains("does not match the provided booking PNR"));
+    }
+
+    @Test
+    @DisplayName("TC-PAY-02: Throw IllegalArgumentException when payment amount does not match")
+    void testHandlePaymentCallback_AmountMismatch() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-AMOUNT123", "PENDING");
+        payment.setBooking(sampleBooking);
+
+        when(paymentRepository.findByGatewayRef("TXN-AMOUNT123")).thenReturn(Optional.of(payment));
+
+        PaymentCallbackRequestDto callbackDto = new PaymentCallbackRequestDto(
+                "TXN-AMOUNT123", "PNR9876543", "SUCCESS", BigDecimal.valueOf(500.00)); // manipulated amount
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                paymentService.handlePaymentCallback(callbackDto));
+        assertTrue(ex.getMessage().contains("Payment amount mismatch"));
+    }
+
+    @Test
+    @DisplayName("TC-PAY-02: Throw IllegalArgumentException when callback request is null")
+    void testHandlePaymentCallback_NullRequest() {
+        assertThrows(IllegalArgumentException.class, () ->
+                paymentService.handlePaymentCallback(null));
     }
 }
 
