@@ -198,7 +198,7 @@ class AdminControllerTest {
     }
 
     @Test
-    @DisplayName("TC-SEC-04: Enforce RBAC on POST /api/v1/admin/trains (no token -> 401, passenger -> 403, tampered -> 401, expired -> 401)")
+    @DisplayName("TC-SEC-04: Enforce RBAC on POST /api/v1/admin/trains (no token -> 401, passenger -> 403, tampered -> 401, expired -> 401 Session Expired)")
     void testPostEndpointRbac() throws Exception {
         CreateTrainDto dto = sampleCreateDto();
         String json = objectMapper.writeValueAsString(dto);
@@ -236,11 +236,11 @@ class AdminControllerTest {
                         .content(json))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.error").value("Unauthorized"));
+                .andExpect(jsonPath("$.error").value("Session Expired"));
     }
 
     @Test
-    @DisplayName("TC-SEC-04: Enforce RBAC on PUT /api/v1/admin/trains/{id} (no token -> 401, passenger -> 403, tampered -> 401, expired -> 401)")
+    @DisplayName("TC-SEC-04: Enforce RBAC on PUT /api/v1/admin/trains/{id} (no token -> 401, passenger -> 403, tampered -> 401, expired -> 401 Session Expired)")
     void testPutEndpointRbac() throws Exception {
         UpdateTrainDto dto = sampleUpdateDto();
         String json = objectMapper.writeValueAsString(dto);
@@ -278,11 +278,11 @@ class AdminControllerTest {
                         .content(json))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.error").value("Unauthorized"));
+                .andExpect(jsonPath("$.error").value("Session Expired"));
     }
 
     @Test
-    @DisplayName("TC-SEC-04: Enforce RBAC on DELETE /api/v1/admin/trains/{id} (no token -> 401, passenger -> 403, tampered -> 401, expired -> 401)")
+    @DisplayName("TC-SEC-04: Enforce RBAC on DELETE /api/v1/admin/trains/{id} (no token -> 401, passenger -> 403, tampered -> 401, expired -> 401 Session Expired)")
     void testDeleteEndpointRbac() throws Exception {
         // No token -> 401
         mockMvc.perform(delete(ADMIN_TRAINS_URL + "/1"))
@@ -309,7 +309,22 @@ class AdminControllerTest {
                         .header("Authorization", "Bearer " + expiredToken))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
-                .andExpect(jsonPath("$.error").value("Unauthorized"));
+                .andExpect(jsonPath("$.error").value("Session Expired"));
+    }
+
+    @Test
+    @DisplayName("TC-SEC-04: /api/v1/admin/** wildcard blocks passengers on any admin path (passenger -> 403, admin -> not 403) [RRS-SR-004]")
+    void testAdminWildcardRbac() throws Exception {
+        mockMvc.perform(get(ADMIN_TRAINS_URL)
+                        .header("Authorization", "Bearer " + passengerToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"));
+
+        // No GET mapping exists, so an admin passes the role check and reaches MVC routing
+        mockMvc.perform(get(ADMIN_TRAINS_URL)
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(result -> assertThat(result.getResponse().getStatus()).isNotEqualTo(403));
     }
 
     @Test

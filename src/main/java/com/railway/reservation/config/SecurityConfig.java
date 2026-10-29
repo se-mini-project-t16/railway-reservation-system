@@ -53,8 +53,14 @@ public class SecurityConfig {
                     Map<String, Object> body = new HashMap<>();
                     body.put("timestamp", LocalDateTime.now());
                     body.put("status", HttpStatus.UNAUTHORIZED.value());
-                    body.put("error", "Unauthorized");
-                    body.put("message", authException.getMessage() != null ? authException.getMessage() : "Full authentication is required to access this resource");
+                    if (Boolean.TRUE.equals(request.getAttribute(JwtAuthenticationFilter.SESSION_EXPIRED_ATTRIBUTE))) {
+                        // RRS-SR-005: token outlived the 15-minute inactivity window
+                        body.put("error", "Session Expired");
+                        body.put("message", "Session expired due to inactivity. Please sign in again.");
+                    } else {
+                        body.put("error", "Unauthorized");
+                        body.put("message", authException.getMessage() != null ? authException.getMessage() : "Full authentication is required to access this resource");
+                    }
                     body.put("path", request.getRequestURI());
                     response.getWriter().write(objectMapper.writeValueAsString(body));
                 })

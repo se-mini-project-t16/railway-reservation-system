@@ -48,6 +48,24 @@ public class JwtService {
                 .compact();
     }
 
+    /**
+     * Sliding renewal for the inactivity timeout (RRS-SR-005): re-signs the same
+     * identity with a fresh expiry, so a session ends only after a full window with no requests.
+     */
+    public String renewToken(Claims claims) {
+        Instant issuedAt = Instant.now();
+        Instant expiresAt = issuedAt.plusMillis(expirationMillis);
+
+        return Jwts.builder()
+                .subject(claims.getSubject())
+                .claim("userId", claims.get("userId"))
+                .claim("role", claims.get("role", String.class))
+                .issuedAt(Date.from(issuedAt))
+                .expiration(Date.from(expiresAt))
+                .signWith(signingKey)
+                .compact();
+    }
+
     public Claims parseAndValidateToken(String token) {
         return Jwts.parser()
                 .verifyWith(signingKey)

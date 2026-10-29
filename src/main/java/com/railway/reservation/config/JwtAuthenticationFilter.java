@@ -2,6 +2,7 @@ package com.railway.reservation.config;
 
 import com.railway.reservation.service.JwtService;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,6 +21,9 @@ import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    public static final String RENEWED_TOKEN_HEADER = "X-Auth-Token";
+    public static final String SESSION_EXPIRED_ATTRIBUTE = "auth.expired";
 
     private final JwtService jwtService;
 
@@ -51,7 +55,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         );
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                        // Sliding renewal (RRS-SR-005): set before the chain runs, since headers
+                        // cannot be added once the response is committed.
+                        response.setHeader(RENEWED_TOKEN_HEADER, jwtService.renewToken(claims));
                     }
+                } catch (ExpiredJwtException expired) {
+                    // Lets the 401 entry point report an inactivity timeout instead of a generic 401
+                    request.setAttribute(SESSION_EXPIRED_ATTRIBUTE, Boolean.TRUE);
                 } catch (JwtException | IllegalArgumentException ignored) {
                     // Invalid, expired, or malformed token; continue unauthenticated
                 }

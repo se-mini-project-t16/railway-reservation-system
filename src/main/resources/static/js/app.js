@@ -674,6 +674,47 @@
     return token;
   }
 
+  // --- Session inactivity timeout (RRS-SR-005, TC-SEC-05) ---
+  // The server re-issues a fresh 15-minute token (X-Auth-Token) on every authenticated
+  // request, so the stored token only runs out after 15 minutes without activity.
+  const SESSION_TIMEOUT_NOTICE = 'Your session timed out after 15 minutes of inactivity. Please sign in again.';
+  let sessionTimeoutTimer = null;
+
+  function storeToken(token) {
+    try {
+      sessionStorage.setItem('jwtToken', token);
+    } catch (_) {
+      return false;
+    }
+    scheduleSessionTimeout(token);
+    return true;
+  }
+
+  function scheduleSessionTimeout(token) {
+    if (sessionTimeoutTimer) clearTimeout(sessionTimeoutTimer);
+    sessionTimeoutTimer = null;
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.exp !== 'number') return;
+    const msLeft = payload.exp * 1000 - Date.now();
+    sessionTimeoutTimer = setTimeout(handleSessionTimeout, Math.max(msLeft, 0));
+  }
+
+  function handleSessionTimeout() {
+    if (sessionTimeoutTimer) clearTimeout(sessionTimeoutTimer);
+    sessionTimeoutTimer = null;
+    clearStoredToken();
+    openLoginModal(SESSION_TIMEOUT_NOTICE);
+    showFlash('Session timed out due to inactivity. Please sign in again.', 'warning', false);
+  }
+
+  async function authFetch(url, token, options = {}) {
+    const headers = Object.assign({}, options.headers, { 'Authorization': `Bearer ${token}` });
+    const res = await fetch(url, Object.assign({}, options, { headers }));
+    const renewed = res.headers.get('X-Auth-Token');
+    if (renewed) storeToken(renewed);
+    return res;
+  }
+
   function userIdFromToken(token) {
     const payload = decodeJwtPayload(token);
     return payload && Number.isInteger(payload.userId) ? payload.userId : null;
@@ -695,9 +736,7 @@
       return { ok: false, status: 0 };
     }
 
-    try {
-      sessionStorage.setItem('jwtToken', data.token);
-    } catch (_) {
+    if (!storeToken(data.token)) {
       return { ok: false, status: 0 };
     }
 
@@ -1206,9 +1245,7 @@
     }
 
     try {
-      const res = await fetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/ticket`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/ticket`, token);
 
       if (res.ok) {
         const booking = await res.json();
@@ -1217,9 +1254,7 @@
       }
 
       if (res.status === 401) {
-        clearStoredToken();
-        openLoginModal('Your session expired. Sign in again to view your e-ticket.');
-        showFlash('Session expired. Please sign in again.', 'warning');
+        handleSessionTimeout();
         return;
       }
 
@@ -1240,6 +1275,16 @@
       showFlash('Network error while loading e-ticket.', 'danger');
     }
   }
+
+  // --- Resume or end a stored session on page load (RRS-SR-005) ---
+  (function initSessionTimeout() {
+    if (new URLSearchParams(window.location.search).get('timeout') === '1') {
+      handleSessionTimeout();
+      return;
+    }
+    const existing = getStoredToken();
+    if (existing) scheduleSessionTimeout(existing);
+  })();
 
   // --- Handle Return from Payment Gateway (RRS-F-008, RRS-F-009, RRS-F-010) ---
   (async function checkPaymentReturn() {
@@ -1283,9 +1328,7 @@
       }
 
       try {
-        const response = await fetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/ticket.pdf`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const response = await authFetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/ticket.pdf`, token);
         if (response.ok) {
           const blob = await response.blob();
           const downloadUrl = window.URL.createObjectURL(blob);
@@ -1297,9 +1340,7 @@
           a.remove();
           window.URL.revokeObjectURL(downloadUrl);
         } else if (response.status === 401) {
-          clearStoredToken();
-          openLoginModal('Your session expired. Sign in again to download the PDF.');
-          showFlash('Session expired. Please sign in again.', 'warning');
+          handleSessionTimeout();
         } else if (response.status === 409) {
           const errorBody = await response.json().catch(() => ({}));
           showFlash(errorBody.message || 'Payment has not been verified. PDF download is unavailable until payment is confirmed.', 'warning');
