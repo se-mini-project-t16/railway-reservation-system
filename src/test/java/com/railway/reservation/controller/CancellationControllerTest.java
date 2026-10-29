@@ -3,6 +3,7 @@ package com.railway.reservation.controller;
 import com.railway.reservation.model.Booking;
 import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.CancellationAuditLog;
+import com.railway.reservation.model.CancellationRule;
 import com.railway.reservation.model.Passenger;
 import com.railway.reservation.model.Payment;
 import com.railway.reservation.model.Role;
@@ -11,6 +12,8 @@ import com.railway.reservation.model.TrainClass;
 import com.railway.reservation.model.User;
 import com.railway.reservation.repository.BookingRepository;
 import com.railway.reservation.repository.CancellationAuditLogRepository;
+import com.railway.reservation.repository.CancellationRuleRepository;
+import com.railway.reservation.repository.PaymentRepository;
 import com.railway.reservation.repository.TrainRepository;
 import com.railway.reservation.repository.UserRepository;
 import com.railway.reservation.service.JwtService;
@@ -29,13 +32,15 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Integration tests for Issue #12 ticket cancellation (RRS-F-012, TC-CAN-01).
+ * Integration tests for Issue #12 ticket cancellation (RRS-F-012, TC-CAN-01)
+ * and Issue #13 rule-based refunds (RRS-F-013, TC-CAN-02).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -56,6 +61,12 @@ class CancellationControllerTest {
 
     @Autowired
     private CancellationAuditLogRepository auditLogRepository;
+
+    @Autowired
+    private CancellationRuleRepository cancellationRuleRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
 
     @Autowired
     private JwtService jwtService;
@@ -84,7 +95,14 @@ class CancellationControllerTest {
         savedTrain = trainRepository.save(train);
         ccClass = savedTrain.getClasses().get(0);
 
+        // Departure is at least 54h away, so the 48h tier (90%) applies
         journeyDate = LocalDate.now().plusDays(3);
+
+        cancellationRuleRepository.deleteAll();
+        cancellationRuleRepository.saveAll(List.of(
+                new CancellationRule(48, new BigDecimal("90.00")),
+                new CancellationRule(24, new BigDecimal("75.00")),
+                new CancellationRule(0, new BigDecimal("0.00"))));
     }
 
     private Booking saveConfirmedBooking(String pnr, LocalDate date) {
@@ -195,5 +213,68 @@ class CancellationControllerTest {
         mockMvc.perform(post("/api/v1/bookings/{pnr}/cancel", "<script>alert(1)")
                         .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("TC-CAN-02: Refund preview shows the rule-based amount before cancelling and changes nothing")
+    void testPreviewRefund_ShownBeforeCancel() throws Exception {
+        Booking booking = saveConfirmedBooking("PNRCAN0006", journeyDate);
+
+        mockMvc.perform(get("/api/v1/bookings/PNRCAN0006/refund-preview")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pnr").value("PNRCAN0006"))
+                .andExpect(jsonPath("$.totalFare").value(900.0))
+                .andExpect(jsonPath("$.refundPercent").value(90.0))
+                .andExpect(jsonPath("$.refundAmount").value(810.0));
+
+        assertEquals(BookingStatus.CONFIRMED,
+                bookingRepository.findByPnr("PNRCAN0006").orElseThrow().getStatus());
+        assertEquals("SUCCESS",
+                paymentRepository.findByBookingId(booking.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    @DisplayName("TC-CAN-01/TC-CAN-02: Cancel returns {pnr, status: CANCELLED, refund} and initiates the refund")
+    void testCancelBooking_InitiatesRefund() throws Exception {
+        Booking booking = saveConfirmedBooking("PNRCAN0007", journeyDate);
+
+        mockMvc.perform(post("/api/v1/bookings/PNRCAN0007/cancel")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pnr").value("PNRCAN0007"))
+                .andExpect(jsonPath("$.status").value("CANCELLED"))
+                .andExpect(jsonPath("$.refund").value(810.0))
+                .andExpect(jsonPath("$.refundPercent").value(90.0))
+                .andExpect(jsonPath("$.refundRef", startsWith("RFD-")));
+
+        Payment payment = paymentRepository.findByBookingId(booking.getId()).orElseThrow();
+        assertEquals("REFUND_INITIATED", payment.getStatus());
+        assertEquals(new BigDecimal("810.00"), payment.getRefundAmount());
+        assertEquals(new BigDecimal("810.00"),
+                auditLogRepository.findByPnr("PNRCAN0007").get(0).getRefundAmount());
+    }
+
+    @Test
+    @DisplayName("TC-CAN-02: Refund preview for a cancelled booking returns 400")
+    void testPreviewRefund_AlreadyCancelled() throws Exception {
+        saveConfirmedBooking("PNRCAN0008", journeyDate);
+
+        mockMvc.perform(post("/api/v1/bookings/PNRCAN0008/cancel")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/bookings/PNRCAN0008/refund-preview")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("RRS-SR-004: Refund preview without a token returns 401 Unauthorized")
+    void testPreviewRefund_Unauthenticated() throws Exception {
+        saveConfirmedBooking("PNRCAN0009", journeyDate);
+
+        mockMvc.perform(get("/api/v1/bookings/PNRCAN0009/refund-preview"))
+                .andExpect(status().isUnauthorized());
     }
 }

@@ -83,7 +83,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/trains/**").permitAll()
                 .requestMatchers("/api/v1/bookings/*/ticket",
                         "/api/v1/bookings/*/ticket.pdf",
-                        "/api/v1/bookings/*/cancel").authenticated()
+                        "/api/v1/bookings/*/cancel",
+                        "/api/v1/bookings/*/refund-preview").authenticated()
                 .requestMatchers("/api/v1/bookings/**").permitAll()
                 .requestMatchers("/api/v1/payments/**").permitAll()
                 .requestMatchers("/", "/index.html", "/payment.html", "/css/**", "/js/**", "/favicon.ico").permitAll()

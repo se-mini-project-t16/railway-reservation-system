@@ -184,16 +184,56 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
+    @Override
+    @Transactional
+    public String initiateRefund(Booking booking, BigDecimal amount) {
+        Payment payment = paymentRepository.findByBookingId(booking.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("No payment found for PNR: " + booking.getPnr()));
+
+        BigDecimal refundAmount = amount.setScale(2, RoundingMode.HALF_UP);
+        payment.setRefundAmount(refundAmount);
+
+        if (refundAmount.signum() == 0) {
+            payment.setStatus("CANCELLED_NO_REFUND");
+            paymentRepository.save(payment);
+            logger.info("AUDIT: No refund due under cancellation rules. gatewayRef={}, pnr={}, userId={} [RRS-F-013]",
+                    payment.getGatewayRef(), booking.getPnr(), booking.getUser().getId());
+            return null;
+        }
+
+        // Sandbox gateway: the refund is recorded as initiated with its own reference
+        String refundRef = generateUniqueRefundRef();
+        payment.setRefundRef(refundRef);
+        payment.setStatus("REFUND_INITIATED");
+        paymentRepository.save(payment);
+
+        logger.info("AUDIT: Refund INITIATED. refundRef={}, gatewayRef={}, pnr={}, amount={}, timestamp={}, userId={} [RRS-F-013, TC-CAN-02]",
+                refundRef, payment.getGatewayRef(), booking.getPnr(), refundAmount, LocalDateTime.now(), booking.getUser().getId());
+        return refundRef;
+    }
+
     private String generateUniqueGatewayRef() {
         String ref;
         do {
-            StringBuilder sb = new StringBuilder("TXN-");
-            for (int i = 0; i < REF_LENGTH; i++) {
-                sb.append(REF_CHARACTERS.charAt(random.nextInt(REF_CHARACTERS.length())));
-            }
-            ref = sb.toString();
+            ref = randomRef("TXN-");
         } while (paymentRepository.findByGatewayRef(ref).isPresent());
         return ref;
+    }
+
+    private String generateUniqueRefundRef() {
+        String ref;
+        do {
+            ref = randomRef("RFD-");
+        } while (paymentRepository.existsByRefundRef(ref));
+        return ref;
+    }
+
+    private String randomRef(String prefix) {
+        StringBuilder sb = new StringBuilder(prefix);
+        for (int i = 0; i < REF_LENGTH; i++) {
+            sb.append(REF_CHARACTERS.charAt(random.nextInt(REF_CHARACTERS.length())));
+        }
+        return sb.toString();
     }
 
     private PaymentSessionDto mapToDto(Payment payment, Booking booking) {

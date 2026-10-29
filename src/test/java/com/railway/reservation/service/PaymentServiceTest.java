@@ -305,5 +305,45 @@ class PaymentServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 paymentService.handlePaymentCallback(null));
     }
-}
 
+    @Test
+    @DisplayName("TC-CAN-02: Initiate refund records amount and reference on the payment")
+    void testInitiateRefund_Success() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-REFUND123", "SUCCESS");
+        when(paymentRepository.findByBookingId(50L)).thenReturn(Optional.of(payment));
+        when(paymentRepository.existsByRefundRef(anyString())).thenReturn(false);
+
+        String refundRef = paymentService.initiateRefund(sampleBooking, new BigDecimal("2070"));
+
+        assertNotNull(refundRef);
+        assertTrue(refundRef.startsWith("RFD-"));
+        assertEquals(refundRef, payment.getRefundRef());
+        assertEquals("REFUND_INITIATED", payment.getStatus());
+        assertEquals(new BigDecimal("2070.00"), payment.getRefundAmount());
+        verify(paymentRepository).save(payment);
+    }
+
+    @Test
+    @DisplayName("TC-CAN-02: Zero refund marks the payment without generating a refund reference")
+    void testInitiateRefund_ZeroAmount() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-REFUND124", "SUCCESS");
+        when(paymentRepository.findByBookingId(50L)).thenReturn(Optional.of(payment));
+
+        String refundRef = paymentService.initiateRefund(sampleBooking, BigDecimal.ZERO);
+
+        assertNull(refundRef);
+        assertNull(payment.getRefundRef());
+        assertEquals("CANCELLED_NO_REFUND", payment.getStatus());
+        assertEquals(new BigDecimal("0.00"), payment.getRefundAmount());
+        verify(paymentRepository, never()).existsByRefundRef(anyString());
+    }
+
+    @Test
+    @DisplayName("TC-CAN-02: Refund for a booking without a payment record returns not found")
+    void testInitiateRefund_NoPayment() {
+        when(paymentRepository.findByBookingId(50L)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> paymentService.initiateRefund(sampleBooking, new BigDecimal("100.00")));
+    }
+}

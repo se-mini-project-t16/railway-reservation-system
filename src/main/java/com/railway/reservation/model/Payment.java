@@ -31,6 +31,12 @@ public class Payment {
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
+    @Column(name = "refund_amount", precision = 10, scale = 2)
+    private BigDecimal refundAmount;
+
+    @Column(name = "refund_ref", length = 100)
+    private String refundRef;
+
     public Payment() {}
 
     public Payment(Booking booking, BigDecimal amount, String gatewayRef, String status) {
@@ -60,5 +66,11 @@ public class Payment {
 
     public LocalDateTime getPaidAt() { return paidAt; }
     public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
+
+    public BigDecimal getRefundAmount() { return refundAmount; }
+    public void setRefundAmount(BigDecimal refundAmount) { this.refundAmount = refundAmount; }
+
+    public String getRefundRef() { return refundRef; }
+    public void setRefundRef(String refundRef) { this.refundRef = refundRef; }
 }
 

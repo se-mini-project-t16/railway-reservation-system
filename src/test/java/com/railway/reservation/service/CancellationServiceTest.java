@@ -1,16 +1,20 @@
 package com.railway.reservation.service;
 
 import com.railway.reservation.dto.CancellationResponseDto;
+import com.railway.reservation.dto.RefundPreviewDto;
 import com.railway.reservation.exception.CancellationNotAllowedException;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.*;
 import com.railway.reservation.repository.BookingRepository;
 import com.railway.reservation.repository.CancellationAuditLogRepository;
+import com.railway.reservation.repository.CancellationRuleRepository;
 import com.railway.reservation.service.impl.CancellationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -23,10 +27,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +47,12 @@ class CancellationServiceTest {
 
     @Mock
     private CancellationAuditLogRepository auditLogRepository;
+
+    @Mock
+    private CancellationRuleRepository cancellationRuleRepository;
+
+    @Mock
+    private PaymentService paymentService;
 
     @InjectMocks
     private CancellationServiceImpl cancellationService;
@@ -68,25 +80,39 @@ class CancellationServiceTest {
         booking.addPassenger(new Passenger("Bob Smith", 32, "Male", "AC3-2"));
     }
 
+    // Same tiers as CancellationRuleInitializer, ordered as the repository returns them
+    private static final List<CancellationRule> DEFAULT_RULES = List.of(
+            new CancellationRule(48, new BigDecimal("90.00")),
+            new CancellationRule(24, new BigDecimal("75.00")),
+            new CancellationRule(12, new BigDecimal("50.00")),
+            new CancellationRule(4, new BigDecimal("25.00")),
+            new CancellationRule(0, new BigDecimal("0.00")));
+
     private void fixNow(LocalDateTime now) {
         ReflectionTestUtils.setField(cancellationService, "clock",
                 Clock.fixed(now.atZone(ZONE).toInstant(), ZONE));
     }
 
     @Test
-    @DisplayName("TC-CAN-01: Cancelling a confirmed booking sets CANCELLED and writes an audit entry")
+    @DisplayName("TC-CAN-01: Cancelling a confirmed booking sets CANCELLED, initiates the refund and writes an audit entry")
     void testCancelBooking_Success() {
         LocalDateTime now = DEPARTURE.minusDays(2);
         fixNow(now);
         when(bookingRepository.findByPnrForUpdate("PNRCAN0001")).thenReturn(Optional.of(booking));
+        when(cancellationRuleRepository.findAllByOrderByHoursBeforeDesc()).thenReturn(DEFAULT_RULES);
+        when(paymentService.initiateRefund(eq(booking), any(BigDecimal.class))).thenReturn("RFD-TEST00000001");
 
         CancellationResponseDto response = cancellationService.cancelBooking(" pnrcan0001 ", 1L);
 
         assertEquals("PNRCAN0001", response.getPnr());
         assertEquals(BookingStatus.CANCELLED, response.getStatus());
         assertEquals(now, response.getCancelledAt());
+        assertEquals(new BigDecimal("2070.00"), response.getRefund());
+        assertEquals(new BigDecimal("90.00"), response.getRefundPercent());
+        assertEquals("RFD-TEST00000001", response.getRefundRef());
         assertEquals(BookingStatus.CANCELLED, booking.getStatus());
         verify(bookingRepository).save(booking);
+        verify(paymentService).initiateRefund(booking, new BigDecimal("2070.00"));
 
         ArgumentCaptor<CancellationAuditLog> audit = ArgumentCaptor.forClass(CancellationAuditLog.class);
         verify(auditLogRepository).save(audit.capture());
@@ -94,6 +120,7 @@ class CancellationServiceTest {
         assertEquals("PNRCAN0001", audit.getValue().getPnr());
         assertEquals(1L, audit.getValue().getUserId());
         assertEquals(now, audit.getValue().getCancelledAt());
+        assertEquals(new BigDecimal("2070.00"), audit.getValue().getRefundAmount());
     }
 
     @Test
@@ -115,6 +142,7 @@ class CancellationServiceTest {
                 () -> cancellationService.cancelBooking("PNRCAN0001", 2L));
         assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
         verify(bookingRepository, never()).save(any());
+        verifyNoInteractions(paymentService);
     }
 
     @Test
@@ -160,5 +188,94 @@ class CancellationServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> cancellationService.cancelBooking("<script>alert(1)</script>", 1L));
         verifyNoInteractions(bookingRepository);
+    }
+
+    @ParameterizedTest(name = "{0} min before departure -> {1}% refund = {2}")
+    @CsvSource({
+            "4320, 90.00, 2070.00",   // 72h
+            "2880, 90.00, 2070.00",   // exactly 48h
+            "2879, 75.00, 1725.00",   // 47h59m
+            "780,  50.00, 1150.00",   // 13h
+            "300,  25.00, 575.00",    // 5h
+            "120,  0.00,  0.00"       // 2h
+    })
+    @DisplayName("TC-CAN-02: Refund preview applies the cancellation_rules tier for the time left")
+    void testPreviewRefund_RuleTiers(long minutesBefore, BigDecimal expectedPercent, BigDecimal expectedAmount) {
+        fixNow(DEPARTURE.minusMinutes(minutesBefore));
+        when(bookingRepository.findByPnr("PNRCAN0001")).thenReturn(Optional.of(booking));
+        when(cancellationRuleRepository.findAllByOrderByHoursBeforeDesc()).thenReturn(DEFAULT_RULES);
+
+        RefundPreviewDto preview = cancellationService.previewRefund("PNRCAN0001", 1L);
+
+        assertEquals("PNRCAN0001", preview.getPnr());
+        assertEquals(minutesBefore / 60, preview.getHoursBeforeDeparture());
+        assertEquals(0, expectedPercent.compareTo(preview.getRefundPercent()));
+        assertEquals(0, expectedAmount.compareTo(preview.getRefundAmount()));
+    }
+
+    @Test
+    @DisplayName("TC-CAN-02: Refund preview leaves the booking and payment untouched")
+    void testPreviewRefund_DoesNotChangeBooking() {
+        fixNow(DEPARTURE.minusDays(3));
+        when(bookingRepository.findByPnr("PNRCAN0001")).thenReturn(Optional.of(booking));
+        when(cancellationRuleRepository.findAllByOrderByHoursBeforeDesc()).thenReturn(DEFAULT_RULES);
+
+        cancellationService.previewRefund("PNRCAN0001", 1L);
+
+        assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
+        verify(bookingRepository, never()).save(any());
+        verifyNoInteractions(paymentService, auditLogRepository);
+    }
+
+    @Test
+    @DisplayName("TC-CAN-02: Refund preview is rejected for an already cancelled booking")
+    void testPreviewRefund_AlreadyCancelled() {
+        fixNow(DEPARTURE.minusDays(3));
+        booking.setStatus(BookingStatus.CANCELLED);
+        when(bookingRepository.findByPnr("PNRCAN0001")).thenReturn(Optional.of(booking));
+
+        assertThrows(CancellationNotAllowedException.class,
+                () -> cancellationService.previewRefund("PNRCAN0001", 1L));
+    }
+
+    @Test
+    @DisplayName("TC-CAN-02: With no cancellation rules configured the refund is zero")
+    void testPreviewRefund_NoRules() {
+        fixNow(DEPARTURE.minusDays(3));
+        when(bookingRepository.findByPnr("PNRCAN0001")).thenReturn(Optional.of(booking));
+        when(cancellationRuleRepository.findAllByOrderByHoursBeforeDesc()).thenReturn(List.of());
+
+        RefundPreviewDto preview = cancellationService.previewRefund("PNRCAN0001", 1L);
+
+        assertEquals(0, BigDecimal.ZERO.compareTo(preview.getRefundPercent()));
+        assertEquals(new BigDecimal("0.00"), preview.getRefundAmount());
+    }
+
+    @Test
+    @DisplayName("TC-CAN-02: Refund amount is rounded half-up to two decimals")
+    void testPreviewRefund_RoundsHalfUp() {
+        fixNow(DEPARTURE.minusHours(5));
+        booking.setTotalFare(new BigDecimal("1150.55"));
+        when(bookingRepository.findByPnr("PNRCAN0001")).thenReturn(Optional.of(booking));
+        when(cancellationRuleRepository.findAllByOrderByHoursBeforeDesc()).thenReturn(DEFAULT_RULES);
+
+        // 25% of 1150.55 = 287.6375
+        assertEquals(new BigDecimal("287.64"),
+                cancellationService.previewRefund("PNRCAN0001", 1L).getRefundAmount());
+    }
+
+    @Test
+    @DisplayName("TC-CAN-02: Cancelling inside the no-refund window still cancels with a zero refund")
+    void testCancelBooking_ZeroRefund() {
+        fixNow(DEPARTURE.minusHours(2));
+        when(bookingRepository.findByPnrForUpdate("PNRCAN0001")).thenReturn(Optional.of(booking));
+        when(cancellationRuleRepository.findAllByOrderByHoursBeforeDesc()).thenReturn(DEFAULT_RULES);
+        when(paymentService.initiateRefund(eq(booking), any(BigDecimal.class))).thenReturn(null);
+
+        CancellationResponseDto response = cancellationService.cancelBooking("PNRCAN0001", 1L);
+
+        assertEquals(BookingStatus.CANCELLED, response.getStatus());
+        assertEquals(0, BigDecimal.ZERO.compareTo(response.getRefund()));
+        assertNull(response.getRefundRef());
     }
 }
