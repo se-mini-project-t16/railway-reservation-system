@@ -38,6 +38,13 @@
           </svg>
           <span>Time: <strong id="timerDisplay">00:00</strong></span>
         </div>
+        <button type="button" class="btn-header-pnr" id="openLoginModalBtn" aria-haspopup="dialog">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          Sign In
+        </button>
         <button type="button" class="btn-header-pnr" id="openPnrModalBtn" aria-haspopup="dialog">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"/>
@@ -299,7 +306,7 @@
             <h2 id="confirmationHeading" style="font-size: 1.35rem; font-weight: 800; color: #14532d; margin: 0;">
               Ticket Successfully Booked &amp; Confirmed
             </h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
+            <p id="confirmationSubtitle" style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">
               Your reservation is confirmed. Electronic reservation slip (ERS) generated below.
             </p>
           </div>
@@ -336,6 +343,10 @@
               <div style="font-weight: 700;" id="confClassDetails">-</div>
               <div style="font-size: 0.85rem; color: var(--secondary); font-weight: 700;" id="confTotalFare">-</div>
             </div>
+            <div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">PAYMENT STATUS</div>
+              <div style="font-weight: 700;" id="confPaymentStatus">-</div>
+            </div>
           </div>
         </div>
 
@@ -356,6 +367,14 @@
         </div>
 
         <div style="display: flex; gap: 0.75rem; justify-content: flex-end; flex-wrap: wrap;">
+          <a id="downloadPdfTicketBtn" class="btn btn-secondary" href="#" target="_blank" style="text-decoration: none; display: inline-flex; align-items: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download PDF
+          </a>
           <button type="button" class="btn btn-secondary" onclick="window.print()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 4px;">
               <polyline points="6 9 6 2 18 2 18 9"/>
@@ -397,6 +416,48 @@
       </form>
 
       <div id="pnrResultContainer" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Existing User Login Modal -->
+  <div class="modal-overlay" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="loginModalTitle" style="font-size: 1.25rem; font-weight: 700; margin: 0;">Sign In</h2>
+        <button type="button" class="modal-close" id="closeLoginModalBtn" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+        Sign in with an existing account to view your full e-ticket and download the PDF after payment is verified.
+      </p>
+
+      <form id="loginForm" novalidate>
+        <div class="form-group">
+          <label for="loginEmail">Email <span class="required" aria-hidden="true">*</span></label>
+          <input type="email"
+                 id="loginEmail"
+                 class="form-control"
+                 autocomplete="username"
+                 required
+                 aria-required="true">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password <span class="required" aria-hidden="true">*</span></label>
+          <input type="password"
+                 id="loginPassword"
+                 class="form-control"
+                 autocomplete="current-password"
+                 required
+                 aria-required="true">
+        </div>
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end; align-items: center; margin-top: 1rem;">
+          <span id="loginStatus" role="status" style="font-size: 0.85rem; color: var(--text-muted); flex: 1;"></span>
+          <button type="submit" class="btn btn-primary" id="loginSubmitBtn">
+            <span class="spinner" id="loginSpinner" style="display: none;" aria-hidden="true"></span>
+            <span id="loginSubmitText">Sign In</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 

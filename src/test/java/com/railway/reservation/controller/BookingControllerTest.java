@@ -5,9 +5,15 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
 import com.railway.reservation.dto.PassengerDto;
+import com.railway.reservation.dto.PnrStatusResponseDto;
+import com.railway.reservation.exception.PaymentNotVerifiedException;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.BookingStatus;
+import com.railway.reservation.model.Role;
+import com.railway.reservation.model.User;
 import com.railway.reservation.service.BookingService;
+import com.railway.reservation.service.JwtService;
+import com.railway.reservation.service.TicketPdfService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -16,7 +22,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -26,22 +35,39 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 class BookingControllerTest {
 
+    private static final String PAYMENT_NOT_VERIFIED = "Payment has not been verified for this booking.";
+
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JwtService jwtService;
 
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     @MockitoBean
     private BookingService bookingService;
+
+    @MockitoBean
+    private TicketPdfService ticketPdfService;
 
     @Test
     @DisplayName("TC-BK-01: POST /api/v1/bookings returns 201 Created on valid booking")
@@ -78,7 +104,7 @@ class BookingControllerTest {
     void testBookTicket_BlankPassengerName() throws Exception {
         BookingRequestDto request = new BookingRequestDto(
                 1L, 10L, 100L, LocalDate.now().plusDays(3),
-                List.of(new PassengerDto("", 30, "Male")) // blank name
+                List.of(new PassengerDto("", 30, "Male"))
         );
 
         mockMvc.perform(post("/api/v1/bookings")
@@ -93,7 +119,7 @@ class BookingControllerTest {
     void testBookTicket_InvalidPassengerAge() throws Exception {
         BookingRequestDto request = new BookingRequestDto(
                 1L, 10L, 100L, LocalDate.now().plusDays(3),
-                List.of(new PassengerDto("John Doe", 0, "Male")) // age 0 invalid
+                List.of(new PassengerDto("John Doe", 0, "Male"))
         );
 
         mockMvc.perform(post("/api/v1/bookings")
@@ -116,21 +142,6 @@ class BookingControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Bad Request"));
-    }
-
-    @Test
-    @DisplayName("TC-PNR-01: GET /api/v1/bookings/{pnr} returns 200 OK with booking details")
-    void testGetBookingStatus_Success() throws Exception {
-        BookingResponseDto response = new BookingResponseDto();
-        response.setPnr("PNR1234567");
-        response.setStatus(BookingStatus.CONFIRMED);
-
-        when(bookingService.getBookingByPnr("PNR1234567")).thenReturn(response);
-
-        mockMvc.perform(get("/api/v1/bookings/PNR1234567"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.pnr").value("PNR1234567"))
-                .andExpect(jsonPath("$.status").value("CONFIRMED"));
     }
 
     @Test
@@ -229,6 +240,266 @@ class BookingControllerTest {
         mockMvc.perform(get("/api/v1/bookings/NONEXISTENT"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("Not Found"));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Full ticket endpoint requires authentication")
+    void testFullTicket_RequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/bookings/PNR1234567/ticket"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Full ticket endpoint rejects anonymous HEAD requests")
+    void testFullTicket_RejectsAnonymousHead() throws Exception {
+        mockMvc.perform(head("/api/v1/bookings/PNR1234567/ticket"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Verified owner receives the full ticket JSON")
+    void testFullTicket_OwnerVerifiedPayment() throws Exception {
+        BookingResponseDto response = fullTicket("PNR1234567");
+        when(bookingService.getTicketByPnr("PNR1234567", 1L)).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/bookings/PNR1234567/ticket")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of()))))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.pnr").value("PNR1234567"))
+                .andExpect(jsonPath("$.passengers[0].name").value("John Doe"))
+                .andExpect(jsonPath("$.paymentStatus").value("SUCCESS"));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Another user's full ticket is inaccessible")
+    void testFullTicket_OtherOwnerForbidden() throws Exception {
+        when(bookingService.getTicketByPnr("OTHER-PNR", 2L))
+                .thenThrow(new ResourceNotFoundException("Booking not found."));
+
+        mockMvc.perform(get("/api/v1/bookings/OTHER-PNR/ticket")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(2L, null, List.of()))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Booking not found."));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Administrator receives the full ticket JSON after verified payment")
+    void testFullTicket_AdminVerifiedPayment() throws Exception {
+        BookingResponseDto response = fullTicket("ADMIN-VIEW-PNR");
+        when(bookingService.getTicketByPnrForAdmin("ADMIN-VIEW-PNR")).thenReturn(response);
+
+        mockMvc.perform(get("/api/v1/bookings/ADMIN-VIEW-PNR/ticket")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                999L, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pnr").value("ADMIN-VIEW-PNR"));
+
+        verify(bookingService).getTicketByPnrForAdmin("ADMIN-VIEW-PNR");
+        verify(bookingService, never()).getTicketByPnr(eq("ADMIN-VIEW-PNR"), anyLong());
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Unresolvable authenticated identity is rejected for full ticket")
+    void testFullTicket_UnresolvedOwnerFailsClosed() throws Exception {
+        mockMvc.perform(get("/api/v1/bookings/PNR1234567/ticket")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                "ghost@example.com", null, List.of()))))
+                .andExpect(status().isUnauthorized());
+
+        verify(bookingService, never()).getTicketByPnr(eq("PNR1234567"), anyLong());
+        verify(bookingService, never()).getTicketByPnrForAdmin("PNR1234567");
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Pending payment blocks full ticket even with payment=success")
+    void testFullTicket_PendingPaymentBlockedAndQueryParameterIgnored() throws Exception {
+        when(bookingService.getTicketByPnr("PNR1234567", 1L))
+                .thenThrow(new PaymentNotVerifiedException(PAYMENT_NOT_VERIFIED));
+
+        mockMvc.perform(get("/api/v1/bookings/PNR1234567/ticket")
+                        .param("payment", "success")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of()))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value(PAYMENT_NOT_VERIFIED));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: HEAD full ticket is also blocked for pending payment")
+    void testFullTicket_PendingPaymentHeadBlocked() throws Exception {
+        when(bookingService.getTicketByPnr("PNR1234567", 1L))
+                .thenThrow(new PaymentNotVerifiedException(PAYMENT_NOT_VERIFIED));
+
+        mockMvc.perform(head("/api/v1/bookings/PNR1234567/ticket")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of()))))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: JWT identity is used for full-ticket ownership")
+    void testFullTicket_UsesVerifiedJwtIdentityAndHidesOtherOwnersPnr() throws Exception {
+        User otherPassenger = new User("Other", "other@example.com", "1234567890", "hash", Role.ROLE_PASSENGER);
+        otherPassenger.setId(2L);
+        String token = jwtService.generateToken(otherPassenger);
+        when(bookingService.getTicketByPnr("OWNED-BY-SOMEONE-ELSE", 2L))
+                .thenThrow(new ResourceNotFoundException("Booking not found."));
+
+        mockMvc.perform(get("/api/v1/bookings/OWNED-BY-SOMEONE-ELSE/ticket")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Booking not found."));
+
+        verify(bookingService).getTicketByPnr("OWNED-BY-SOMEONE-ELSE", 2L);
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Ticket PDF download requires authentication")
+    void testDownloadTicketPdf_RequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/bookings/PNR1234567/ticket.pdf"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Ticket PDF download rejects anonymous HEAD requests")
+    void testDownloadTicketPdf_RejectsAnonymousHead() throws Exception {
+        mockMvc.perform(head("/api/v1/bookings/PNR1234567/ticket.pdf"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Verified owner downloads PDF with attachment headers")
+    void testDownloadsTicketPdfWithAttachmentHeaders() throws Exception {
+        BookingResponseDto response = fullTicket("PNR1234567");
+        when(bookingService.getTicketByPnr("PNR1234567", 1L)).thenReturn(response);
+        when(ticketPdfService.generate(response)).thenReturn("%PDF-1.4 test bytes".getBytes());
+
+        mockMvc.perform(get("/api/v1/bookings/PNR1234567/ticket.pdf")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of()))))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"ticket-PNR1234567.pdf\""))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(content().bytes("%PDF-1.4 test bytes".getBytes()));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Pending payment blocks PDF even with payment=success")
+    void testDownloadTicketPdf_PendingPaymentBlocked() throws Exception {
+        when(bookingService.getTicketByPnr("PNR1234567", 1L))
+                .thenThrow(new PaymentNotVerifiedException(PAYMENT_NOT_VERIFIED));
+
+        mockMvc.perform(get("/api/v1/bookings/PNR1234567/ticket.pdf")
+                        .param("payment", "success")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of()))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(PAYMENT_NOT_VERIFIED));
+
+        verify(ticketPdfService, never()).generate(any(BookingResponseDto.class));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Failed payment blocks PDF")
+    void testDownloadTicketPdf_FailedPaymentBlocked() throws Exception {
+        when(bookingService.getTicketByPnr("PNR1234567", 1L))
+                .thenThrow(new PaymentNotVerifiedException(PAYMENT_NOT_VERIFIED));
+
+        mockMvc.perform(get("/api/v1/bookings/PNR1234567/ticket.pdf")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of()))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Conflict"));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: HEAD PDF is also blocked for pending payment")
+    void testDownloadTicketPdf_PendingPaymentHeadBlocked() throws Exception {
+        when(bookingService.getTicketByPnr("PNR1234567", 1L))
+                .thenThrow(new PaymentNotVerifiedException(PAYMENT_NOT_VERIFIED));
+
+        mockMvc.perform(head("/api/v1/bookings/PNR1234567/ticket.pdf")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of()))))
+                .andExpect(status().isConflict());
+
+        verify(ticketPdfService, never()).generate(any(BookingResponseDto.class));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Ticket PDF download returns 404 for another owner's PNR")
+    void testDownloadTicketPdf_ForbiddenForOtherOwner() throws Exception {
+        when(bookingService.getTicketByPnr("OTHER-PNR", 2L))
+                .thenThrow(new ResourceNotFoundException("Booking not found."));
+
+        mockMvc.perform(get("/api/v1/bookings/OTHER-PNR/ticket.pdf")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(2L, null, List.of()))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Booking not found."));
+
+        verify(bookingService).getTicketByPnr("OTHER-PNR", 2L);
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Administrator downloads a verified ticket PDF")
+    void testDownloadTicketPdf_AdminVerifiedPayment() throws Exception {
+        BookingResponseDto response = fullTicket("ADMIN-VIEW-PNR");
+        when(bookingService.getTicketByPnrForAdmin("ADMIN-VIEW-PNR")).thenReturn(response);
+        when(ticketPdfService.generate(response)).thenReturn("%PDF-1.4 admin ticket".getBytes());
+
+        mockMvc.perform(get("/api/v1/bookings/ADMIN-VIEW-PNR/ticket.pdf")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                999L, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))))))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"ticket-ADMIN-VIEW-PNR.pdf\""))
+                .andExpect(content().bytes("%PDF-1.4 admin ticket".getBytes()));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Administrator is also blocked for unverified payment")
+    void testDownloadTicketPdf_AdminPendingPaymentBlocked() throws Exception {
+        when(bookingService.getTicketByPnrForAdmin("ADMIN-VIEW-PNR"))
+                .thenThrow(new PaymentNotVerifiedException(PAYMENT_NOT_VERIFIED));
+
+        mockMvc.perform(get("/api/v1/bookings/ADMIN-VIEW-PNR/ticket.pdf")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(
+                                999L, null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(PAYMENT_NOT_VERIFIED));
+
+        verify(ticketPdfService, never()).generate(any(BookingResponseDto.class));
+    }
+
+    private PnrStatusResponseDto publicStatus(String pnr) {
+        return new PnrStatusResponseDto(
+                pnr,
+                BookingStatus.CONFIRMED,
+                "12601",
+                "Mangalore Mail",
+                "Chennai Central",
+                "Mangalore Central",
+                LocalDate.of(2026, 10, 25),
+                "AC 3 Tier",
+                BigDecimal.valueOf(1150),
+                List.of("AC3-1"));
+    }
+
+    private BookingResponseDto fullTicket(String pnr) {
+        BookingResponseDto response = new BookingResponseDto();
+        response.setPnr(pnr);
+        response.setStatus(BookingStatus.CONFIRMED);
+        response.setPaymentStatus("SUCCESS");
+        response.setPaymentUrl("/payment.html?pnr=" + pnr + "&gatewayRef=TXN-TEST");
+        response.setGatewayRef("TXN-TEST");
+        response.setTrainNo("12601");
+        response.setTrainName("Mangalore Mail");
+        response.setSourceStation("Chennai Central");
+        response.setDestinationStation("Mangalore Central");
+        response.setJourneyDate(LocalDate.of(2026, 10, 25));
+        response.setClassName("AC 3 Tier");
+        response.setTotalFare(BigDecimal.valueOf(1150));
+        response.setPassengers(List.of(new PassengerDto("John Doe", 30, "Male", "AC3-1")));
+        return response;
     }
 
     @ParameterizedTest

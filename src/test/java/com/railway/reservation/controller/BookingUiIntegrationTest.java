@@ -5,40 +5,49 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.PassengerDto;
 import com.railway.reservation.dto.RegisterRequestDto;
+import com.railway.reservation.model.Booking;
+import com.railway.reservation.model.BookingStatus;
+import com.railway.reservation.model.Passenger;
+import com.railway.reservation.model.Payment;
 import com.railway.reservation.model.Role;
 import com.railway.reservation.model.Train;
 import com.railway.reservation.model.TrainClass;
 import com.railway.reservation.model.User;
 import com.railway.reservation.repository.BookingRepository;
+import com.railway.reservation.repository.PaymentRepository;
 import com.railway.reservation.repository.TrainClassRepository;
 import com.railway.reservation.repository.TrainRepository;
 import com.railway.reservation.repository.UserRepository;
+import com.railway.reservation.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
- * Verification test for Issue #19: Booking UI/UX Design (RRS-NF-003, SAD Section 4.6, TC-UX-01).
- * Validates static resource serving, semantic UI elements, responsive stylesheet, and the complete
- * 5-minute user booking journey via backend REST integration.
+ * Verification tests for Issue #19 (Booking UI/UX, RRS-NF-003) and the Issue #10
+ * ticket-access integration paths (public PNR redaction, verified-payment PDF,
+ * and pending-payment rejection).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -59,6 +68,12 @@ class BookingUiIntegrationTest {
 
     @Autowired
     private BookingRepository bookingRepository;
+
+    @Autowired
+    private PaymentRepository paymentRepository;
+
+    @Autowired
+    private JwtService jwtService;
 
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -134,6 +149,15 @@ class BookingUiIntegrationTest {
                 // Confirmation section
                 .andExpect(content().string(containsString("id=\"confirmationSection\"")))
                 .andExpect(content().string(containsString("id=\"confirmedPnrDisplay\"")))
+                .andExpect(content().string(containsString("id=\"confPaymentStatus\"")))
+                .andExpect(content().string(containsString("id=\"downloadPdfTicketBtn\"")))
+                // Existing-user login UI for full-ticket/PDF access
+                .andExpect(content().string(containsString("id=\"openLoginModalBtn\"")))
+                .andExpect(content().string(containsString("id=\"loginModal\"")))
+                .andExpect(content().string(containsString("id=\"loginForm\"")))
+                .andExpect(content().string(containsString("id=\"loginEmail\"")))
+                .andExpect(content().string(containsString("id=\"loginPassword\"")))
+                .andExpect(content().string(containsString("id=\"loginSubmitBtn\"")))
                 // PNR lookup modal
                 .andExpect(content().string(containsString("id=\"pnrModal\"")));
     }
@@ -155,7 +179,16 @@ class BookingUiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("trainSearchForm")))
                 .andExpect(content().string(containsString("/api/v1/trains/search")))
-                .andExpect(content().string(containsString("/api/v1/bookings")));
+                .andExpect(content().string(containsString("/api/v1/bookings")))
+                // RRS-F-010: authenticated full-ticket/PDF access and token handling
+                .andExpect(content().string(containsString("/api/v1/users/login")))
+                .andExpect(content().string(containsString("sessionStorage.setItem('jwtToken'")))
+                .andExpect(content().string(containsString("encodeURIComponent(pnr)}/ticket")))
+                .andExpect(content().string(containsString("/ticket.pdf")))
+                .andExpect(content().string(containsString("isTokenExpired")))
+                .andExpect(content().string(containsString("clearStoredToken")))
+                .andExpect(content().string(containsString("seatNumbers")))
+                .andExpect(content().string(containsString("booking.paymentStatus")));
     }
 
     @Test
@@ -229,15 +262,72 @@ class BookingUiIntegrationTest {
         String generatedPnr = objectMapper.readTree(bookingResult.getResponse().getContentAsString())
                 .get("pnr").asText();
 
-        // Step 5: User verifies booking via PNR status lookup
+        // Step 5: User verifies booking via public PNR status lookup
         mockMvc.perform(get("/api/v1/bookings/" + generatedPnr))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pnr").value(generatedPnr))
                 .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.passengers").isArray());
+                .andExpect(jsonPath("$.totalFare").value(900.00))
+                .andExpect(jsonPath("$.passengers.length()").value(2))
+                .andExpect(jsonPath("$.passengers[0].seatNo").value("CC-1"))
+                .andExpect(jsonPath("$.passengers[1].seatNo").value("CC-2"));
 
         long durationMs = System.currentTimeMillis() - startTime;
         // Verify TC-UX-01 requirement: Booking journey completes in far less than 5 minutes (300,000 ms)
         assertTrue(durationMs < 300_000, "Booking flow must complete in less than 5 minutes according to TC-UX-01");
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Verified payment allows owner ticket JSON and a valid PDF")
+    void testVerifiedPaymentAllowsOwnerTicketAndPdf() throws Exception {
+        createBooking("VERIFIED01", "SUCCESS", BookingStatus.CONFIRMED);
+        String token = jwtService.generateToken(testUser);
+
+        mockMvc.perform(get("/api/v1/bookings/VERIFIED01/ticket")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.pnr").value("VERIFIED01"))
+                .andExpect(jsonPath("$.paymentStatus").value("SUCCESS"));
+
+        MvcResult pdfResult = mockMvc.perform(get("/api/v1/bookings/VERIFIED01/ticket.pdf")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_PDF))
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"ticket-VERIFIED01.pdf\""))
+                .andReturn();
+
+        byte[] pdfBytes = pdfResult.getResponse().getContentAsByteArray();
+        assertTrue(pdfBytes.length > 4, "Generated PDF should contain bytes");
+        assertEquals("%PDF", new String(pdfBytes, 0, 4, StandardCharsets.US_ASCII));
+    }
+
+    @Test
+    @DisplayName("TC-BK-03: Pending payment blocks owner ticket JSON and PDF")
+    void testPendingPaymentBlocksOwnerTicketAndPdf() throws Exception {
+        createBooking("PENDING001", "PENDING", BookingStatus.PENDING);
+        String token = jwtService.generateToken(testUser);
+
+        mockMvc.perform(get("/api/v1/bookings/PENDING001/ticket")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Payment has not been verified for this booking."));
+
+        mockMvc.perform(get("/api/v1/bookings/PENDING001/ticket.pdf")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isConflict());
+    }
+
+    private void createBooking(String pnr, String paymentStatus, BookingStatus bookingStatus) {
+        Booking booking = new Booking(pnr, testUser, savedTrain, ccClass,
+                LocalDate.now().plusDays(2), new BigDecimal("450.00"));
+        booking.setStatus(bookingStatus);
+        booking.addPassenger(new Passenger("Alice Walker", 28, "Female", "CC-1"));
+        booking = bookingRepository.save(booking);
+
+        Payment payment = new Payment(booking, booking.getTotalFare(), "TXN-" + pnr, paymentStatus);
+        paymentRepository.save(payment);
+        booking.setPayment(payment);
     }
 }

@@ -4,6 +4,8 @@ import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
 import com.railway.reservation.dto.PassengerDto;
 import com.railway.reservation.dto.PaymentSessionDto;
+import com.railway.reservation.dto.PnrStatusResponseDto;
+import com.railway.reservation.exception.PaymentNotVerifiedException;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.exception.SeatUnavailableException;
 import com.railway.reservation.model.*;
@@ -18,6 +20,7 @@ import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class BookingServiceImpl implements BookingService {
@@ -119,20 +122,89 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional(readOnly = true)
     public BookingResponseDto getBookingByPnr(String pnr) {
-        if (pnr == null || pnr.trim().isEmpty()) {
-            throw new ResourceNotFoundException("Booking not found with PNR: " + pnr);
-        }
-        SafeTextRules.requireSafe("PNR", pnr);
-        String cleanPnr = pnr.trim();
-        Booking booking = bookingRepository.findByPnr(cleanPnr)
-                .or(() -> bookingRepository.findByPnr(cleanPnr.toUpperCase()))
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with PNR: " + pnr));
-
+        Booking booking = findBookingByPnr(pnr);
         List<PassengerDto> passengerDtos = booking.getPassengers().stream()
                 .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo()))
                 .toList();
 
         return mapToResponseDto(booking, passengerDtos);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PnrStatusResponseDto getPublicPnrStatus(String pnr) {
+        return mapToPublicDto(findBookingByPnr(pnr));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BookingResponseDto getTicketByPnr(String pnr, Long userId) {
+        Booking booking = bookingRepository.findByPnrAndUserId(pnr, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found."));
+
+        requireVerifiedPayment(booking);
+        return mapToFullTicketDto(booking);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BookingResponseDto getTicketByPnrForAdmin(String pnr) {
+        Booking booking = findBookingByPnr(pnr);
+        requireVerifiedPayment(booking);
+        return mapToFullTicketDto(booking);
+    }
+
+    private Booking findBookingByPnr(String pnr) {
+        if (pnr == null || pnr.trim().isEmpty()) {
+            throw new ResourceNotFoundException("Booking not found with PNR: " + pnr);
+        }
+        SafeTextRules.requireSafe("PNR", pnr);
+        String cleanPnr = pnr.trim();
+        return bookingRepository.findByPnr(cleanPnr)
+                .or(() -> bookingRepository.findByPnr(cleanPnr.toUpperCase()))
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with PNR: " + pnr));
+    }
+
+    private void requireVerifiedPayment(Booking booking) {
+        Payment payment = booking.getPayment();
+        boolean verified = payment != null
+                && payment.getPaidAt() != null
+                && ("SUCCESS".equalsIgnoreCase(payment.getStatus())
+                    || "CONFIRMED".equalsIgnoreCase(payment.getStatus()))
+                && booking.getStatus() == BookingStatus.CONFIRMED;
+
+        if (!verified) {
+            throw new PaymentNotVerifiedException("Payment has not been verified for this booking.");
+        }
+    }
+
+    private BookingResponseDto mapToFullTicketDto(Booking booking) {
+        List<PassengerDto> passengerDtos = booking.getPassengers().stream()
+                .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo()))
+                .toList();
+
+        return mapToResponseDto(booking, passengerDtos);
+    }
+
+    private PnrStatusResponseDto mapToPublicDto(Booking booking) {
+        Train train = booking.getTrain();
+        TrainClass trainClass = booking.getTrainClass();
+        List<String> seatNumbers = booking.getPassengers().stream()
+                .map(Passenger::getSeatNo)
+                .filter(Objects::nonNull)
+                .toList();
+
+        return new PnrStatusResponseDto(
+                booking.getPnr(),
+                booking.getStatus(),
+                train.getTrainNo(),
+                train.getName(),
+                train.getSourceStation(),
+                train.getDestinationStation(),
+                booking.getJourneyDate(),
+                trainClass.getClassName(),
+                booking.getTotalFare(),
+                seatNumbers);
     }
 
     private String generateUniquePnr() {
