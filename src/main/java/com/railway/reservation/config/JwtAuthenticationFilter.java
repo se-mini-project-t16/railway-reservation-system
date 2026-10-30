@@ -8,6 +8,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.MDC;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -48,8 +49,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     Number userId = claims.get("userId", Number.class);
 
                     if (email != null && role != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                        Long uid = userId != null ? userId.longValue() : null;
+                        if (uid != null) {
+                            MDC.put(CorrelationIdFilter.USER_ID_MDC_KEY, String.valueOf(uid));
+                        }
+
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                userId != null ? userId.longValue() : email,
+                                uid != null ? uid : email,
                                 null,
                                 List.of(new SimpleGrantedAuthority(role))
                         );
