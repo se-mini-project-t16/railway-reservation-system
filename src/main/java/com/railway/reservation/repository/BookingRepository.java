@@ -2,7 +2,9 @@ package com.railway.reservation.repository;
 
 import com.railway.reservation.model.Booking;
 import com.railway.reservation.model.BookingStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -18,6 +20,20 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByUserIdOrderByCreatedAtDesc(Long userId);
     List<Booking> findByTrainIdAndJourneyDate(Long trainId, LocalDate journeyDate);
     boolean existsByTrainId(Long trainId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM Booking b WHERE b.pnr = :pnr")
+    Optional<Booking> findByPnrForUpdate(@Param("pnr") String pnr);
+
+    @Query("SELECT p.seatNo FROM Booking b JOIN b.passengers p " +
+           "WHERE b.train.id = :trainId AND b.trainClass.id = :classId " +
+           "AND b.journeyDate = :journeyDate AND b.status IN (:activeStatuses)")
+    List<String> findActiveSeatNumbers(
+        @Param("trainId") Long trainId,
+        @Param("classId") Long classId,
+        @Param("journeyDate") LocalDate journeyDate,
+        @Param("activeStatuses") List<BookingStatus> activeStatuses
+    );
 
     @Query("SELECT COALESCE(SUM(SIZE(b.passengers)), 0) FROM Booking b " +
            "WHERE b.train.id = :trainId AND b.trainClass.id = :classId " +

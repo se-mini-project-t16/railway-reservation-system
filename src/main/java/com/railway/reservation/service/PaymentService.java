@@ -5,6 +5,8 @@ import com.railway.reservation.dto.PaymentCallbackResponseDto;
 import com.railway.reservation.dto.PaymentSessionDto;
 import com.railway.reservation.model.Booking;
 
+import java.math.BigDecimal;
+
 public interface PaymentService {
 
     /**
@@ -35,5 +37,12 @@ public interface PaymentService {
      * If payment is FAILED or DECLINED, marks booking as FAILED and releases the held seats.
      */
     PaymentCallbackResponseDto handlePaymentCallback(PaymentCallbackRequestDto callbackRequest);
+
+    /**
+     * Initiates a refund for a cancelled booking (RRS-F-013, TC-CAN-02).
+     * Records the refund amount on the payment and returns the refund reference,
+     * or null when the cancellation rules allow no refund.
+     */
+    String initiateRefund(Booking booking, BigDecimal amount);
 }
 
