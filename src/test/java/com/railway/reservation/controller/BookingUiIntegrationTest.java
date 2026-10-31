@@ -319,6 +319,62 @@ class BookingUiIntegrationTest {
                 .andExpect(status().isConflict());
     }
 
+    @Test
+    @DisplayName("TC-HIS-01: End-to-end booking history retrieves user's past and upcoming bookings sorted chronologically [RRS-F-014]")
+    void testBookingHistory_EndToEnd_ChronologicalAndUserIsolated() throws Exception {
+        // 1. Create upcoming booking for testUser
+        createBookingWithDate("UPCOMING01", "SUCCESS", BookingStatus.CONFIRMED, LocalDate.now().plusDays(5));
+
+        // 2. Create past booking for testUser
+        createBookingWithDate("PAST000001", "SUCCESS", BookingStatus.CONFIRMED, LocalDate.now().minusDays(2));
+
+        // 3. Create booking for a DIFFERENT user
+        User otherUser = userRepository.save(new User(
+                "Other Person", "otherperson@example.com", "9111111111", "hash", Role.ROLE_PASSENGER));
+        Booking otherBooking = new Booking("OTHER00001", otherUser, savedTrain, ccClass,
+                LocalDate.now().plusDays(3), new BigDecimal("450.00"));
+        otherBooking.setStatus(BookingStatus.CONFIRMED);
+        otherBooking.addPassenger(new Passenger("Other Pax", 30, "Male", "CC-2"));
+        bookingRepository.save(otherBooking);
+
+        // 4. Authenticate as testUser
+        String token = jwtService.generateToken(testUser);
+
+        // 5. Query booking history
+        mockMvc.perform(get("/api/v1/bookings")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].pnr").value("UPCOMING01"))
+                .andExpect(jsonPath("$[0].upcoming").value(true))
+                .andExpect(jsonPath("$[0].cancellable").value(true))
+                .andExpect(jsonPath("$[0].ticketUrl").value("/ticket.html?pnr=UPCOMING01"))
+                .andExpect(jsonPath("$[0].passengers[0].name").value("Alice Walker"))
+                .andExpect(jsonPath("$[1].pnr").value("PAST000001"))
+                .andExpect(jsonPath("$[1].upcoming").value(false))
+                .andExpect(jsonPath("$[1].cancellable").value(false));
+
+        // 6. Verify index.html contains UI elements for booking history
+        mockMvc.perform(get("/index.html"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"openHistoryModalBtn\"")))
+                .andExpect(content().string(containsString("id=\"historyModal\"")))
+                .andExpect(content().string(containsString("id=\"historyListContainer\"")));
+    }
+
+    private void createBookingWithDate(String pnr, String paymentStatus, BookingStatus bookingStatus, LocalDate journeyDate) {
+        Booking booking = new Booking(pnr, testUser, savedTrain, ccClass,
+                journeyDate, new BigDecimal("450.00"));
+        booking.setStatus(bookingStatus);
+        booking.addPassenger(new Passenger("Alice Walker", 28, "Female", "CC-1"));
+        booking = bookingRepository.save(booking);
+
+        Payment payment = new Payment(booking, booking.getTotalFare(), "TXN-" + pnr, paymentStatus);
+        paymentRepository.save(payment);
+        booking.setPayment(payment);
+    }
+
     private void createBooking(String pnr, String paymentStatus, BookingStatus bookingStatus) {
         Booking booking = new Booking(pnr, testUser, savedTrain, ccClass,
                 LocalDate.now().plusDays(2), new BigDecimal("450.00"));

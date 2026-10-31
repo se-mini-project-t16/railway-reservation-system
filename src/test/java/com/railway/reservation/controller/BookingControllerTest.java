@@ -502,6 +502,121 @@ class BookingControllerTest {
         return response;
     }
 
+    @Test
+    @DisplayName("TC-HIS-01: GET /api/v1/bookings returns 200 OK with chronological booking list for authenticated user [RRS-F-014]")
+    void testGetBookingHistory_SuccessWithJwt() throws Exception {
+        User passenger = new User("Sujeet", "sujeet@example.com", "9876543210", "hash", Role.ROLE_PASSENGER);
+        passenger.setId(42L);
+        String token = jwtService.generateToken(passenger);
+
+        BookingResponseDto b1 = new BookingResponseDto();
+        b1.setPnr("HISTPNR001");
+        b1.setStatus(BookingStatus.CONFIRMED);
+        b1.setTrainNo("12601");
+        b1.setTrainName("Mangalore Mail");
+        b1.setSourceStation("Chennai Central");
+        b1.setDestinationStation("Mangalore Central");
+        b1.setJourneyDate(LocalDate.now().plusDays(5));
+        b1.setTotalFare(BigDecimal.valueOf(1150.00));
+        b1.setUpcoming(true);
+        b1.setCancellable(true);
+        b1.setTicketUrl("/ticket.html?pnr=HISTPNR001");
+        b1.setCancelUrl("/api/v1/bookings/HISTPNR001/cancel");
+        b1.setPassengers(List.of(new PassengerDto("Sujeet", 22, "Male", "AC3-1")));
+
+        BookingResponseDto b2 = new BookingResponseDto();
+        b2.setPnr("HISTPNR002");
+        b2.setStatus(BookingStatus.CONFIRMED);
+        b2.setTrainNo("12602");
+        b2.setTrainName("Chennai Mail");
+        b2.setSourceStation("Mangalore Central");
+        b2.setDestinationStation("Chennai Central");
+        b2.setJourneyDate(LocalDate.now().minusDays(3));
+        b2.setTotalFare(BigDecimal.valueOf(1150.00));
+        b2.setUpcoming(false);
+        b2.setCancellable(false);
+        b2.setTicketUrl("/ticket.html?pnr=HISTPNR002");
+
+        when(bookingService.getBookingHistory(42L)).thenReturn(List.of(b1, b2));
+
+        mockMvc.perform(get("/api/v1/bookings")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].pnr").value("HISTPNR001"))
+                .andExpect(jsonPath("$[0].status").value("CONFIRMED"))
+                .andExpect(jsonPath("$[0].upcoming").value(true))
+                .andExpect(jsonPath("$[0].cancellable").value(true))
+                .andExpect(jsonPath("$[0].ticketUrl").value("/ticket.html?pnr=HISTPNR001"))
+                .andExpect(jsonPath("$[0].cancelUrl").value("/api/v1/bookings/HISTPNR001/cancel"))
+                .andExpect(jsonPath("$[0].passengers[0].seatNo").value("AC3-1"))
+                .andExpect(jsonPath("$[1].pnr").value("HISTPNR002"))
+                .andExpect(jsonPath("$[1].upcoming").value(false))
+                .andExpect(jsonPath("$[1].cancellable").value(false));
+
+        verify(bookingService).getBookingHistory(42L);
+    }
+
+    @Test
+    @DisplayName("TC-HIS-01: GET /api/v1/bookings/history alias endpoint routes to booking history [RRS-F-014]")
+    void testGetBookingHistory_HistoryPathAlias() throws Exception {
+        User passenger = new User("Sujeet", "sujeet@example.com", "9876543210", "hash", Role.ROLE_PASSENGER);
+        passenger.setId(42L);
+        String token = jwtService.generateToken(passenger);
+
+        when(bookingService.getBookingHistory(42L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/bookings/history")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        verify(bookingService).getBookingHistory(42L);
+    }
+
+    @Test
+    @DisplayName("TC-HIS-02: GET /api/v1/bookings returns 200 OK with empty array when user has no bookings [RRS-F-014]")
+    void testGetBookingHistory_EmptyList() throws Exception {
+        User passenger = new User("Sujeet", "sujeet@example.com", "9876543210", "hash", Role.ROLE_PASSENGER);
+        passenger.setId(42L);
+        String token = jwtService.generateToken(passenger);
+
+        when(bookingService.getBookingHistory(42L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/bookings")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("TC-HIS-03: GET /api/v1/bookings without authentication returns 401 Unauthorized [RRS-F-014, RRS-SR-005]")
+    void testGetBookingHistory_Unauthenticated_Returns401() throws Exception {
+        mockMvc.perform(get("/api/v1/bookings"))
+                .andExpect(status().isUnauthorized());
+
+        verify(bookingService, never()).getBookingHistory(anyLong());
+    }
+
+    @Test
+    @DisplayName("TC-HIS-04: User isolation - caller only receives their own bookings [RRS-F-014]")
+    void testGetBookingHistory_UserIsolation() throws Exception {
+        User user1 = new User("User One", "user1@example.com", "1111111111", "hash", Role.ROLE_PASSENGER);
+        user1.setId(101L);
+        String token1 = jwtService.generateToken(user1);
+
+        when(bookingService.getBookingHistory(101L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/v1/bookings")
+                        .header("Authorization", "Bearer " + token1))
+                .andExpect(status().isOk());
+
+        verify(bookingService).getBookingHistory(101L);
+        verify(bookingService, never()).getBookingHistory(eq(102L));
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {
             "admin' OR '1'='1",

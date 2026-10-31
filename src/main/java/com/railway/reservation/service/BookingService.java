@@ -3,6 +3,7 @@ package com.railway.reservation.service;
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
 import com.railway.reservation.dto.PnrStatusResponseDto;
+import java.util.List;
 
 public interface BookingService {
 
@@ -34,5 +35,14 @@ public interface BookingService {
      * Payment must be verified before the ticket is returned.
      */
     BookingResponseDto getTicketByPnrForAdmin(String pnr);
+
+    /**
+     * Retrieves the chronological booking history for the authenticated user (RRS-F-014).
+     * Past and upcoming bookings are sorted newest first by journey date and creation date.
+     *
+     * @param userId ID of the user requesting their booking history
+     * @return list of bookings belonging strictly to the user, ordered chronologically
+     */
+    List<BookingResponseDto> getBookingHistory(Long userId);
 }
 

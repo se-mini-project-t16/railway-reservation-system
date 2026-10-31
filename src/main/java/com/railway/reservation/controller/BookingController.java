@@ -18,6 +18,8 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import com.railway.reservation.repository.UserRepository;
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -26,13 +28,18 @@ public class BookingController {
 
     private final BookingService bookingService;
     private final TicketPdfService ticketPdfService;
+    private final UserRepository userRepository;
 
     public BookingController(
             BookingService bookingService,
-            TicketPdfService ticketPdfService) {
+            TicketPdfService ticketPdfService,
+            UserRepository userRepository) {
         this.bookingService = bookingService;
         this.ticketPdfService = ticketPdfService;
+        this.userRepository = userRepository;
     }
+
+
 
     /**
      * Endpoint to book one or more seats on a train (RRS-F-006, RRS-F-007).
@@ -42,6 +49,23 @@ public class BookingController {
     public ResponseEntity<BookingResponseDto> bookTicket(@Valid @RequestBody BookingRequestDto request) {
         BookingResponseDto response = bookingService.createBooking(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Endpoint to retrieve the chronological booking history of the authenticated user (RRS-F-014).
+     * Returns past and upcoming bookings sorted newest first.
+     */
+    @GetMapping({"", "/", "/history"})
+    public ResponseEntity<List<BookingResponseDto>> getBookingHistory(Authentication authentication) {
+        Long userId = resolveUserId(authentication);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        List<BookingResponseDto> history = bookingService.getBookingHistory(userId);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(history);
     }
 
     /**
@@ -135,6 +159,15 @@ public class BookingController {
         }
         if (principal instanceof User user) {
             return user.getId();
+        }
+        if (principal instanceof String str) {
+            try {
+                return Long.parseLong(str);
+            } catch (NumberFormatException ignored) {
+                if (userRepository != null) {
+                    return userRepository.findByEmail(str).map(User::getId).orElse(null);
+                }
+            }
         }
         return null;
     }

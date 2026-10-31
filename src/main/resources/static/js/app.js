@@ -99,6 +99,17 @@
   const loginSubmitText = document.getElementById('loginSubmitText');
   const loginSpinner = document.getElementById('loginSpinner');
 
+  // Booking History Modal (RRS-F-014)
+  const openHistoryModalBtn = document.getElementById('openHistoryModalBtn');
+  const closeHistoryModalBtn = document.getElementById('closeHistoryModalBtn');
+  const historyModal = document.getElementById('historyModal');
+  const historyListContainer = document.getElementById('historyListContainer');
+  const historyLoading = document.getElementById('historyLoading');
+  const historyEmpty = document.getElementById('historyEmpty');
+  const historyFilterAll = document.getElementById('historyFilterAll');
+  const historyFilterUpcoming = document.getElementById('historyFilterUpcoming');
+  const historyFilterPast = document.getElementById('historyFilterPast');
+
   // --- Usability Timer (TC-UX-01) ---
   setInterval(() => {
     const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
@@ -1303,6 +1314,336 @@
     }
   })();
 
+
+  // --- Booking History Feature (RRS-F-014) ---
+  let cachedBookings = [];
+  let currentHistoryFilter = 'ALL';
+
+  function openHistoryModal() {
+    const token = getStoredToken();
+    if (!token) {
+      openLoginModal('Sign in to view your past and upcoming booking history.');
+      showFlash('Sign in to view your booking history.', 'info');
+      return;
+    }
+    if (historyModal) {
+      historyModal.classList.add('active');
+      loadBookingHistory();
+    }
+  }
+
+  function closeHistoryModal() {
+    if (historyModal) {
+      historyModal.classList.remove('active');
+    }
+  }
+
+  async function loadBookingHistory() {
+    const token = getStoredToken();
+    if (!token) {
+      closeHistoryModal();
+      openLoginModal(SESSION_TIMEOUT_NOTICE);
+      return;
+    }
+
+    if (historyLoading) historyLoading.style.display = 'block';
+    if (historyEmpty) historyEmpty.style.display = 'none';
+    if (historyListContainer) {
+      while (historyListContainer.firstChild) {
+        historyListContainer.removeChild(historyListContainer.firstChild);
+      }
+    }
+
+    try {
+      const res = await authFetch('/api/v1/bookings', token);
+      if (res.status === 401) {
+        handleSessionTimeout();
+        closeHistoryModal();
+        return;
+      }
+      if (!res.ok) {
+        const errCard = document.createElement('div');
+        errCard.className = 'flash-banner error';
+        errCard.textContent = `Failed to load booking history (HTTP ${res.status}).`;
+        if (historyListContainer) historyListContainer.appendChild(errCard);
+        return;
+      }
+
+      cachedBookings = await res.json();
+      renderBookingHistory(cachedBookings, currentHistoryFilter);
+    } catch (err) {
+      console.error('History fetch error:', err);
+      const errCard = document.createElement('div');
+      errCard.className = 'flash-banner error';
+      errCard.textContent = `Error fetching booking history: ${err.message}`;
+      if (historyListContainer) historyListContainer.appendChild(errCard);
+    } finally {
+      if (historyLoading) historyLoading.style.display = 'none';
+    }
+  }
+
+  function renderBookingHistory(bookings, filter) {
+    if (!historyListContainer) return;
+    while (historyListContainer.firstChild) {
+      historyListContainer.removeChild(historyListContainer.firstChild);
+    }
+
+    const filtered = bookings.filter((b) => {
+      if (filter === 'UPCOMING') return b.upcoming === true;
+      if (filter === 'PAST') return b.upcoming === false;
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      if (historyEmpty) historyEmpty.style.display = 'block';
+      return;
+    }
+    if (historyEmpty) historyEmpty.style.display = 'none';
+
+    filtered.forEach((b) => {
+      const card = document.createElement('div');
+      card.className = 'history-card';
+
+      // Header row: PNR + Timeline tag + Status badge
+      const header = document.createElement('div');
+      header.className = 'history-card-header';
+
+      const leftH = document.createElement('div');
+      leftH.style.display = 'flex';
+      leftH.style.alignItems = 'center';
+      leftH.style.gap = '0.5rem';
+
+      const pnrSpan = document.createElement('span');
+      pnrSpan.style.fontFamily = 'monospace';
+      pnrSpan.style.fontWeight = '700';
+      pnrSpan.style.fontSize = '1.05rem';
+      pnrSpan.textContent = b.pnr || 'N/A';
+      leftH.appendChild(pnrSpan);
+
+      const timelineTag = document.createElement('span');
+      timelineTag.className = 'history-timeline-badge' + (b.upcoming ? ' upcoming' : '');
+      timelineTag.textContent = b.upcoming ? 'Upcoming Journey' : 'Past Journey';
+      leftH.appendChild(timelineTag);
+
+      const rightH = document.createElement('div');
+      const statusBadge = document.createElement('span');
+      const statusKey = (b.status || '').toLowerCase();
+      statusBadge.className = `history-status-badge status-${statusKey}`;
+      statusBadge.textContent = b.status || 'UNKNOWN';
+      rightH.appendChild(statusBadge);
+
+      header.appendChild(leftH);
+      header.appendChild(rightH);
+      card.appendChild(header);
+
+      // Body: Train, Route, Timings, Class, Fare
+      const body = document.createElement('div');
+      body.style.display = 'grid';
+      body.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+      body.style.gap = '0.5rem';
+      body.style.fontSize = '0.875rem';
+      body.style.marginBottom = '0.75rem';
+
+      const trainCol = document.createElement('div');
+      trainCol.innerHTML = `<div><strong>Train:</strong> ${escapeHtml(b.trainNo || '')} &bull; ${escapeHtml(b.trainName || '')}</div>
+                            <div><strong>Route:</strong> ${escapeHtml(b.sourceStation || '')} &rarr; ${escapeHtml(b.destinationStation || '')}</div>`;
+
+      const journeyCol = document.createElement('div');
+      journeyCol.innerHTML = `<div><strong>Journey Date:</strong> ${escapeHtml(b.journeyDate || '')}</div>
+                              <div><strong>Time:</strong> Dept ${formatTime(b.departureTime)} | Arrv ${formatTime(b.arrivalTime)}</div>`;
+
+      const fareCol = document.createElement('div');
+      fareCol.innerHTML = `<div><strong>Class:</strong> ${escapeHtml(b.className || '')}</div>
+                           <div><strong>Total Fare:</strong> &#8377;${escapeHtml(String(b.totalFare || '0.00'))}</div>`;
+
+      body.appendChild(trainCol);
+      body.appendChild(journeyCol);
+      body.appendChild(fareCol);
+      card.appendChild(body);
+
+      // Passengers list
+      if (b.passengers && b.passengers.length > 0) {
+        const paxContainer = document.createElement('div');
+        paxContainer.style.background = '#f8fafc';
+        paxContainer.style.borderRadius = 'var(--radius)';
+        paxContainer.style.padding = '0.5rem 0.75rem';
+        paxContainer.style.marginBottom = '0.75rem';
+        paxContainer.style.fontSize = '0.825rem';
+
+        const paxTitle = document.createElement('div');
+        paxTitle.style.fontWeight = '600';
+        paxTitle.style.marginBottom = '0.25rem';
+        paxTitle.style.color = 'var(--text-muted)';
+        paxTitle.textContent = `Passengers (${b.passengers.length}):`;
+        paxContainer.appendChild(paxTitle);
+
+        const paxList = document.createElement('div');
+        paxList.style.display = 'flex';
+        paxList.style.flexWrap = 'wrap';
+        paxList.style.gap = '0.5rem';
+
+        b.passengers.forEach((p) => {
+          const pItem = document.createElement('span');
+          pItem.style.background = '#ffffff';
+          pItem.style.border = '1px solid var(--border)';
+          pItem.style.padding = '0.2rem 0.5rem';
+          pItem.style.borderRadius = '4px';
+          pItem.textContent = `${p.name} (${p.age}, ${p.gender}) — Seat: ${p.seatNo || 'Unassigned'}`;
+          paxList.appendChild(pItem);
+        });
+        paxContainer.appendChild(paxList);
+        card.appendChild(paxContainer);
+      }
+
+      // Quick Actions
+      const actionsRow = document.createElement('div');
+      actionsRow.style.display = 'flex';
+      actionsRow.style.gap = '0.5rem';
+      actionsRow.style.flexWrap = 'wrap';
+      actionsRow.style.justifyContent = 'flex-end';
+      actionsRow.style.alignItems = 'center';
+
+      if (b.status === 'CONFIRMED') {
+        const viewTicketBtn = document.createElement('button');
+        viewTicketBtn.type = 'button';
+        viewTicketBtn.className = 'btn btn-sm btn-secondary';
+        viewTicketBtn.textContent = 'View E-Ticket';
+        viewTicketBtn.addEventListener('click', async () => {
+          closeHistoryModal();
+          await loadFullTicketForPnr(b.pnr);
+        });
+        actionsRow.appendChild(viewTicketBtn);
+
+        const downloadTicketBtn = document.createElement('button');
+        downloadTicketBtn.type = 'button';
+        downloadTicketBtn.className = 'btn btn-sm btn-outline';
+        downloadTicketBtn.textContent = 'Download PDF';
+        downloadTicketBtn.addEventListener('click', async () => {
+          const token = getStoredToken();
+          if (!token) {
+            openLoginModal('Sign in to download ticket PDF.');
+            return;
+          }
+          try {
+            const resp = await authFetch(`/api/v1/bookings/${encodeURIComponent(b.pnr)}/ticket.pdf`, token);
+            if (resp.ok) {
+              const blob = await resp.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `ticket-${b.pnr}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              window.URL.revokeObjectURL(url);
+            } else {
+              showFlash('Unable to download PDF ticket.', 'danger');
+            }
+          } catch (e) {
+            showFlash('Error downloading PDF: ' + e.message, 'danger');
+          }
+        });
+        actionsRow.appendChild(downloadTicketBtn);
+
+        if (b.cancellable) {
+          const cancelBtn = document.createElement('button');
+          cancelBtn.type = 'button';
+          cancelBtn.className = 'btn btn-sm btn-danger';
+          cancelBtn.textContent = 'Cancel Booking';
+          cancelBtn.addEventListener('click', async () => {
+            await handleBookingCancellation(b.pnr);
+          });
+          actionsRow.appendChild(cancelBtn);
+        }
+      } else if (b.status === 'PENDING' && b.paymentUrl) {
+        const payLink = document.createElement('a');
+        payLink.href = b.paymentUrl;
+        payLink.className = 'btn btn-sm btn-primary';
+        payLink.textContent = 'Complete Payment';
+        actionsRow.appendChild(payLink);
+      }
+
+      if (actionsRow.children.length > 0) {
+        card.appendChild(actionsRow);
+      }
+
+      historyListContainer.appendChild(card);
+    });
+  }
+
+  async function handleBookingCancellation(pnr) {
+    const token = getStoredToken();
+    if (!token) {
+      openLoginModal('Sign in to cancel booking.');
+      return;
+    }
+
+    try {
+      // 1. Fetch refund preview
+      const previewRes = await authFetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/refund-preview`, token);
+      if (!previewRes.ok) {
+        const errJson = await previewRes.json().catch(() => ({}));
+        showFlash(errJson.message || 'Cannot preview refund for this booking.', 'danger');
+        return;
+      }
+      const quote = await previewRes.json();
+      const confirmMsg = `Are you sure you want to cancel booking ${pnr}?\n\nHours before departure: ${quote.hoursBeforeDeparture}\nRefund Percentage: ${quote.refundPercent}%\nRefund Amount: ₹${quote.refundAmount}\n\nSeats will be released immediately.`;
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+
+      // 2. Perform cancellation
+      const cancelRes = await authFetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/cancel`, token, { method: 'POST' });
+      if (cancelRes.ok) {
+        const cancelData = await cancelRes.json();
+        showFlash(`Booking ${pnr} cancelled successfully. Refund of ₹${cancelData.refundAmount} initiated (Ref: ${cancelData.refundRef}).`, 'success');
+        await loadBookingHistory();
+      } else {
+        const errJson = await cancelRes.json().catch(() => ({}));
+        showFlash(errJson.message || 'Failed to cancel booking.', 'danger');
+      }
+    } catch (err) {
+      showFlash('Error during cancellation: ' + err.message, 'danger');
+    }
+  }
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // History Filter Buttons
+  function setHistoryFilter(filter) {
+    currentHistoryFilter = filter;
+    [historyFilterAll, historyFilterUpcoming, historyFilterPast].forEach((btn) => {
+      if (!btn) return;
+      if (btn.getAttribute('data-filter') === filter) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    renderBookingHistory(cachedBookings, currentHistoryFilter);
+  }
+
+  if (historyFilterAll) historyFilterAll.addEventListener('click', () => setHistoryFilter('ALL'));
+  if (historyFilterUpcoming) historyFilterUpcoming.addEventListener('click', () => setHistoryFilter('UPCOMING'));
+  if (historyFilterPast) historyFilterPast.addEventListener('click', () => setHistoryFilter('PAST'));
+
+  if (openHistoryModalBtn) openHistoryModalBtn.addEventListener('click', openHistoryModal);
+  if (closeHistoryModalBtn) closeHistoryModalBtn.addEventListener('click', closeHistoryModal);
+  if (historyModal) {
+    historyModal.addEventListener('click', (e) => {
+      if (e.target === historyModal) {
+        closeHistoryModal();
+      }
+    });
+  }
 
   // --- Secure PDF Download Handler (RRS-F-010, RRS-SR-004) ---
   const downloadPdfBtn = document.getElementById('downloadPdfTicketBtn');

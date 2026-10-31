@@ -39,6 +39,12 @@ public class BookingResponseDto {
     private String paymentStatus;
     private String gatewayRef;
 
+    // Quick actions & classification (RRS-F-014)
+    private Boolean upcoming;
+    private Boolean cancellable;
+    private String ticketUrl;
+    private String cancelUrl;
+
     public BookingResponseDto() {}
 
     public String getPnr() { return pnr; }
@@ -103,5 +109,19 @@ public class BookingResponseDto {
 
     public String getGatewayRef() { return gatewayRef; }
     public void setGatewayRef(String gatewayRef) { this.gatewayRef = gatewayRef; }
+
+    public Boolean getUpcoming() { return upcoming; }
+    public void setUpcoming(Boolean upcoming) { this.upcoming = upcoming; }
+    public Boolean isUpcoming() { return upcoming; }
+
+    public Boolean getCancellable() { return cancellable; }
+    public void setCancellable(Boolean cancellable) { this.cancellable = cancellable; }
+    public Boolean isCancellable() { return cancellable; }
+
+    public String getTicketUrl() { return ticketUrl; }
+    public void setTicketUrl(String ticketUrl) { this.ticketUrl = ticketUrl; }
+
+    public String getCancelUrl() { return cancelUrl; }
+    public void setCancelUrl(String cancelUrl) { this.cancelUrl = cancelUrl; }
 }
 

@@ -18,6 +18,15 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findByPnr(String pnr);
     Optional<Booking> findByPnrAndUserId(String pnr, Long userId);
     List<Booking> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    @Query("SELECT b FROM Booking b " +
+           "JOIN FETCH b.user " +
+           "JOIN FETCH b.train " +
+           "JOIN FETCH b.trainClass " +
+           "LEFT JOIN FETCH b.payment " +
+           "WHERE b.user.id = :userId " +
+           "ORDER BY b.journeyDate DESC, b.createdAt DESC")
+    List<Booking> findByUserIdOrderByJourneyDateDescCreatedAtDesc(@Param("userId") Long userId);
     List<Booking> findByTrainIdAndJourneyDate(Long trainId, LocalDate journeyDate);
     boolean existsByTrainId(Long trainId);
 
