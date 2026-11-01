@@ -24,6 +24,30 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 
 > **Platform Modernization Note:** The initial software requirements and design specifications (SRS/SAD/STP) originally designated Java 17 and Spring Boot 3.3.4 as the project baseline. The active implementation platform has been modernized to **Java 25 (LTS)** and **Spring Boot 4.1.1**, maintaining 100% functional traceability with all specification requirements.
 
+## Development Sprints & Milestones
+
+### Sprint 1: Core Foundation [19th Oct – 23rd Oct] (10 Issues — 100% Done)
+- **User Registration & Login (`RRS-F-001`, `RRS-F-002`):** Account registration with BCrypt hashing (`RRS-SR-001`) and JWT issuance.
+- **Train Search & Schedule Discovery (`RRS-F-004`, `RRS-F-005`):** Station-to-station schedule lookups and dynamic distance/class fare calculation.
+- **Real-Time Seat Availability (`RRS-F-006`):** Live coach availability check and temporary seat hold.
+- **Passenger Details & Ticket Reservation (`RRS-F-007`):** Multi-passenger details collection with age/gender validation.
+- **Admin Train Management (`RRS-F-015`):** Full CRUD for trains, routes, schedules, and class fares.
+- **Baseline Security (`RRS-SR-002`, `RRS-SR-003`):** Password protection and SQL injection/XSS parameter sanitization.
+- **Sprint 1 Test Suite:** 127 automated regression tests.
+
+### Sprint 2: Advanced Flows & Hardening [26th Oct – 30th Oct] (11 Issues — 100% Done)
+- **Booking History (`RRS-F-014`):** Chronological booking history list for authenticated passengers with status filtering (`ALL`, `CONFIRMED`, `CANCELLED`), passenger details expansion, and ticket retrieval.
+- **Ticket Cancellation & Automated Refunds (`RRS-F-012`, `RRS-F-013`):** Pre-departure ticket cancellation with instant refund calculation preview based on configurable tiered rules (hours before departure), immediate seat inventory release, and cancellation audit record logging (`TC-CAN-01`, `TC-CAN-02`).
+- **Filtered Admin Bookings Report (`RRS-F-016`):** Filtered administrative report by train number and journey date with passenger rosters and aggregate financial metrics (total bookings, failed payments, cancellations, total refunds) (`TC-ADM-02`).
+- **Downloadable PDF E-Tickets (`RRS-F-010`):** Secure iText 7 downloadable PDF e-ticket with embedded 10-character PNR, passenger manifest, coach/seat allocation, and journey metadata.
+- **Payment Gateway Simulation & Asynchronous Webhooks (`RRS-F-008`, `RRS-F-009`):** Online payment initiation, simulated payment gateway redirect, asynchronous payment callback processing with SHA-256 HMAC signature verification, and automated rollback with seat release upon payment failure.
+- **PNR Status Inquiry Lookup (`RRS-F-011`):** Real-time public PNR lookup endpoint and navigation modal.
+- **RBAC & 15-Minute Session Inactivity Timeout (`RRS-SR-004`, `RRS-SR-005`):** Strict role-based access control protecting all `/api/v1/admin/**` endpoints (`ROLE_ADMIN`), sliding window JWT token renewal on user activity, and client-side inactivity warning with auto re-login prompt (`TC-SEC-04`, `TC-SEC-05`).
+- **System Health Diagnostics & 99% Availability (`RRS-NF-002`):** Spring Boot Actuator `/actuator/health` integration with custom `DatabaseHealthIndicator` providing database connectivity verification, latency, and thread pool metrics.
+- **Structured Error Logging & Observability (`RRS-NF-005`):** MDC-based request correlation IDs (`corr`) and authenticated user ID tracking across all log statements with centralized JSON exception responses.
+- **Search Performance Benchmark (`RRS-NF-001`, `RRS-NF-004`):** 100 concurrent virtual user JMeter load test achieving 200–290 ms p95 latency (sub-3s target) and 0% errors.
+- **Sprint 2 Test Suite:** Expanded from 127 to **256 automated regression tests** (100% pass rate).
+
 ## System Capabilities & Feature Overview
 
 ### 1. Passenger Subsystem
