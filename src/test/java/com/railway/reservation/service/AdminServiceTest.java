@@ -1,5 +1,6 @@
 package com.railway.reservation.service;
 
+import com.railway.reservation.dto.BookingReportDto;
 import com.railway.reservation.dto.CreateTrainDto;
 import com.railway.reservation.dto.TrainClassDto;
 import com.railway.reservation.dto.TrainResponseDto;
@@ -7,6 +8,10 @@ import com.railway.reservation.dto.UpdateTrainDto;
 import com.railway.reservation.exception.DuplicateTrainException;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.exception.TrainDeletionException;
+import com.railway.reservation.model.Booking;
+import com.railway.reservation.model.BookingStatus;
+import com.railway.reservation.model.Passenger;
+import com.railway.reservation.model.Payment;
 import com.railway.reservation.model.Train;
 import com.railway.reservation.model.TrainClass;
 import com.railway.reservation.repository.BookingRepository;
@@ -21,6 +26,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -202,5 +208,41 @@ class AdminServiceTest {
                 .hasMessageContaining("1");
 
         verify(trainRepository, never()).delete(any(Train.class));
+    }
+
+    @Test
+    @DisplayName("TC-ADM-02: getBookingsReport maps rows and computes total, failed, cancelled and refund metrics")
+    void getBookingsReport_ComputesMetrics() {
+        LocalDate date = LocalDate.of(2026, 11, 5);
+        TrainClass cc = existingTrain.getClasses().get(0);
+
+        Booking confirmed = new Booking("PNR1", null, existingTrain, cc, date, new BigDecimal("900.00"));
+        confirmed.setStatus(BookingStatus.CONFIRMED);
+        confirmed.addPassenger(new Passenger("Alice Smith", 28, "Female", "CC-1"));
+        confirmed.setPayment(new Payment(confirmed, new BigDecimal("900.00"), "TXN-1", "SUCCESS"));
+
+        Booking failed = new Booking("PNR2", null, existingTrain, cc, date, new BigDecimal("450.00"));
+        failed.setStatus(BookingStatus.FAILED);
+
+        Booking cancelled = new Booking("PNR3", null, existingTrain, cc, date, new BigDecimal("450.00"));
+        cancelled.setStatus(BookingStatus.CANCELLED);
+        Payment refunded = new Payment(cancelled, new BigDecimal("450.00"), "TXN-3", "REFUND_INITIATED");
+        refunded.setRefundAmount(new BigDecimal("337.50"));
+        cancelled.setPayment(refunded);
+
+        when(bookingRepository.findForAdminReport("12675", date)).thenReturn(List.of(confirmed, failed, cancelled));
+
+        BookingReportDto report = adminService.getBookingsReport("12675", date);
+
+        assertThat(report.getTotalBookings()).isEqualTo(3);
+        assertThat(report.getFailedPayments()).isEqualTo(1);
+        assertThat(report.getCancellations()).isEqualTo(1);
+        assertThat(report.getTotalRefunds()).isEqualByComparingTo("337.50");
+        assertThat(report.getBookings()).hasSize(3);
+        assertThat(report.getBookings().get(0).getPnr()).isEqualTo("PNR1");
+        assertThat(report.getBookings().get(0).getTrainNo()).isEqualTo("12675");
+        assertThat(report.getBookings().get(0).getFare()).isEqualByComparingTo("900.00");
+        assertThat(report.getBookings().get(0).getPassengers().get(0).name()).isEqualTo("Alice Smith");
+        assertThat(report.getBookings().get(0).getPassengers().get(0).seatNo()).isEqualTo("CC-1");
     }
 }
