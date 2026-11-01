@@ -397,4 +397,73 @@ class BookingServiceTest {
         assertThrows(IllegalArgumentException.class, () -> bookingService.getBookingByPnr("<script>alert(1)</script>"));
         assertThrows(IllegalArgumentException.class, () -> bookingService.getBookingByPnr("admin' OR '1'='1"));
     }
+
+    @Test
+    @DisplayName("TC-HIS-01: Successfully retrieve chronological booking history for authenticated user [RRS-F-014]")
+    void testGetBookingHistory_Success() {
+        Booking upcomingBooking = bookingWithPassengers("UPCOMING01");
+        upcomingBooking.setJourneyDate(LocalDate.now().plusDays(4));
+        upcomingBooking.setStatus(BookingStatus.CONFIRMED);
+
+        Booking pastBooking = bookingWithPassengers("PAST000001");
+        pastBooking.setJourneyDate(LocalDate.now().minusDays(2));
+        pastBooking.setStatus(BookingStatus.CONFIRMED);
+
+        when(userRepository.existsById(1L)).thenReturn(true);
+        when(bookingRepository.findByUserIdOrderByJourneyDateDescCreatedAtDesc(1L))
+                .thenReturn(List.of(upcomingBooking, pastBooking));
+
+        List<BookingResponseDto> history = bookingService.getBookingHistory(1L);
+
+        assertNotNull(history);
+        assertEquals(2, history.size());
+
+        // First item (upcoming)
+        BookingResponseDto first = history.get(0);
+        assertEquals("UPCOMING01", first.getPnr());
+        assertTrue(first.getUpcoming());
+        assertTrue(first.getCancellable());
+        assertNotNull(first.getTicketUrl());
+        assertNotNull(first.getCancelUrl());
+        assertEquals(1, first.getPassengers().size());
+
+        // Second item (past)
+        BookingResponseDto second = history.get(1);
+        assertEquals("PAST000001", second.getPnr());
+        assertFalse(second.getUpcoming());
+        assertFalse(second.getCancellable());
+        assertNull(second.getCancelUrl());
+        assertNotNull(second.getTicketUrl());
+
+        verify(bookingRepository).findByUserIdOrderByJourneyDateDescCreatedAtDesc(1L);
+    }
+
+    @Test
+    @DisplayName("TC-HIS-02: Empty list returned for user with zero bookings [RRS-F-014]")
+    void testGetBookingHistory_EmptyList() {
+        when(userRepository.existsById(1L)).thenReturn(true);
+        when(bookingRepository.findByUserIdOrderByJourneyDateDescCreatedAtDesc(1L))
+                .thenReturn(List.of());
+
+        List<BookingResponseDto> history = bookingService.getBookingHistory(1L);
+
+        assertNotNull(history);
+        assertTrue(history.isEmpty());
+    }
+
+    @Test
+    @DisplayName("TC-HIS-03 (Negative): Throw ResourceNotFoundException when user does not exist [RRS-F-014]")
+    void testGetBookingHistory_UserNotFound() {
+        when(userRepository.existsById(999L)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, () -> bookingService.getBookingHistory(999L));
+        verify(bookingRepository, never()).findByUserIdOrderByJourneyDateDescCreatedAtDesc(anyLong());
+    }
+
+    @Test
+    @DisplayName("TC-HIS-04 (Negative): Throw IllegalArgumentException when userId is null [RRS-F-014]")
+    void testGetBookingHistory_NullUserId() {
+        assertThrows(IllegalArgumentException.class, () -> bookingService.getBookingHistory(null));
+        verify(bookingRepository, never()).findByUserIdOrderByJourneyDateDescCreatedAtDesc(anyLong());
+    }
 }

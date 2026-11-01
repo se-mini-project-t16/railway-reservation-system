@@ -18,6 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.security.SecureRandom;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -175,6 +178,27 @@ public class BookingServiceImpl implements BookingService {
         return mapToFullTicketDto(booking);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDto> getBookingHistory(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID must not be null.");
+        }
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found with id: " + userId);
+        }
+
+        List<Booking> bookings = bookingRepository.findByUserIdOrderByJourneyDateDescCreatedAtDesc(userId);
+        return bookings.stream()
+                .map(b -> {
+                    List<PassengerDto> passengerDtos = b.getPassengers().stream()
+                            .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo()))
+                            .toList();
+                    return mapToResponseDto(b, passengerDtos);
+                })
+                .toList();
+    }
+
     private Booking findBookingByPnr(String pnr) {
         if (pnr == null || pnr.trim().isEmpty()) {
             throw new ResourceNotFoundException("Booking not found with PNR: " + pnr);
@@ -275,6 +299,24 @@ public class BookingServiceImpl implements BookingService {
         dto.setJourneyDate(booking.getJourneyDate());
         dto.setBookingTime(booking.getCreatedAt());
         dto.setPassengers(passengerDtos);
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+        boolean upcoming = !booking.getJourneyDate().isBefore(today);
+
+        LocalTime deptTime = train.getDepartureTime() != null ? train.getDepartureTime() : LocalTime.MIN;
+        LocalDateTime departureDateTime = LocalDateTime.of(booking.getJourneyDate(), deptTime);
+        boolean cancellable = booking.getStatus() == BookingStatus.CONFIRMED && now.isBefore(departureDateTime);
+
+        dto.setUpcoming(upcoming);
+        dto.setCancellable(cancellable);
+
+        if (booking.getStatus() == BookingStatus.CONFIRMED) {
+            dto.setTicketUrl("/ticket.html?pnr=" + booking.getPnr());
+        }
+        if (cancellable) {
+            dto.setCancelUrl("/api/v1/bookings/" + booking.getPnr() + "/cancel");
+        }
 
         if (booking.getPayment() != null) {
             dto.setPaymentStatus(booking.getPayment().getStatus());

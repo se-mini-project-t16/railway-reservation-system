@@ -6,6 +6,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -81,6 +82,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/health/**").permitAll()
                 .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
                 .requestMatchers("/api/v1/trains/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/bookings", "/api/v1/bookings/", "/api/v1/bookings/history").authenticated()
                 .requestMatchers("/api/v1/bookings/*/ticket",
                         "/api/v1/bookings/*/ticket.pdf",
                         "/api/v1/bookings/*/cancel",
