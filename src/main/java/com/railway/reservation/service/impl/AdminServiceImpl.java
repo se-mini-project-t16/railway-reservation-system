@@ -1,5 +1,7 @@
 package com.railway.reservation.service.impl;
 
+import com.railway.reservation.dto.BookingReportDto;
+import com.railway.reservation.dto.BookingReportRowDto;
 import com.railway.reservation.dto.CreateTrainDto;
 import com.railway.reservation.dto.TrainClassDto;
 import com.railway.reservation.dto.TrainClassResponseDto;
@@ -8,6 +10,8 @@ import com.railway.reservation.dto.UpdateTrainDto;
 import com.railway.reservation.exception.DuplicateTrainException;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.exception.TrainDeletionException;
+import com.railway.reservation.model.Booking;
+import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.Train;
 import com.railway.reservation.model.TrainClass;
 import com.railway.reservation.repository.BookingRepository;
@@ -16,7 +20,10 @@ import com.railway.reservation.service.AdminService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -107,6 +114,36 @@ public class AdminServiceImpl implements AdminService {
 
         trainRepository.delete(train);
         trainRepository.flush();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BookingReportDto getBookingsReport(String trainNo, LocalDate journeyDate) {
+        List<Booking> bookings = bookingRepository.findForAdminReport(trainNo, journeyDate);
+
+        List<BookingReportRowDto> rows = bookings.stream()
+                .map(b -> new BookingReportRowDto(
+                        b.getPnr(),
+                        b.getTrain().getTrainNo(),
+                        b.getJourneyDate(),
+                        b.getStatus().name(),
+                        b.getTotalFare(),
+                        b.getPassengers().stream()
+                                .map(p -> new BookingReportRowDto.PassengerSeat(p.getName(), p.getSeatNo()))
+                                .collect(Collectors.toList())
+                ))
+                .collect(Collectors.toList());
+
+        long failedPayments = bookings.stream().filter(b -> b.getStatus() == BookingStatus.FAILED).count();
+        long cancellations = bookings.stream().filter(b -> b.getStatus() == BookingStatus.CANCELLED).count();
+        BigDecimal totalRefunds = bookings.stream()
+                .map(Booking::getPayment)
+                .filter(Objects::nonNull)
+                .map(p -> p.getRefundAmount())
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new BookingReportDto(trainNo, journeyDate, rows.size(), failedPayments, cancellations, totalRefunds, rows);
     }
 
     private TrainResponseDto mapToResponseDto(Train train) {

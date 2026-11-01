@@ -30,6 +30,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByTrainIdAndJourneyDate(Long trainId, LocalDate journeyDate);
     boolean existsByTrainId(Long trainId);
 
+    @Query("SELECT DISTINCT b FROM Booking b JOIN FETCH b.train t " +
+           "LEFT JOIN FETCH b.passengers LEFT JOIN FETCH b.payment " +
+           "WHERE (:trainNo IS NULL OR t.trainNo = :trainNo) " +
+           "AND (:journeyDate IS NULL OR b.journeyDate = :journeyDate) " +
+           "ORDER BY b.createdAt")
+    List<Booking> findForAdminReport(
+        @Param("trainNo") String trainNo,
+        @Param("journeyDate") LocalDate journeyDate
+    );
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM Booking b WHERE b.pnr = :pnr")
     Optional<Booking> findByPnrForUpdate(@Param("pnr") String pnr);
