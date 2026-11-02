@@ -491,6 +491,90 @@ header.app-header {
 .btn-icon-swap svg {
   width: 18px;
   height: 18px;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-icon-swap.is-rotating svg {
+  transform: rotate(180deg);
+}
+
+/* Station Autocomplete Dropdown */
+.autocomplete-wrapper {
+  position: relative;
+}
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  background-color: var(--color-paper-3);
+  border: var(--rule-bar) solid var(--color-ink-rule);
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 50;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  box-shadow: var(--shadow-modal);
+}
+
+.autocomplete-item {
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  transition-property: background-color, color;
+  transition-duration: 120ms;
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active,
+.autocomplete-item[aria-selected="true"] {
+  background-color: var(--color-paper-2);
+  color: var(--color-accent);
+}
+
+.autocomplete-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.station-code-pill {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.725rem;
+  background-color: var(--color-paper);
+  border: var(--rule-hair) solid var(--color-ink-rule);
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-pill);
+  color: var(--color-ink);
+  flex-shrink: 0;
+}
+
+.station-name-text {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.station-meta-text {
+  font-size: 0.725rem;
+  color: var(--color-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Quick Route Chips */
@@ -636,6 +720,110 @@ header.app-header {
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 0.75rem;
   margin-top: 0.75rem;
+}
+
+/* Route Halts & Timetable */
+.btn-view-route {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule);
+  color: var(--color-ink-2);
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+}
+
+.btn-view-route:hover {
+  background-color: var(--color-paper-3);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.btn-view-route svg {
+  width: 14px;
+  height: 14px;
+}
+
+.timeline-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.825rem;
+  margin-top: 0.75rem;
+}
+
+.timeline-table th {
+  background-color: var(--color-paper-2);
+  color: var(--color-ink-2);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.6rem 0.75rem;
+  border-bottom: var(--rule-bar) solid var(--color-ink-rule);
+  text-align: left;
+}
+
+.timeline-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-table tr:hover td {
+  background-color: var(--color-paper-2);
+}
+
+.stop-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-pill);
+  border: var(--rule-hair) solid var(--color-rule);
+  background-color: var(--color-paper);
+}
+
+.stop-badge.origin {
+  border-color: var(--color-success);
+  color: var(--color-success);
+  background-color: var(--color-success-bg);
+}
+
+.stop-badge.dest {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background-color: var(--color-paper-2);
+}
+
+/* Skeleton Loading States */
+.skeleton-card {
+  background-color: var(--color-paper-3);
+  color: var(--color-ink);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-left: var(--rule-bar) solid var(--color-rule);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.skeleton-box {
+  background-color: var(--color-paper-2);
+  border-radius: 2px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
 .class-card {

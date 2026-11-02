@@ -159,7 +159,14 @@ class BookingUiIntegrationTest {
                 .andExpect(content().string(containsString("id=\"loginPassword\"")))
                 .andExpect(content().string(containsString("id=\"loginSubmitBtn\"")))
                 // PNR lookup modal
-                .andExpect(content().string(containsString("id=\"pnrModal\"")));
+                .andExpect(content().string(containsString("id=\"pnrModal\"")))
+                // RRS-F-004-UI: Station autocomplete combobox dropdowns & Route stops modal
+                .andExpect(content().string(containsString("id=\"srcSuggestions\"")))
+                .andExpect(content().string(containsString("id=\"dstSuggestions\"")))
+                .andExpect(content().string(containsString("id=\"routeModal\"")))
+                .andExpect(content().string(containsString("id=\"chipDateToday\"")))
+                .andExpect(content().string(containsString("id=\"chipDateTomorrow\"")))
+                .andExpect(content().string(containsString("id=\"chipDateWeekend\"")));
     }
 
     @Test
@@ -188,7 +195,12 @@ class BookingUiIntegrationTest {
                 .andExpect(content().string(containsString("isTokenExpired")))
                 .andExpect(content().string(containsString("clearStoredToken")))
                 .andExpect(content().string(containsString("seatNumbers")))
-                .andExpect(content().string(containsString("booking.paymentStatus")));
+                .andExpect(content().string(containsString("booking.paymentStatus")))
+                // RRS-F-004-UI: Station autocomplete, intermediate stops modal, and skeleton loading
+                .andExpect(content().string(containsString("/api/v1/trains/stations")))
+                .andExpect(content().string(containsString("setupStationAutocomplete")))
+                .andExpect(content().string(containsString("openRouteModal")))
+                .andExpect(content().string(containsString("renderSkeletonLoading")));
     }
 
     @Test

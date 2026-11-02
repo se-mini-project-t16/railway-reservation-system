@@ -2,6 +2,7 @@ package com.railway.reservation.service;
 
 import com.railway.reservation.dto.SeatAvailabilityDto;
 import com.railway.reservation.dto.TrainSearchResponseDto;
+import com.railway.reservation.dto.TrainStopDto;
 import com.railway.reservation.model.Train;
 import com.railway.reservation.model.TrainClass;
 
@@ -19,6 +20,14 @@ public interface SearchService {
      * @return list of matching trains with timings, classes, and available seats
      */
     List<TrainSearchResponseDto> searchTrains(String sourceStation, String destinationStation, LocalDate journeyDate);
+
+    /**
+     * Retrieve intermediate route stops and timetable details for a specific train (RRS-F-004-UI).
+     *
+     * @param trainId the train ID
+     * @return ordered list of timetable stops
+     */
+    List<TrainStopDto> getTrainRoute(Long trainId);
 
     /**
      * Calculate dynamic seat availability for a train, class, and journey date.

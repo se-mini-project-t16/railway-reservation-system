@@ -29,6 +29,11 @@
   const srcError = document.getElementById('srcError');
   const dstError = document.getElementById('dstError');
   const dateError = document.getElementById('dateError');
+  const srcSuggestions = document.getElementById('srcSuggestions');
+  const dstSuggestions = document.getElementById('dstSuggestions');
+  const chipDateToday = document.getElementById('chipDateToday');
+  const chipDateTomorrow = document.getElementById('chipDateTomorrow');
+  const chipDateWeekend = document.getElementById('chipDateWeekend');
   const swapStationsBtn = document.getElementById('swapStationsBtn');
   const searchSubmitBtn = document.getElementById('searchSubmitBtn');
   const searchBtnSpinner = document.getElementById('searchBtnSpinner');
@@ -39,6 +44,15 @@
   const resultsCount = document.getElementById('resultsCount');
   const resultsRouteSummary = document.getElementById('resultsRouteSummary');
   const trainsListContainer = document.getElementById('trainsListContainer');
+
+  // Route & Halts Modal (RRS-F-004-UI)
+  const routeModal = document.getElementById('routeModal');
+  const routeModalTrainName = document.getElementById('routeModalTrainName');
+  const routeModalSubtitle = document.getElementById('routeModalSubtitle');
+  const routeModalLoading = document.getElementById('routeModalLoading');
+  const routeModalTableContainer = document.getElementById('routeModalTableContainer');
+  const closeRouteModalBtn = document.getElementById('closeRouteModalBtn');
+  const closeRouteModalBottomBtn = document.getElementById('closeRouteModalBottomBtn');
 
   // Booking Section
   const bookingSection = document.getElementById('bookingSection');
@@ -193,31 +207,272 @@
     }
   }
 
-  // --- Pre-fill default journey date (tomorrow) & min date (today) ---
+  // --- Station Catalog & Master Data Autocomplete (RRS-F-004-UI) ---
+  let masterStations = [];
+
+  const fallbackStations = [
+    { code: 'MAS', name: 'Chennai Central', city: 'Chennai', state: 'Tamil Nadu' },
+    { code: 'SBC', name: 'KSR Bengaluru', city: 'Bengaluru', state: 'Karnataka' },
+    { code: 'NDLS', name: 'New Delhi', city: 'Delhi', state: 'Delhi' },
+    { code: 'MMCT', name: 'Mumbai Central', city: 'Mumbai', state: 'Maharashtra' },
+    { code: 'CSMT', name: 'Chhatrapati Shivaji Terminus', city: 'Mumbai', state: 'Maharashtra' },
+    { code: 'HWH', name: 'Howrah Junction', city: 'Kolkata', state: 'West Bengal' },
+    { code: 'PUNE', name: 'Pune Junction', city: 'Pune', state: 'Maharashtra' },
+    { code: 'CBE', name: 'Coimbatore Junction', city: 'Coimbatore', state: 'Tamil Nadu' },
+    { code: 'HYB', name: 'Hyderabad Deccan', city: 'Hyderabad', state: 'Telangana' },
+    { code: 'ADI', name: 'Ahmedabad Junction', city: 'Ahmedabad', state: 'Gujarat' },
+    { code: 'CNB', name: 'Kanpur Central', city: 'Kanpur', state: 'Uttar Pradesh' },
+    { code: 'PRYJ', name: 'Prayagraj Junction', city: 'Prayagraj', state: 'Uttar Pradesh' },
+    { code: 'DDU', name: 'Pt. Deen Dayal Upadhyaya', city: 'Mughalsarai', state: 'Uttar Pradesh' },
+    { code: 'GAYA', name: 'Gaya Junction', city: 'Gaya', state: 'Bihar' },
+    { code: 'DHN', name: 'Dhanbad Junction', city: 'Dhanbad', state: 'Jharkhand' },
+    { code: 'ASN', name: 'Asansol Junction', city: 'Asansol', state: 'West Bengal' },
+    { code: 'KPD', name: 'Katpadi Junction', city: 'Vellore', state: 'Tamil Nadu' },
+    { code: 'JTJ', name: 'Jolarpettai Junction', city: 'Jolarpettai', state: 'Tamil Nadu' },
+    { code: 'AJJ', name: 'Arakkonam Junction', city: 'Arakkonam', state: 'Tamil Nadu' },
+    { code: 'ST', name: 'Surat', city: 'Surat', state: 'Gujarat' },
+    { code: 'BRC', name: 'Vadodara Junction', city: 'Vadodara', state: 'Gujarat' },
+    { code: 'RTM', name: 'Ratlam Junction', city: 'Ratlam', state: 'Madhya Pradesh' },
+    { code: 'KOTA', name: 'Kota Junction', city: 'Kota', state: 'Rajasthan' },
+    { code: 'LNL', name: 'Lonavala', city: 'Lonavala', state: 'Maharashtra' },
+    { code: 'KJT', name: 'Karjat Junction', city: 'Karjat', state: 'Maharashtra' }
+  ];
+
+  async function loadMasterStations() {
+    try {
+      const res = await fetch('/api/v1/trains/stations');
+      if (res.ok) {
+        masterStations = await res.json();
+      } else {
+        masterStations = fallbackStations;
+      }
+    } catch (_) {
+      masterStations = fallbackStations;
+    }
+  }
+  loadMasterStations();
+
+  function setupStationAutocomplete(inputElem, listElem) {
+    if (!inputElem || !listElem) return;
+    let activeIndex = -1;
+
+    function renderList(query = '') {
+      while (listElem.firstChild) {
+        listElem.removeChild(listElem.firstChild);
+      }
+      activeIndex = -1;
+
+      const q = query.trim().toLowerCase();
+      const list = (masterStations && masterStations.length > 0) ? masterStations : fallbackStations;
+      const filtered = q
+        ? list.filter(s =>
+            (s.code && s.code.toLowerCase().includes(q)) ||
+            (s.name && s.name.toLowerCase().includes(q)) ||
+            (s.city && s.city.toLowerCase().includes(q)) ||
+            (s.state && s.state.toLowerCase().includes(q))
+          ).slice(0, 7)
+        : list.slice(0, 7);
+
+      if (filtered.length === 0) {
+        const noItem = document.createElement('li');
+        noItem.className = 'autocomplete-item';
+        noItem.style.color = 'var(--color-muted)';
+        noItem.style.cursor = 'default';
+        noItem.textContent = 'No matching railway stations found.';
+        listElem.appendChild(noItem);
+        listElem.style.display = 'block';
+        inputElem.setAttribute('aria-expanded', 'true');
+        return;
+      }
+
+      filtered.forEach((stn, idx) => {
+        const item = document.createElement('li');
+        item.className = 'autocomplete-item';
+        item.setAttribute('role', 'option');
+        item.setAttribute('id', `${inputElem.id}-opt-${idx}`);
+        item.setAttribute('aria-selected', 'false');
+
+        const leftDiv = document.createElement('div');
+        leftDiv.className = 'autocomplete-item-left';
+
+        const codeSpan = document.createElement('span');
+        codeSpan.className = 'station-code-pill';
+        codeSpan.textContent = stn.code;
+        leftDiv.appendChild(codeSpan);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'station-name-text';
+        nameSpan.textContent = stn.name;
+        leftDiv.appendChild(nameSpan);
+
+        item.appendChild(leftDiv);
+
+        if (stn.state) {
+          const metaSpan = document.createElement('span');
+          metaSpan.className = 'station-meta-text';
+          metaSpan.textContent = stn.state;
+          item.appendChild(metaSpan);
+        }
+
+        item.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          selectStation(stn);
+        });
+
+        listElem.appendChild(item);
+      });
+
+      listElem.style.display = 'block';
+      inputElem.setAttribute('aria-expanded', 'true');
+    }
+
+    function selectStation(stn) {
+      inputElem.value = `${stn.name} (${stn.code})`;
+      closeList();
+      validateStationInputs();
+    }
+
+    function closeList() {
+      listElem.style.display = 'none';
+      inputElem.setAttribute('aria-expanded', 'false');
+      activeIndex = -1;
+    }
+
+    function updateActiveHighlight(items) {
+      items.forEach((item, idx) => {
+        if (idx === activeIndex) {
+          item.classList.add('active');
+          item.setAttribute('aria-selected', 'true');
+          item.scrollIntoView({ block: 'nearest' });
+          inputElem.setAttribute('aria-activedescendant', item.id);
+        } else {
+          item.classList.remove('active');
+          item.setAttribute('aria-selected', 'false');
+        }
+      });
+    }
+
+    inputElem.addEventListener('focus', () => {
+      renderList(inputElem.value);
+    });
+
+    inputElem.addEventListener('input', () => {
+      renderList(inputElem.value);
+    });
+
+    inputElem.addEventListener('keydown', (e) => {
+      const items = listElem.querySelectorAll('.autocomplete-item[role="option"]');
+      if (listElem.style.display === 'none' || items.length === 0) {
+        if (e.key === 'ArrowDown') {
+          renderList(inputElem.value);
+          e.preventDefault();
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % items.length;
+        updateActiveHighlight(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + items.length) % items.length;
+        updateActiveHighlight(items);
+      } else if (e.key === 'Enter') {
+        if (activeIndex >= 0 && activeIndex < items.length) {
+          e.preventDefault();
+          items[activeIndex].dispatchEvent(new MouseEvent('mousedown'));
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeList();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!inputElem.contains(e.target) && !listElem.contains(e.target)) {
+        closeList();
+      }
+    });
+  }
+
+  setupStationAutocomplete(srcInput, srcSuggestions);
+  setupStationAutocomplete(dstInput, dstSuggestions);
+
+  // --- Date Helpers & Quick Date Chips (RRS-F-004-UI) ---
+  function formatDateYMD(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  const minDateStr = `${yyyy}-${mm}-${dd}`;
+  const minDateStr = formatDateYMD(today);
   dateInput.min = minDateStr;
 
   const tomorrow = new Date();
   tomorrow.setDate(today.getDate() + 1);
-  const tYyyy = tomorrow.getFullYear();
-  const tMm = String(tomorrow.getMonth() + 1).padStart(2, '0');
-  const tDd = String(tomorrow.getDate()).padStart(2, '0');
-  dateInput.value = `${tYyyy}-${tMm}-${tDd}`;
+  dateInput.value = formatDateYMD(tomorrow);
 
-  // --- Station Swap Action ---
+  function getUpcomingWeekend() {
+    const d = new Date();
+    const dayOfWeek = d.getDay(); // 0 is Sun, 6 is Sat
+    let daysUntilSat = (6 - dayOfWeek + 7) % 7;
+    if (daysUntilSat === 0 && dayOfWeek !== 6) daysUntilSat = 7;
+    d.setDate(d.getDate() + daysUntilSat);
+    return d;
+  }
+
+  function setActiveDateChip(btn) {
+    document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
+  if (chipDateToday) {
+    chipDateToday.addEventListener('click', () => {
+      dateInput.value = formatDateYMD(new Date());
+      dateInput.dispatchEvent(new Event('input'));
+      setActiveDateChip(chipDateToday);
+    });
+  }
+  if (chipDateTomorrow) {
+    chipDateTomorrow.addEventListener('click', () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      dateInput.value = formatDateYMD(d);
+      dateInput.dispatchEvent(new Event('input'));
+      setActiveDateChip(chipDateTomorrow);
+    });
+    chipDateTomorrow.classList.add('active');
+  }
+  if (chipDateWeekend) {
+    chipDateWeekend.addEventListener('click', () => {
+      dateInput.value = formatDateYMD(getUpcomingWeekend());
+      dateInput.dispatchEvent(new Event('input'));
+      setActiveDateChip(chipDateWeekend);
+    });
+  }
+
+  // --- Station Swap Action with Smooth Rotation (RRS-F-004-UI) ---
   swapStationsBtn.addEventListener('click', () => {
+    swapStationsBtn.classList.add('is-rotating');
     const temp = srcInput.value;
     srcInput.value = dstInput.value;
     dstInput.value = temp;
+
+    setTimeout(() => {
+      swapStationsBtn.classList.remove('is-rotating');
+    }, 260);
+
+    if (srcSuggestions) srcSuggestions.style.display = 'none';
+    if (dstSuggestions) dstSuggestions.style.display = 'none';
+
     validateStationInputs();
   });
 
-  // --- Quick Route Chips ---
-  document.querySelectorAll('.chip').forEach(chip => {
+  // --- Quick Popular Route Chips ---
+  document.querySelectorAll('.chip[data-src]').forEach(chip => {
     chip.addEventListener('click', () => {
       srcInput.value = chip.getAttribute('data-src') || '';
       dstInput.value = chip.getAttribute('data-dst') || '';
@@ -281,6 +536,38 @@
     }
   });
 
+  // --- Skeleton Loading State (RRS-F-004-UI) ---
+  function renderSkeletonLoading(src, dst, date) {
+    while (trainsListContainer.firstChild) {
+      trainsListContainer.removeChild(trainsListContainer.firstChild);
+    }
+    resultsSection.style.display = 'block';
+    resultsCount.textContent = '...';
+    resultsRouteSummary.textContent = `${src} ➔ ${dst} on ${date}`;
+
+    for (let i = 0; i < 2; i++) {
+      const card = document.createElement('div');
+      card.className = 'skeleton-card';
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: var(--rule-hair) solid var(--color-rule); padding-bottom: 0.85rem;">
+          <div class="skeleton-box" style="width: 200px; height: 24px;"></div>
+          <div class="skeleton-box" style="width: 120px; height: 26px;"></div>
+        </div>
+        <div style="display: flex; gap: 2rem; align-items: center; margin: 0.5rem 0;">
+          <div class="skeleton-box" style="width: 90px; height: 32px;"></div>
+          <div class="skeleton-box" style="flex: 1; height: 4px;"></div>
+          <div class="skeleton-box" style="width: 90px; height: 32px;"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.75rem;">
+          <div class="skeleton-box" style="height: 60px;"></div>
+          <div class="skeleton-box" style="height: 60px;"></div>
+          <div class="skeleton-box" style="height: 60px;"></div>
+        </div>
+      `;
+      trainsListContainer.appendChild(card);
+    }
+  }
+
   // --- Search Form Submission ---
   trainSearchForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -315,8 +602,10 @@
     searchBtnSpinner.style.display = 'inline-block';
     searchBtnText.textContent = 'Searching...';
 
+    // Show crisp skeleton cards while waiting
+    renderSkeletonLoading(src, dst, date);
+
     // Hide downstream sections
-    resultsSection.style.display = 'none';
     bookingSection.style.display = 'none';
     confirmationSection.style.display = 'none';
 
@@ -362,16 +651,35 @@
     if (!trains || trains.length === 0) {
       const emptyState = document.createElement('div');
       emptyState.className = 'empty-state';
+      emptyState.style.padding = '2.5rem 1.5rem';
+      emptyState.style.textAlign = 'center';
 
-      const title = document.createElement('h3');
-      title.textContent = 'No Trains Found for Route';
-      emptyState.appendChild(title);
-
-      const p = document.createElement('p');
-      p.textContent = `There are no scheduled trains operating directly between ${src} and ${dst} on ${date}. Please verify the station spellings or try another journey date.`;
-      emptyState.appendChild(p);
+      emptyState.innerHTML = `
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto 1rem auto; display: block; color: var(--color-muted);" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        </svg>
+        <h3 style="font-size: 1.15rem; margin-bottom: 0.5rem; color: var(--color-ink);">No Direct Trains Scheduled</h3>
+        <p style="color: var(--color-muted); font-size: 0.875rem; max-width: 500px; margin: 0 auto 1.25rem auto;">
+          We could not find direct trains operating between <strong>${escapeHtml(src)}</strong> and <strong>${escapeHtml(dst)}</strong> on <strong>${escapeHtml(date)}</strong>.
+        </p>
+        <div style="display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline btn-sm" id="emptySwapAndSearchBtn">
+            ⇄ Swap Origin &amp; Destination
+          </button>
+        </div>
+      `;
 
       trainsListContainer.appendChild(emptyState);
+
+      const emptySwapBtn = emptyState.querySelector('#emptySwapAndSearchBtn');
+      if (emptySwapBtn) {
+        emptySwapBtn.addEventListener('click', () => {
+          swapStationsBtn.click();
+          trainSearchForm.requestSubmit();
+        });
+      }
+
       showFlash(`No trains found operating between ${src} and ${dst} on ${date}.`, 'info');
       return;
     }
@@ -398,6 +706,22 @@
       trainHeading.appendChild(trainBadge);
       identityDiv.appendChild(trainHeading);
       cardHeader.appendChild(identityDiv);
+
+      // Route Stops & Timetable Button (RRS-F-004-UI)
+      const routeBtn = document.createElement('button');
+      routeBtn.type = 'button';
+      routeBtn.className = 'btn-view-route';
+      routeBtn.setAttribute('aria-haspopup', 'dialog');
+      routeBtn.setAttribute('aria-label', `View route stops and timetable for ${train.name || 'train'}`);
+      routeBtn.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span>View Route &amp; Halts</span>
+      `;
+      routeBtn.addEventListener('click', () => openRouteModal(train));
+      cardHeader.appendChild(routeBtn);
 
       card.appendChild(cardHeader);
 
@@ -433,6 +757,13 @@
       arrTime.className = 'time';
       arrTime.textContent = formatTime(train.arrivalTime);
       const arrStn = document.createElement('div');
+      arrStn.className = 'station';
+      arrStn.textContent = train.destinationStation;
+      arrDiv.appendChild(arrTime);
+      arrDiv.appendChild(arrStn);
+      timingsDiv.appendChild(arrDiv);
+
+      card.appendChild(timingsDiv);
       arrStn.className = 'station';
       arrStn.textContent = train.destinationStation;
       arrDiv.appendChild(arrTime);
@@ -1766,6 +2097,145 @@
       }
     });
   }
+
+  // --- Route & Halts Modal Actions (RRS-F-004-UI) ---
+  function closeRouteModal() {
+    if (routeModal) {
+      routeModal.classList.remove('active');
+      routeModal.style.display = 'none';
+    }
+  }
+
+  if (closeRouteModalBtn) closeRouteModalBtn.addEventListener('click', closeRouteModal);
+  if (closeRouteModalBottomBtn) closeRouteModalBottomBtn.addEventListener('click', closeRouteModal);
+  if (routeModal) {
+    routeModal.addEventListener('click', (e) => {
+      if (e.target === routeModal) {
+        closeRouteModal();
+      }
+    });
+  }
+
+  async function openRouteModal(train) {
+    if (!routeModal) return;
+
+    routeModalTrainName.textContent = `${train.name || 'Express Train'} (#${train.trainNo || 'N/A'})`;
+    routeModalSubtitle.textContent = `${train.sourceStation} ➔ ${train.destinationStation}`;
+
+    while (routeModalTableContainer.firstChild) {
+      routeModalTableContainer.removeChild(routeModalTableContainer.firstChild);
+    }
+
+    routeModal.classList.add('active');
+    routeModal.style.display = 'flex';
+
+    let stops = train.stops;
+    if (!stops || stops.length === 0) {
+      routeModalLoading.style.display = 'block';
+      try {
+        const res = await fetch(`/api/v1/trains/${train.trainId}/route`);
+        if (res.ok) {
+          stops = await res.json();
+        } else {
+          stops = [];
+        }
+      } catch (_) {
+        stops = [];
+      } finally {
+        routeModalLoading.style.display = 'none';
+      }
+    }
+
+    renderRouteTable(stops, train);
+  }
+
+  function renderRouteTable(stops, train) {
+    while (routeModalTableContainer.firstChild) {
+      routeModalTableContainer.removeChild(routeModalTableContainer.firstChild);
+    }
+
+    if (!stops || stops.length === 0) {
+      const emptyNotice = document.createElement('p');
+      emptyNotice.style.padding = '1.5rem';
+      emptyNotice.style.color = 'var(--color-muted)';
+      emptyNotice.style.textAlign = 'center';
+      emptyNotice.textContent = 'Timetable halt details are currently not available for this service.';
+      routeModalTableContainer.appendChild(emptyNotice);
+      return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'timeline-table';
+
+    const thead = document.createElement('thead');
+    thead.innerHTML = `
+      <tr>
+        <th style="width: 48px;">#</th>
+        <th>Station</th>
+        <th>Arrival</th>
+        <th>Departure</th>
+        <th>Halt</th>
+        <th>Platform</th>
+        <th>Distance</th>
+      </tr>
+    `;
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    stops.forEach((s, idx) => {
+      const isOrigin = idx === 0;
+      const isDest = idx === stops.length - 1;
+
+      const tr = document.createElement('tr');
+      if (isOrigin) tr.className = 'origin-row';
+      if (isDest) tr.className = 'dest-row';
+
+      const badgeHtml = isOrigin
+        ? '<span class="stop-badge origin">Origin</span>'
+        : isDest
+        ? '<span class="stop-badge dest">Destination</span>'
+        : '<span class="stop-badge">Halt</span>';
+
+      const arrText = isOrigin ? '--' : formatTime(s.arrivalTime);
+      const depText = isDest ? '--' : formatTime(s.departureTime);
+      const haltText = (isOrigin || isDest || !s.haltMinutes) ? '--' : `${s.haltMinutes}m`;
+      const pfText = s.platformNo ? `PF ${s.platformNo}` : '--';
+      const distText = `${s.distanceKm || 0} km`;
+
+      tr.innerHTML = `
+        <td style="color: var(--color-muted);">${s.stopOrder || idx + 1}</td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span class="station-code-pill">${escapeHtml(s.stationCode || '')}</span>
+            <span style="font-weight: 600;">${escapeHtml(s.stationName || '')}</span>
+            ${badgeHtml}
+          </div>
+        </td>
+        <td>${arrText}</td>
+        <td>${depText}</td>
+        <td>${haltText}</td>
+        <td>${pfText}</td>
+        <td>${distText}</td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    routeModalTableContainer.appendChild(table);
+  }
+
+  // Global Escape Key Listener for Modals & Dropdowns (WCAG 2.1)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (routeModal && routeModal.classList.contains('active')) closeRouteModal();
+      if (loginModal && loginModal.classList.contains('active')) closeLoginModal();
+      if (pnrModal && pnrModal.classList.contains('active')) pnrModal.classList.remove('active');
+      if (historyModal && historyModal.classList.contains('active')) closeHistoryModal();
+      if (srcSuggestions) srcSuggestions.style.display = 'none';
+      if (dstSuggestions) dstSuggestions.style.display = 'none';
+    }
+  });
 
   // --- Secure PDF Download Handler (RRS-F-010, RRS-SR-004) ---
   const downloadPdfBtn = document.getElementById('downloadPdfTicketBtn');
