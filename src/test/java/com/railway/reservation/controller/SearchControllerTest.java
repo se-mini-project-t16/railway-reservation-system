@@ -356,4 +356,30 @@ class SearchControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(containsString("Journey date cannot be in the past")));
     }
+
+    @Test
+    @DisplayName("TC-SCH-01: GET /api/v1/trains/stations returns 200 OK with master station catalog")
+    void getMasterStations_returnsCatalog() throws Exception {
+        mockMvc.perform(get("/api/v1/trains/stations")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(20))))
+                .andExpect(jsonPath("$[0].code").isNotEmpty())
+                .andExpect(jsonPath("$[0].name").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("TC-SCH-03: Search trains by station codes (MAS -> SBC) returns matching train")
+    void searchTrains_byStationCodes() throws Exception {
+        String tomorrow = LocalDate.now().plusDays(1).toString();
+
+        mockMvc.perform(get(SEARCH_URL)
+                        .param("src", "MAS")
+                        .param("dst", "SBC")
+                        .param("date", tomorrow)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].trainNo").value("12675"));
+    }
 }

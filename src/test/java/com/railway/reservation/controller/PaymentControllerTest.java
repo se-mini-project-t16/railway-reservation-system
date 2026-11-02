@@ -6,7 +6,11 @@ import com.railway.reservation.dto.PaymentCallbackResponseDto;
 import com.railway.reservation.dto.PaymentInitiateRequestDto;
 import com.railway.reservation.dto.PaymentSessionDto;
 import com.railway.reservation.exception.ResourceNotFoundException;
+import com.railway.reservation.model.Booking;
 import com.railway.reservation.model.BookingStatus;
+import com.railway.reservation.model.Role;
+import com.railway.reservation.model.User;
+import com.railway.reservation.repository.BookingRepository;
 import com.railway.reservation.service.PaymentService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,15 +19,20 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -40,10 +49,20 @@ class PaymentControllerTest {
     @MockitoBean
     private PaymentService paymentService;
 
+    @MockitoBean
+    private BookingRepository bookingRepository;
+
     @Test
     @DisplayName("TC-PAY-01: POST /api/v1/payments/initiate returns 201 Created with PaymentSessionDto")
     void testInitiatePayment_Success() throws Exception {
         PaymentInitiateRequestDto request = new PaymentInitiateRequestDto("PNR1234567");
+
+        User owner = new User("Owner", "owner@example.com", "9876543210", "pass", Role.ROLE_PASSENGER);
+        owner.setId(1L);
+        Booking booking = new Booking();
+        booking.setPnr("PNR1234567");
+        booking.setUser(owner);
+        when(bookingRepository.findByPnr(eq("PNR1234567"))).thenReturn(Optional.of(booking));
 
         PaymentSessionDto response = new PaymentSessionDto(
                 1L, "TXN-TESTGATEWAY1", "PNR1234567", BigDecimal.valueOf(1150.00),
@@ -55,6 +74,7 @@ class PaymentControllerTest {
         when(paymentService.initiatePaymentSession(eq("PNR1234567"))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/payments/initiate")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER")))))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -71,9 +91,41 @@ class PaymentControllerTest {
         PaymentInitiateRequestDto request = new PaymentInitiateRequestDto("");
 
         mockMvc.perform(post("/api/v1/payments/initiate")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER")))))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("TC-PAY-01 (Security): POST /api/v1/payments/initiate returns 401 Unauthorized when unauthenticated [RRS-SR-006]")
+    void testInitiatePayment_Unauthenticated_Returns401() throws Exception {
+        PaymentInitiateRequestDto request = new PaymentInitiateRequestDto("PNR1234567");
+
+        mockMvc.perform(post("/api/v1/payments/initiate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("TC-PAY-01 (Security): POST /api/v1/payments/initiate returns 403 Forbidden on cross-user booking [RRS-SR-006]")
+    void testInitiatePayment_CrossUser_Returns403() throws Exception {
+        PaymentInitiateRequestDto request = new PaymentInitiateRequestDto("PNR1234567");
+
+        User owner = new User("Owner", "owner@example.com", "9876543210", "pass", Role.ROLE_PASSENGER);
+        owner.setId(1L);
+        Booking booking = new Booking();
+        booking.setPnr("PNR1234567");
+        booking.setUser(owner);
+        when(bookingRepository.findByPnr(eq("PNR1234567"))).thenReturn(Optional.of(booking));
+
+        // Authenticate as User 2 (not owner)
+        mockMvc.perform(post("/api/v1/payments/initiate")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(2L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER")))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -86,9 +138,16 @@ class PaymentControllerTest {
                 LocalDate.now().plusDays(2), 2, LocalDateTime.now()
         );
 
+        User owner = new User("Owner", "owner@example.com", "9876543210", "pass", Role.ROLE_PASSENGER);
+        owner.setId(1L);
+        Booking booking = new Booking();
+        booking.setPnr("PNR9998887");
+        booking.setUser(owner);
+        when(bookingRepository.findByPnr(eq("PNR9998887"))).thenReturn(Optional.of(booking));
         when(paymentService.getPaymentSessionByGatewayRef(eq("TXN-REF12345"))).thenReturn(response);
 
-        mockMvc.perform(get("/api/v1/payments/TXN-REF12345"))
+        mockMvc.perform(get("/api/v1/payments/TXN-REF12345")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER"))))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.gatewayRef").value("TXN-REF12345"))
                 .andExpect(jsonPath("$.pnr").value("PNR9998887"))
@@ -101,7 +160,8 @@ class PaymentControllerTest {
         when(paymentService.getPaymentSessionByGatewayRef(eq("UNKNOWN_REF")))
                 .thenThrow(new ResourceNotFoundException("Payment session not found"));
 
-        mockMvc.perform(get("/api/v1/payments/UNKNOWN_REF"))
+        mockMvc.perform(get("/api/v1/payments/UNKNOWN_REF")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER"))))))
                 .andExpect(status().isNotFound());
     }
 
@@ -115,13 +175,35 @@ class PaymentControllerTest {
                 LocalDate.now().plusDays(1), 1, LocalDateTime.now()
         );
 
+        User owner = new User("Owner", "owner@example.com", "9876543210", "pass", Role.ROLE_PASSENGER);
+        owner.setId(1L);
+        Booking booking = new Booking();
+        booking.setPnr("PNR1122334");
+        booking.setUser(owner);
+        when(bookingRepository.findByPnr(eq("PNR1122334"))).thenReturn(Optional.of(booking));
         when(paymentService.getPaymentSessionByPnr(eq("PNR1122334"))).thenReturn(response);
 
-        mockMvc.perform(get("/api/v1/payments/booking/PNR1122334"))
+        mockMvc.perform(get("/api/v1/payments/booking/PNR1122334")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER"))))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pnr").value("PNR1122334"))
                 .andExpect(jsonPath("$.gatewayRef").value("TXN-REF99999"))
                 .andExpect(jsonPath("$.amount").value(550.00));
+    }
+
+    @Test
+    @DisplayName("TC-PAY-01 (Security): GET /api/v1/payments/booking/{pnr} returns 403 Forbidden on cross-user booking [RRS-SR-006]")
+    void testGetPaymentByPnr_CrossUser_Returns403() throws Exception {
+        User owner = new User("Owner", "owner@example.com", "9876543210", "pass", Role.ROLE_PASSENGER);
+        owner.setId(1L);
+        Booking booking = new Booking();
+        booking.setPnr("PNR1122334");
+        booking.setUser(owner);
+        when(bookingRepository.findByPnr(eq("PNR1122334"))).thenReturn(Optional.of(booking));
+
+        mockMvc.perform(get("/api/v1/payments/booking/PNR1122334")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(2L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER"))))))
+                .andExpect(status().isForbidden());
     }
 
     @Test

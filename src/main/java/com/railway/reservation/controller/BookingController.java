@@ -42,11 +42,19 @@ public class BookingController {
 
 
     /**
-     * Endpoint to book one or more seats on a train (RRS-F-006, RRS-F-007).
-     * Accepts passenger details and returns confirmed booking with unique PNR.
+     * Endpoint to book one or more seats on a train (RRS-F-006, RRS-F-007, RRS-SR-006).
+     * Accepts passenger details and derives booking owner from authenticated principal.
      */
     @PostMapping
-    public ResponseEntity<BookingResponseDto> bookTicket(@Valid @RequestBody BookingRequestDto request) {
+    public ResponseEntity<BookingResponseDto> bookTicket(
+            @Valid @RequestBody BookingRequestDto request,
+            Authentication authentication) {
+        Long authenticatedUserId = resolveUserId(authentication);
+        if (authenticatedUserId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        // Strict ownership derivation: server overrides/derives booking owner from authenticated principal
+        request.setUserId(authenticatedUserId);
         BookingResponseDto response = bookingService.createBooking(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

@@ -37,6 +37,11 @@ public class Train {
     @JsonManagedReference
     private List<TrainClass> classes = new ArrayList<>();
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "train_stops", joinColumns = @JoinColumn(name = "train_id"))
+    @OrderBy("stopOrder ASC")
+    private List<TrainStop> stops = new ArrayList<>();
+
     public Train() {}
 
     public Train(String trainNo, String name, String sourceStation, String destinationStation, LocalTime departureTime, LocalTime arrivalTime) {
@@ -75,6 +80,18 @@ public class Train {
     public void addClass(TrainClass trainClass) {
         classes.add(trainClass);
         trainClass.setTrain(this);
+    }
+
+    public List<TrainStop> getStops() {
+        return stops;
+    }
+
+    public void setStops(List<TrainStop> stops) {
+        this.stops = stops;
+    }
+
+    public void addStop(TrainStop stop) {
+        this.stops.add(stop);
     }
 }
 

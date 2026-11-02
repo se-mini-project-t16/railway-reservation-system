@@ -80,18 +80,26 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers("/api/v1/health/**").permitAll()
+                .requestMatchers("/api/v1/test/**").permitAll()
                 .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
                 .requestMatchers("/api/v1/trains/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/bookings", "/api/v1/bookings/", "/api/v1/bookings/history").authenticated()
+                // Specific booking endpoints requiring authentication (must precede generic /bookings/*)
                 .requestMatchers("/api/v1/bookings/*/ticket",
                         "/api/v1/bookings/*/ticket.pdf",
                         "/api/v1/bookings/*/cancel",
                         "/api/v1/bookings/*/refund-preview").authenticated()
-                .requestMatchers("/api/v1/bookings/**").permitAll()
-                .requestMatchers("/api/v1/payments/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/bookings").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/v1/bookings", "/api/v1/bookings/", "/api/v1/bookings/history").authenticated()
+                // Public PNR status lookup for guests [RRS-F-011]
+                .requestMatchers(HttpMethod.GET, "/api/v1/bookings/*").permitAll()
+                // Payment callbacks for gateway simulation
+                .requestMatchers("/api/v1/payments/callback", "/api/v1/payments/verify").permitAll()
+                // Payment session initiation and reads require authentication [RRS-SR-006]
+                .requestMatchers(HttpMethod.POST, "/api/v1/payments/initiate").authenticated()
+                .requestMatchers("/api/v1/payments/**").authenticated()
                 .requestMatchers("/", "/index.html", "/payment.html", "/css/**", "/js/**", "/favicon.ico").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                .anyRequest().permitAll() // Allow initial sprint development, lock down per module
+                .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -34,6 +34,7 @@ import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -89,6 +90,7 @@ class BookingControllerTest {
         when(bookingService.createBooking(any(BookingRequestDto.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/bookings")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER")))))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -108,6 +110,7 @@ class BookingControllerTest {
         );
 
         mockMvc.perform(post("/api/v1/bookings")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER")))))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -123,6 +126,7 @@ class BookingControllerTest {
         );
 
         mockMvc.perform(post("/api/v1/bookings")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER")))))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -138,10 +142,49 @@ class BookingControllerTest {
         );
 
         mockMvc.perform(post("/api/v1/bookings")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER")))))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Bad Request"));
+    }
+
+    @Test
+    @DisplayName("TC-BK-04: POST /api/v1/bookings without authentication returns 401 Unauthorized [RRS-SR-006]")
+    void testBookTicket_Unauthenticated_Returns401() throws Exception {
+        BookingRequestDto request = new BookingRequestDto(
+                1L, 10L, 100L, LocalDate.now().plusDays(3),
+                List.of(new PassengerDto("John Doe", 30, "Male"))
+        );
+
+        mockMvc.perform(post("/api/v1/bookings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("TC-BK-05: POST /api/v1/bookings ignores spoofed client userId and derives from authenticated principal [RRS-SR-006]")
+    void testBookTicket_IgnoresClientUserId_DerivesFromPrincipal() throws Exception {
+        BookingRequestDto request = new BookingRequestDto(
+                999L, 10L, 100L, LocalDate.now().plusDays(3),
+                List.of(new PassengerDto("John Doe", 30, "Male"))
+        );
+
+        BookingResponseDto response = new BookingResponseDto();
+        response.setPnr("PNR1234567");
+        response.setStatus(BookingStatus.PENDING);
+        when(bookingService.createBooking(any(BookingRequestDto.class))).thenAnswer(invocation -> {
+            BookingRequestDto req = invocation.getArgument(0);
+            assertEquals(1L, req.getUserId());
+            return response;
+        });
+
+        mockMvc.perform(post("/api/v1/bookings")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(1L, null, List.of(new SimpleGrantedAuthority("ROLE_PASSENGER")))))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
     }
 
     @Test

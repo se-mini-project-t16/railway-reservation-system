@@ -35,3 +35,4 @@ logs/
 *.log
 application-local.properties
 
+node_modules/

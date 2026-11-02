@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Railway Reservation System - Fast, responsive booking, train search, real-time seat availability, and PNR status lookup.">
   <title>Railway Reservation System — Book Train Tickets</title>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('rrs_theme');
+        var mode = saved ? saved : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-mode', mode);
+      } catch (e) {
+        document.documentElement.setAttribute('data-mode', 'light');
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -14,7 +25,7 @@
     <div class="header-container">
       <a href="#" class="brand" id="brandHomeLink" aria-label="Railway Reservation Home">
         <div class="brand-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="4" y="3" width="16" height="16" rx="2"/>
             <path d="M4 11h16"/>
             <path d="M12 3v8"/>
@@ -31,7 +42,25 @@
       </a>
 
       <div class="header-actions">
-        <div class="timer-badge" id="uxTimerBadge" title="TC-UX-01 Booking Journey Timer (Target: &lt; 5 minutes)">
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle light or dark theme" title="Toggle theme">
+          <svg id="themeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display: none;">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg id="themeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <span id="themeToggleText">Theme</span>
+        </button>
+
+        <div class="timer-badge" id="uxTimerBadge" title="Booking Journey Timer">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
@@ -231,28 +260,23 @@
 
         <form id="passengerBookingForm" novalidate>
           <!-- User / Account ID selection -->
-          <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f1f5f9; border-radius: var(--radius); border: 1px solid var(--border);">
+          <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-surface-raised); border-radius: var(--radius); border: 1px solid var(--border-subtle);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
               <div style="flex: 1; min-width: 250px;">
-                <label for="userIdInput" style="font-weight: 600; font-size: 0.9rem;">
-                  Booking Account User ID <span class="required" aria-hidden="true">*</span>
-                </label>
-                <input type="number"
-                       id="userIdInput"
-                       class="form-control"
-                       placeholder="e.g. 1"
-                       min="1"
-                       required
-                       style="margin-top: 0.25rem;">
-                <span class="field-hint">Enter your registered User ID, or use Quick Guest Account</span>
+                <div style="font-weight: 600; font-size: 0.9rem;" id="authenticatedUserBadge">
+                  Booking Account: <span id="authenticatedUserEmail" style="color: var(--primary); font-family: var(--font-mono);">Authenticated Passenger</span>
+                </div>
+                <span class="field-hint">Your booking ownership and e-ticket access are securely linked to your account.</span>
+                <input type="hidden" id="userIdInput" name="userId" value="1">
               </div>
               <div>
-                <button type="button" class="btn btn-secondary btn-sm" id="quickRegisterBtn">
-                  Auto-Fill Demo Account
+                <button type="button" class="btn btn-secondary btn-sm" id="switchBookingAccountBtn">
+                  Switch Account
                 </button>
+                <button type="button" id="quickRegisterBtn" style="display: none;" aria-hidden="true"></button>
               </div>
             </div>
-            <span class="invalid-feedback" id="userIdError" style="display: none; margin-top: 0.35rem;">Please provide a valid User ID.</span>
+            <span class="invalid-feedback" id="userIdError" style="display: none; margin-top: 0.35rem;">Please sign in with a valid account.</span>
           </div>
 
           <!-- Passenger Rows -->
@@ -507,10 +531,47 @@
   </div>
 
   <!-- Footer -->
-  <footer class="app-footer">
-    <div class="container" style="margin: 0 auto;">
-      <p>Railway Reservation System &bull; Software Engineering Mini-Project (UE24CS341A) &bull; Team 16</p>
-      <p style="margin-top: 0.25rem; font-size: 0.775rem;">Compliant with SRS RRS-NF-002 (99% System Availability), RRS-NF-003, and SAD Section 4.4 &amp; 4.6</p>
+  <footer class="app-footer" role="contentinfo">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <h4>Passenger Services</h4>
+          <ul>
+            <li><a href="#" id="footerFindTrainsLink">Find Trains &amp; Schedules</a></li>
+            <li><a href="#" id="footerCheckPnrLink">Live PNR Status Lookup</a></li>
+            <li><a href="#" id="footerMyBookingsLink">My Bookings &amp; History</a></li>
+            <li><a href="#" id="footerCancellationRulesLink">Cancellation &amp; Refund Rules</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Helpline &amp; Support</h4>
+          <ul>
+            <li>Railway Helpline: <strong style="color: var(--color-ink);">139</strong> (24x7 Toll-Free)</li>
+            <li>Security &amp; Medical: <strong style="color: var(--color-ink);">182</strong></li>
+            <li>Passenger Assistance: support@railway.local</li>
+            <li>Operating Hours: Round the Clock (24x7)</li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Platform Assurance</h4>
+          <ul>
+            <li>State-of-the-art Ticket Reservation Engine</li>
+            <li>Safe Payment Simulation Environment</li>
+            <li>Role-Based Access Control &amp; Secure JWT</li>
+            <li>Authoritative Master Station Timetables</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div>
+          &copy; 2026 National Railway Reservation Portal. All rights reserved. (Educational Simulation Sandbox)
+        </div>
+        <div style="display: flex; gap: 1rem;">
+          <a href="#">Privacy Notice</a>
+          <a href="#">Terms of Service</a>
+          <a href="#">Security Standards</a>
+        </div>
+      </div>
     </div>
   </footer>
 

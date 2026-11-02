@@ -9,7 +9,8 @@ import java.util.List;
 
 public class BookingRequestDto {
 
-    @NotNull(message = "User ID is required")
+    // User ID is derived from the authenticated security principal by the server.
+    // Client-provided value is optional and will be overwritten for security [RRS-SR-006].
     private Long userId;
 
     @NotNull(message = "Train ID is required")
