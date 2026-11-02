@@ -6,6 +6,7 @@ import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.Train;
 import com.railway.reservation.model.TrainClass;
+import com.railway.reservation.model.TrainStop;
 import com.railway.reservation.repository.BookingRepository;
 import com.railway.reservation.repository.TrainRepository;
 import com.railway.reservation.service.impl.SearchServiceImpl;
@@ -259,5 +260,31 @@ class SearchServiceTest {
         assertThatThrownBy(() -> searchService.getSeatAvailability(10L, "CC", pastDate))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Journey date cannot be in the past");
+    }
+
+    @Test
+    @DisplayName("TC-SCH-01: Search response maps intermediate timetable halt stops with platform and halt duration")
+    void searchTrains_mapsIntermediateStops() {
+        testTrain.addStop(new TrainStop(1, "MAS", "Chennai Central", null, LocalTime.of(6, 10), 0, 4, 0));
+        testTrain.addStop(new TrainStop(2, "KPD", "Katpadi Junction", LocalTime.of(7, 58), LocalTime.of(8, 0), 2, 1, 130));
+        testTrain.addStop(new TrainStop(3, "SBC", "KSR Bengaluru", LocalTime.of(11, 30), null, 0, 3, 359));
+
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        when(trainRepository.findBySourceStationIgnoreCaseAndDestinationStationIgnoreCase("Chennai", "Bengaluru"))
+                .thenReturn(List.of(testTrain));
+        when(bookingRepository.countBookedSeats(eq(10L), eq(1L), eq(tomorrow), any()))
+                .thenReturn(0);
+
+        List<TrainSearchResponseDto> results = searchService.searchTrains("Chennai", "Bengaluru", tomorrow);
+
+        assertThat(results).hasSize(1);
+        TrainSearchResponseDto res = results.get(0);
+        assertThat(res.getStops()).hasSize(3);
+        assertThat(res.getStops().get(0).getStationCode()).isEqualTo("MAS");
+        assertThat(res.getStops().get(1).getStationCode()).isEqualTo("KPD");
+        assertThat(res.getStops().get(1).getHaltMinutes()).isEqualTo(2);
+        assertThat(res.getStops().get(1).getPlatformNo()).isEqualTo(1);
+        assertThat(res.getStops().get(1).getDistanceKm()).isEqualTo(130);
+        assertThat(res.getStops().get(2).getStationCode()).isEqualTo("SBC");
     }
 }

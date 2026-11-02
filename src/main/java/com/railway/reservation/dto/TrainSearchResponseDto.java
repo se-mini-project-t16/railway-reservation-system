@@ -16,6 +16,7 @@ public class TrainSearchResponseDto {
     private LocalTime arrivalTime;
     private LocalDate journeyDate;
     private List<SeatAvailabilityDto> classes = new ArrayList<>();
+    private List<TrainStopDto> stops = new ArrayList<>();
 
     public TrainSearchResponseDto() {}
 
@@ -23,6 +24,14 @@ public class TrainSearchResponseDto {
                                   String destinationStation, LocalTime departureTime,
                                   LocalTime arrivalTime, LocalDate journeyDate,
                                   List<SeatAvailabilityDto> classes) {
+        this(trainId, trainNo, name, sourceStation, destinationStation, departureTime, arrivalTime, journeyDate, classes, new ArrayList<>());
+    }
+
+    public TrainSearchResponseDto(Long trainId, String trainNo, String name, String sourceStation,
+                                  String destinationStation, LocalTime departureTime,
+                                  LocalTime arrivalTime, LocalDate journeyDate,
+                                  List<SeatAvailabilityDto> classes,
+                                  List<TrainStopDto> stops) {
         this.trainId = trainId;
         this.trainNo = trainNo;
         this.name = name;
@@ -32,6 +41,7 @@ public class TrainSearchResponseDto {
         this.arrivalTime = arrivalTime;
         this.journeyDate = journeyDate;
         this.classes = classes != null ? classes : new ArrayList<>();
+        this.stops = stops != null ? stops : new ArrayList<>();
     }
 
     public Long getTrainId() {
@@ -104,5 +114,13 @@ public class TrainSearchResponseDto {
 
     public void setClasses(List<SeatAvailabilityDto> classes) {
         this.classes = classes;
+    }
+
+    public List<TrainStopDto> getStops() {
+        return stops;
+    }
+
+    public void setStops(List<TrainStopDto> stops) {
+        this.stops = stops;
     }
 }

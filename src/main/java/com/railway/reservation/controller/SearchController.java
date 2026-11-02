@@ -2,7 +2,9 @@ package com.railway.reservation.controller;
 
 import com.railway.reservation.validation.SafeTextRules;
 
+import com.railway.reservation.config.StationCatalog;
 import com.railway.reservation.dto.SeatAvailabilityDto;
+import com.railway.reservation.dto.StationDto;
 import com.railway.reservation.dto.TrainSearchResponseDto;
 import com.railway.reservation.service.SearchService;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,15 @@ public class SearchController {
 
     public SearchController(SearchService searchService) {
         this.searchService = searchService;
+    }
+
+    /**
+     * Endpoint to retrieve the master railway station catalog (RRS-F-004-EXT).
+     * Provides official 3/4-letter Indian Railway station codes and station names for search and autocomplete.
+     */
+    @GetMapping("/stations")
+    public ResponseEntity<List<StationDto>> getMasterStations() {
+        return ResponseEntity.ok(StationCatalog.getAllStations());
     }
 
     @GetMapping("/search")

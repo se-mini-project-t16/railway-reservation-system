@@ -1,11 +1,14 @@
 package com.railway.reservation.service.impl;
 
+import com.railway.reservation.config.StationCatalog;
 import com.railway.reservation.dto.SeatAvailabilityDto;
 import com.railway.reservation.dto.TrainSearchResponseDto;
+import com.railway.reservation.dto.TrainStopDto;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.Train;
 import com.railway.reservation.model.TrainClass;
+import com.railway.reservation.model.TrainStop;
 import com.railway.reservation.repository.BookingRepository;
 import com.railway.reservation.repository.TrainRepository;
 import com.railway.reservation.service.SearchService;
@@ -54,12 +57,37 @@ public class SearchServiceImpl implements SearchService {
         List<Train> trains = trainRepository.findBySourceStationIgnoreCaseAndDestinationStationIgnoreCase(
                 sourceStation.trim(), destinationStation.trim()
         );
+        if (trains.isEmpty()) {
+            List<String> srcAliases = StationCatalog.expandAliases(sourceStation);
+            List<String> dstAliases = StationCatalog.expandAliases(destinationStation);
+            if (srcAliases.size() > 1 || dstAliases.size() > 1) {
+                trains = trainRepository.findBySourceAndDestinationAliases(
+                        sourceStation.trim(), srcAliases, destinationStation.trim(), dstAliases
+                );
+            }
+        }
 
         List<TrainSearchResponseDto> dtos = new ArrayList<>();
         for (Train train : trains) {
             List<SeatAvailabilityDto> classDtos = new ArrayList<>();
             for (TrainClass tc : train.getClasses()) {
                 classDtos.add(calculateAvailableSeats(train, tc, journeyDate));
+            }
+
+            List<TrainStopDto> stopDtos = new ArrayList<>();
+            if (train.getStops() != null) {
+                for (TrainStop s : train.getStops()) {
+                    stopDtos.add(new TrainStopDto(
+                            s.getStopOrder(),
+                            s.getStationCode(),
+                            s.getStationName(),
+                            s.getArrivalTime(),
+                            s.getDepartureTime(),
+                            s.getHaltMinutes(),
+                            s.getPlatformNo(),
+                            s.getDistanceKm()
+                    ));
+                }
             }
 
             dtos.add(new TrainSearchResponseDto(
@@ -71,7 +99,8 @@ public class SearchServiceImpl implements SearchService {
                     train.getDepartureTime(),
                     train.getArrivalTime(),
                     journeyDate,
-                    classDtos
+                    classDtos,
+                    stopDtos
             ));
         }
 
