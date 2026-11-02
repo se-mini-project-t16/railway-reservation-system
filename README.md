@@ -15,7 +15,7 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 
 - **Backend:** Java 25 (LTS), Spring Boot 4.1.1 (Spring Web MVC, Spring Data JPA, Hibernate, Bean Validation)
 - **Security:** Spring Security, JWT (with sliding window renewal and 15-minute inactivity timeout), BCrypt password hashing, OWASP HTML Sanitizer
-- **Frontend:** HTML5, CSS3, Bootstrap 5, Modern Vanilla JavaScript
+- **Frontend:** HTML5, Tailwind CSS (Hallmark Wayfind / Platform Design System with Light/Dark Theme Parity), Modern Vanilla JavaScript (ES Modules, Safe DOM Manipulation)
 - **Reporting & Documents:** iText 7 (PDF E-Ticket generation)
 - **Database:** MySQL / H2 In-Memory (for zero-setup local testing and automated builds)
 - **Observability:** Spring Boot Actuator, Custom Database Health Indicator, SLF4J/Logback with MDC correlation IDs and structured JSON audit logging
@@ -91,6 +91,21 @@ $jwtRandom.Dispose()
 ```
 
 Once started, open `http://localhost:8080` in your web browser.
+
+### Frontend Build & Design System
+
+The application styling is compiled from source CSS tokens using Tailwind CSS:
+
+```bash
+# Install frontend build dependencies
+npm install
+
+# Build compiled stylesheet (src/main/resources/static/css/style.css)
+npm run build:css
+
+# Watch for CSS changes during development
+npm run watch:css
+```
 
 ### Running Automated Tests
 

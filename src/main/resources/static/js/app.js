@@ -121,6 +121,39 @@
     }
   }, 1000);
 
+  // --- Theme Management (Hallmark Wayfind Platform) ---
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const themeIconSun = document.getElementById('themeIconSun');
+  const themeIconMoon = document.getElementById('themeIconMoon');
+  const themeToggleText = document.getElementById('themeToggleText');
+
+  function updateThemeUI(mode) {
+    document.documentElement.setAttribute('data-mode', mode);
+    if (themeIconSun && themeIconMoon && themeToggleText) {
+      if (mode === 'dark') {
+        themeIconSun.style.display = 'inline-block';
+        themeIconMoon.style.display = 'none';
+        themeToggleText.textContent = 'Light';
+      } else {
+        themeIconSun.style.display = 'none';
+        themeIconMoon.style.display = 'inline-block';
+        themeToggleText.textContent = 'Dark';
+      }
+    }
+  }
+
+  const currentTheme = document.documentElement.getAttribute('data-mode') || 'light';
+  updateThemeUI(currentTheme);
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const activeMode = document.documentElement.getAttribute('data-mode') === 'dark' ? 'dark' : 'light';
+      const newMode = activeMode === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('rrs_theme', newMode);
+      updateThemeUI(newMode);
+    });
+  }
+
   // --- Flash Notification Helpers (SAD Section 4.6) ---
   function showFlash(message, type = 'info', autoDismiss = true) {
     // type: 'success' | 'error' | 'warning' | 'info'

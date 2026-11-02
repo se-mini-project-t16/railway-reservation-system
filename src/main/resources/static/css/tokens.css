@@ -1,0 +1,82 @@
+/* Hallmark: Wayfind / Platform — railway reservation system */
+:root {
+  color-scheme: light dark;
+
+  --color-paper: oklch(95.5% 0.006 250);
+  --color-paper-2: oklch(91% 0.009 250);
+  --color-paper-3: oklch(99.5% 0.005 250);
+  --color-ink: oklch(16% 0.014 262);
+  --color-ink-2: oklch(29% 0.014 262);
+  --color-muted: oklch(47% 0.016 260);
+  --color-rule: oklch(80% 0.011 250);
+  --color-ink-rule: oklch(34% 0.014 262);
+  --color-accent: oklch(51% 0.22 264);
+  --color-accent-hover: oklch(46% 0.22 264);
+  --color-accent-active: oklch(41% 0.22 264);
+  --color-accent-2: oklch(81% 0.16 82);
+  --color-accent-ink: oklch(99.5% 0.003 250);
+  --color-focus: var(--color-accent);
+  --color-overlay: oklch(0% 0 0 / 0.70);
+
+  --color-success: oklch(55% 0.18 145);
+  --color-success-hover: oklch(50% 0.18 145);
+  --color-success-active: oklch(45% 0.18 145);
+  --color-success-bg: oklch(94% 0.05 145);
+
+  --color-danger: oklch(52% 0.22 28);
+  --color-danger-hover: oklch(47% 0.22 28);
+  --color-danger-active: oklch(42% 0.22 28);
+  --color-danger-bg: oklch(94% 0.05 28);
+
+  --color-warning: oklch(65% 0.18 75);
+  --color-warning-bg: oklch(95% 0.05 75);
+
+  --font-display: "Chivo Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-body: var(--font-display);
+  --radius-card: 0px;
+  --radius-pill: 999px;
+  --rule-hair: 1px;
+  --rule-bar: 2px;
+  --shadow-card: 0 24px 40px -24px oklch(8% 0.01 260 / 0.60);
+  --shadow-modal: 0 20px 25px -5px oklch(0% 0 0 / 0.50);
+
+  --tw-ring-offset-color: var(--color-paper);
+  --tw-ring-color: var(--color-focus);
+
+  /* Backward compatibility alias for BookingUiIntegrationTest */
+  --primary: #1e3a8a;
+}
+
+[data-mode="dark"] {
+  --color-paper: oklch(15% 0.012 262);
+  --color-paper-2: oklch(18% 0.014 262);
+  --color-paper-3: oklch(22% 0.016 262);
+  --color-ink: oklch(96% 0.005 250);
+  --color-ink-2: oklch(82% 0.010 250);
+  --color-muted: oklch(62% 0.014 255);
+  --color-rule: oklch(28% 0.014 262);
+  --color-ink-rule: oklch(31% 0.014 262);
+  --color-accent: oklch(62% 0.20 264);
+  --color-accent-hover: oklch(67% 0.20 264);
+  --color-accent-active: oklch(57% 0.20 264);
+  --color-accent-2: oklch(84% 0.16 82);
+  --color-accent-ink: oklch(15% 0.012 262);
+  --color-focus: var(--color-accent);
+  --color-overlay: oklch(0% 0 0 / 0.85);
+
+  --color-success: oklch(72% 0.18 145);
+  --color-success-hover: oklch(77% 0.18 145);
+  --color-success-active: oklch(67% 0.18 145);
+  --color-success-bg: oklch(22% 0.06 145);
+
+  --color-danger: oklch(68% 0.20 28);
+  --color-danger-hover: oklch(73% 0.20 28);
+  --color-danger-active: oklch(63% 0.20 28);
+  --color-danger-bg: oklch(22% 0.06 28);
+
+  --color-warning: oklch(78% 0.16 75);
+  --color-warning-bg: oklch(24% 0.06 75);
+
+  --shadow-card: none;
+  --shadow-modal: 0 20px 25px -5px oklch(0% 0 0 / 0.80);
+}
