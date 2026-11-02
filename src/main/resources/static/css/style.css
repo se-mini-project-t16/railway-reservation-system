@@ -1148,6 +1148,10 @@ footer.app-footer {
   display: grid;
 }
 
+.hidden {
+  display: none;
+}
+
 .flex-shrink {
   flex-shrink: 1;
 }

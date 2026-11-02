@@ -14,12 +14,14 @@ import com.railway.reservation.repository.BookingRepository;
 import com.railway.reservation.repository.PaymentRepository;
 import com.railway.reservation.repository.TrainRepository;
 import com.railway.reservation.repository.UserRepository;
+import com.railway.reservation.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -58,6 +60,9 @@ class PaymentIntegrationTest {
     @Autowired
     private PaymentRepository paymentRepository;
 
+    @Autowired
+    private JwtService jwtService;
+
     private User testUser;
     private Train testTrain;
     private TrainClass testClass;
@@ -79,6 +84,8 @@ class PaymentIntegrationTest {
     void testEndToEnd_PaymentSuccess() throws Exception {
         LocalDate journeyDate = LocalDate.now().plusDays(5);
 
+        String token = jwtService.generateToken(testUser);
+
         // Step 1: Create booking (Seats held, status PENDING, payment initiated)
         BookingRequestDto bookingRequest = new BookingRequestDto(
                 testUser.getId(),
@@ -92,6 +99,7 @@ class PaymentIntegrationTest {
         );
 
         MvcResult bookingResult = mockMvc.perform(post("/api/v1/bookings")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(bookingRequest)))
                 .andExpect(status().isCreated())
@@ -151,6 +159,8 @@ class PaymentIntegrationTest {
             }
         }
 
+        String token = jwtService.generateToken(testUser);
+
         // Step 1: Book 2 seats -> status PENDING, seats locked
         BookingRequestDto bookingRequest = new BookingRequestDto(
                 testUser.getId(),
@@ -164,6 +174,7 @@ class PaymentIntegrationTest {
         );
 
         MvcResult bookingResult = mockMvc.perform(post("/api/v1/bookings")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(bookingRequest)))
                 .andExpect(status().isCreated())

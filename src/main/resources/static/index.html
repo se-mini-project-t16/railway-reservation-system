@@ -260,28 +260,23 @@
 
         <form id="passengerBookingForm" novalidate>
           <!-- User / Account ID selection -->
-          <div style="margin-bottom: 1.5rem; padding: 1rem; background: #f1f5f9; border-radius: var(--radius); border: 1px solid var(--border);">
+          <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-surface-raised); border-radius: var(--radius); border: 1px solid var(--border-subtle);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
               <div style="flex: 1; min-width: 250px;">
-                <label for="userIdInput" style="font-weight: 600; font-size: 0.9rem;">
-                  Booking Account User ID <span class="required" aria-hidden="true">*</span>
-                </label>
-                <input type="number"
-                       id="userIdInput"
-                       class="form-control"
-                       placeholder="e.g. 1"
-                       min="1"
-                       required
-                       style="margin-top: 0.25rem;">
-                <span class="field-hint">Enter your registered User ID, or use Quick Guest Account</span>
+                <div style="font-weight: 600; font-size: 0.9rem;" id="authenticatedUserBadge">
+                  Booking Account: <span id="authenticatedUserEmail" style="color: var(--primary); font-family: var(--font-mono);">Authenticated Passenger</span>
+                </div>
+                <span class="field-hint">Your booking ownership and e-ticket access are securely linked to your account.</span>
+                <input type="hidden" id="userIdInput" name="userId" value="1">
               </div>
               <div>
-                <button type="button" class="btn btn-secondary btn-sm" id="quickRegisterBtn">
-                  Auto-Fill Demo Account
+                <button type="button" class="btn btn-secondary btn-sm" id="switchBookingAccountBtn">
+                  Switch Account
                 </button>
+                <button type="button" id="quickRegisterBtn" style="display: none;" aria-hidden="true"></button>
               </div>
             </div>
-            <span class="invalid-feedback" id="userIdError" style="display: none; margin-top: 0.35rem;">Please provide a valid User ID.</span>
+            <span class="invalid-feedback" id="userIdError" style="display: none; margin-top: 0.35rem;">Please sign in with a valid account.</span>
           </div>
 
           <!-- Passenger Rows -->

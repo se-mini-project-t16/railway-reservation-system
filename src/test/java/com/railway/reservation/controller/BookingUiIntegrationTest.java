@@ -234,6 +234,8 @@ class BookingUiIntegrationTest {
 
         Number registeredUserId = objectMapper.readTree(regResult.getResponse().getContentAsString())
                 .get("userId").numberValue();
+        User registeredUser = userRepository.findById(registeredUserId.longValue()).orElseThrow();
+        String authToken = jwtService.generateToken(registeredUser);
 
         // Step 4: User submits booking request with passenger details
         BookingRequestDto bookingRequest = new BookingRequestDto(
@@ -248,6 +250,7 @@ class BookingUiIntegrationTest {
         );
 
         MvcResult bookingResult = mockMvc.perform(post("/api/v1/bookings")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(bookingRequest)))
                 .andExpect(status().isCreated())

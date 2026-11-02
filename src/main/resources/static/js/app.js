@@ -496,6 +496,19 @@
           classCard.addEventListener('click', () => {
             document.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
             classCard.classList.add('selected');
+
+            const token = getStoredToken();
+            if (!token || isTokenExpired(token)) {
+              // Guest discovery: store pending selection and prompt login with auto-resume [RRS-SR-006]
+              sessionStorage.setItem('pendingBookingState', JSON.stringify({
+                train: train,
+                cls: cls,
+                date: activeSearchDate
+              }));
+              openLoginModal('Please sign in to proceed with booking. Your selected train and coach will be preserved.');
+              return;
+            }
+
             openBookingSection(train, cls);
           });
 
@@ -539,6 +552,7 @@
   function openBookingSection(train, cls) {
     selectedTrain = train;
     selectedClass = cls;
+    updateAuthNavUI();
 
     recapTrainName.textContent = `${train.name} (#${train.trainNo})`;
     recapRoute.textContent = `${train.sourceStation} (${formatTime(train.departureTime)}) ➔ ${train.destinationStation} (${formatTime(train.arrivalTime)}) &bull; ${activeSearchDate}`;
@@ -877,17 +891,14 @@
     e.preventDefault();
     clearFlashes();
 
-    // 1. Validate User ID
-    const userIdVal = userIdInput.value.trim();
-    if (!userIdVal || isNaN(parseInt(userIdVal, 10)) || parseInt(userIdVal, 10) <= 0) {
-      userIdInput.classList.add('is-invalid');
-      userIdError.style.display = 'block';
-      showFlash('Please enter a valid numeric User ID, or click "Auto-Create Demo Passenger Account".', 'warning');
-      userIdInput.focus();
+    // 1. Verify Authentication [RRS-SR-006]
+    const token = getStoredToken();
+    if (!token || isTokenExpired(token)) {
+      openLoginModal('Please sign in to complete your booking.');
       return;
     }
-    userIdInput.classList.remove('is-invalid');
-    userIdError.style.display = 'none';
+
+    const userIdVal = (userIdInput && userIdInput.value) ? userIdInput.value.trim() : '1';
 
     // 2. Validate Passengers
     const passengerRows = passengerRowsContainer.querySelectorAll('tr');
@@ -940,7 +951,7 @@
     bookingBtnText.textContent = 'Reserving Seats...';
 
     const bookingPayload = {
-      userId: parseInt(userIdVal, 10),
+      userId: parseInt(userIdVal, 10) || 1,
       trainId: selectedTrain.trainId,
       classId: selectedClass.classId,
       journeyDate: activeSearchDate,
@@ -948,7 +959,7 @@
     };
 
     try {
-      const res = await fetch('/api/v1/bookings', {
+      const res = await authFetch('/api/v1/bookings', token, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(bookingPayload)
@@ -1116,8 +1127,68 @@
     }
   });
 
+  function updateAuthNavUI() {
+    const token = getStoredToken();
+    if (token && !isTokenExpired(token)) {
+      const payload = decodeJwtPayload(token);
+      const email = payload && payload.sub ? payload.sub : 'Passenger';
+      const userId = payload && payload.userId ? payload.userId : null;
+      if (userIdInput && userId) {
+        userIdInput.value = userId;
+      }
+      if (openLoginModalBtn) {
+        openLoginModalBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          Sign Out (${escapeHtml(email)})
+        `;
+        openLoginModalBtn.setAttribute('title', `Signed in as ${email}. Click to sign out.`);
+      }
+      const emailDisplay = document.getElementById('authenticatedUserEmail');
+      if (emailDisplay) {
+        emailDisplay.textContent = email;
+      }
+    } else {
+      if (openLoginModalBtn) {
+        openLoginModalBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          Sign In
+        `;
+        openLoginModalBtn.setAttribute('title', 'Sign In or Register');
+      }
+      const emailDisplay = document.getElementById('authenticatedUserEmail');
+      if (emailDisplay) {
+        emailDisplay.textContent = 'Guest (Sign in required to book)';
+      }
+    }
+  }
+
   // --- Existing User Login Modal Actions ---
-  openLoginModalBtn.addEventListener('click', () => openLoginModal(''));
+  openLoginModalBtn.addEventListener('click', () => {
+    const token = getStoredToken();
+    if (token && !isTokenExpired(token)) {
+      clearStoredToken();
+      updateAuthNavUI();
+      showFlash('Signed out successfully.', 'info');
+    } else {
+      openLoginModal('');
+    }
+  });
+
+  const switchBookingAccountBtn = document.getElementById('switchBookingAccountBtn');
+  if (switchBookingAccountBtn) {
+    switchBookingAccountBtn.addEventListener('click', () => {
+      clearStoredToken();
+      updateAuthNavUI();
+      openLoginModal('Please sign in with the account you want to use for this reservation.');
+    });
+  }
+
   closeLoginModalBtn.addEventListener('click', closeLoginModal);
   loginModal.addEventListener('click', (e) => {
     if (e.target === loginModal) {
@@ -1145,6 +1216,24 @@
       if (result.ok) {
         loginPassword.value = '';
         closeLoginModal();
+        updateAuthNavUI();
+
+        // Check if there is a pending booking state to auto-resume! [RRS-SR-006]
+        const pendingBookingRaw = sessionStorage.getItem('pendingBookingState');
+        if (pendingBookingRaw) {
+          try {
+            const pendingBooking = JSON.parse(pendingBookingRaw);
+            sessionStorage.removeItem('pendingBookingState');
+            if (pendingBooking && pendingBooking.train && pendingBooking.cls) {
+              openBookingSection(pendingBooking.train, pendingBooking.cls);
+              showFlash('Signed in successfully! Resuming your booking.', 'success');
+              return;
+            }
+          } catch (_) {
+            sessionStorage.removeItem('pendingBookingState');
+          }
+        }
+
         showFlash('Signed in successfully. E-ticket access is enabled for the signed-in account.', 'success');
 
         const params = new URLSearchParams(window.location.search);
@@ -1731,5 +1820,8 @@
       }
     });
   }
+
+  // Initialize Authentication Navigation UI on page load [RRS-SR-006]
+  updateAuthNavUI();
 
 })();
