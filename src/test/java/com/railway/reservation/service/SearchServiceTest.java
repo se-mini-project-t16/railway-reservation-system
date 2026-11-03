@@ -2,6 +2,7 @@ package com.railway.reservation.service;
 
 import com.railway.reservation.dto.SeatAvailabilityDto;
 import com.railway.reservation.dto.TrainSearchResponseDto;
+import com.railway.reservation.dto.TrainStopDto;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.Train;
@@ -286,5 +287,44 @@ class SearchServiceTest {
         assertThat(res.getStops().get(1).getPlatformNo()).isEqualTo(1);
         assertThat(res.getStops().get(1).getDistanceKm()).isEqualTo(130);
         assertThat(res.getStops().get(2).getStationCode()).isEqualTo("SBC");
+    }
+
+    @Test
+    @DisplayName("RRS-F-004-UI: getTrainRoute returns ordered timetable stops for train")
+    void getTrainRoute_successful() {
+        testTrain.addStop(new TrainStop(1, "MAS", "Chennai Central", null, LocalTime.of(6, 10), 0, 4, 0));
+        testTrain.addStop(new TrainStop(2, "KPD", "Katpadi Junction", LocalTime.of(7, 58), LocalTime.of(8, 0), 2, 1, 130));
+        testTrain.addStop(new TrainStop(3, "SBC", "KSR Bengaluru", LocalTime.of(11, 30), null, 0, 3, 359));
+
+        when(trainRepository.findById(10L)).thenReturn(Optional.of(testTrain));
+
+        List<TrainStopDto> route = searchService.getTrainRoute(10L);
+
+        assertThat(route).hasSize(3);
+        assertThat(route.get(0).getStationCode()).isEqualTo("MAS");
+        assertThat(route.get(0).getStopOrder()).isEqualTo(1);
+        assertThat(route.get(1).getStationCode()).isEqualTo("KPD");
+        assertThat(route.get(1).getHaltMinutes()).isEqualTo(2);
+        assertThat(route.get(1).getPlatformNo()).isEqualTo(1);
+        assertThat(route.get(2).getStationCode()).isEqualTo("SBC");
+        assertThat(route.get(2).getDistanceKm()).isEqualTo(359);
+    }
+
+    @Test
+    @DisplayName("RRS-F-004-UI: getTrainRoute throws ResourceNotFoundException for unknown train ID")
+    void getTrainRoute_trainNotFound() {
+        when(trainRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> searchService.getTrainRoute(999L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Train not found with ID: 999");
+    }
+
+    @Test
+    @DisplayName("RRS-F-004-UI: getTrainRoute validates non-null train ID")
+    void getTrainRoute_nullTrainId() {
+        assertThatThrownBy(() -> searchService.getTrainRoute(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Train ID parameter is required");
     }
 }

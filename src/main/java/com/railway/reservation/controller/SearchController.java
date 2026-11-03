@@ -6,6 +6,7 @@ import com.railway.reservation.config.StationCatalog;
 import com.railway.reservation.dto.SeatAvailabilityDto;
 import com.railway.reservation.dto.StationDto;
 import com.railway.reservation.dto.TrainSearchResponseDto;
+import com.railway.reservation.dto.TrainStopDto;
 import com.railway.reservation.service.SearchService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -97,5 +98,14 @@ public class SearchController {
 
         SeatAvailabilityDto availability = searchService.getSeatAvailability(trainId, className.trim(), journeyDate);
         return ResponseEntity.ok(availability);
+    }
+
+    /**
+     * Endpoint to retrieve the authoritative intermediate route stops and timetable for a train (RRS-F-004-UI).
+     */
+    @GetMapping("/{trainId}/route")
+    public ResponseEntity<List<TrainStopDto>> getTrainRoute(@PathVariable Long trainId) {
+        List<TrainStopDto> stops = searchService.getTrainRoute(trainId);
+        return ResponseEntity.ok(stops);
     }
 }

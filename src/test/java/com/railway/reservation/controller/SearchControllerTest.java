@@ -382,4 +382,37 @@ class SearchControllerTest {
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].trainNo").value("12675"));
     }
+
+    @Test
+    @DisplayName("RRS-F-004-UI: GET /api/v1/trains/{id}/route returns 200 OK with ordered stops and timetable")
+    void getTrainRoute_successful() throws Exception {
+        savedTrain.addStop(new TrainStop(1, "MAS", "Chennai Central", null, LocalTime.of(6, 10), 0, 4, 0));
+        savedTrain.addStop(new TrainStop(2, "KPD", "Katpadi Junction", LocalTime.of(7, 58), LocalTime.of(8, 0), 2, 1, 130));
+        savedTrain.addStop(new TrainStop(3, "SBC", "KSR Bengaluru", LocalTime.of(11, 30), null, 0, 3, 359));
+        trainRepository.save(savedTrain);
+
+        mockMvc.perform(get("/api/v1/trains/" + savedTrain.getId() + "/route")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)))
+                .andExpect(jsonPath("$[0].stopOrder").value(1))
+                .andExpect(jsonPath("$[0].stationCode").value("MAS"))
+                .andExpect(jsonPath("$[0].stationName").value("Chennai Central"))
+                .andExpect(jsonPath("$[0].departureTime").value("06:10:00"))
+                .andExpect(jsonPath("$[1].stationCode").value("KPD"))
+                .andExpect(jsonPath("$[1].haltMinutes").value(2))
+                .andExpect(jsonPath("$[1].platformNo").value(1))
+                .andExpect(jsonPath("$[1].distanceKm").value(130))
+                .andExpect(jsonPath("$[2].stationCode").value("SBC"))
+                .andExpect(jsonPath("$[2].distanceKm").value(359));
+    }
+
+    @Test
+    @DisplayName("RRS-F-004-UI: GET /api/v1/trains/{id}/route returns 404 Not Found for non-existent train")
+    void getTrainRoute_notFound() throws Exception {
+        mockMvc.perform(get("/api/v1/trains/99999/route")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(containsString("Train not found with ID: 99999")));
+    }
 }

@@ -137,6 +137,33 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<TrainStopDto> getTrainRoute(Long trainId) {
+        if (trainId == null) {
+            throw new IllegalArgumentException("Train ID parameter is required.");
+        }
+        Train train = trainRepository.findById(trainId)
+                .orElseThrow(() -> new ResourceNotFoundException("Train not found with ID: " + trainId));
+
+        List<TrainStopDto> stopDtos = new ArrayList<>();
+        if (train.getStops() != null) {
+            for (TrainStop s : train.getStops()) {
+                stopDtos.add(new TrainStopDto(
+                        s.getStopOrder(),
+                        s.getStationCode(),
+                        s.getStationName(),
+                        s.getArrivalTime(),
+                        s.getDepartureTime(),
+                        s.getHaltMinutes(),
+                        s.getPlatformNo(),
+                        s.getDistanceKm()
+                ));
+            }
+        }
+        return stopDtos;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public SeatAvailabilityDto calculateAvailableSeats(Train train, TrainClass trainClass, LocalDate journeyDate) {
         int bookedSeats = bookingRepository.countBookedSeats(
                 train.getId(),
