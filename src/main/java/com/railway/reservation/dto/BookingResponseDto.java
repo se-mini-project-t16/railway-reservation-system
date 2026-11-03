@@ -28,6 +28,11 @@ public class BookingResponseDto {
     private String className;
     private BigDecimal farePerSeat;
     private BigDecimal totalFare;
+    private BigDecimal baseFare;
+    private BigDecimal superfastCharge;
+    private BigDecimal reservationFee;
+    private BigDecimal gst;
+    private BigDecimal seniorDiscount;
 
     // Journey info
     private LocalDate journeyDate;
@@ -91,6 +96,21 @@ public class BookingResponseDto {
 
     public BigDecimal getTotalFare() { return totalFare; }
     public void setTotalFare(BigDecimal totalFare) { this.totalFare = totalFare; }
+
+    public BigDecimal getBaseFare() { return baseFare; }
+    public void setBaseFare(BigDecimal baseFare) { this.baseFare = baseFare; }
+
+    public BigDecimal getSuperfastCharge() { return superfastCharge; }
+    public void setSuperfastCharge(BigDecimal superfastCharge) { this.superfastCharge = superfastCharge; }
+
+    public BigDecimal getReservationFee() { return reservationFee; }
+    public void setReservationFee(BigDecimal reservationFee) { this.reservationFee = reservationFee; }
+
+    public BigDecimal getGst() { return gst; }
+    public void setGst(BigDecimal gst) { this.gst = gst; }
+
+    public BigDecimal getSeniorDiscount() { return seniorDiscount; }
+    public void setSeniorDiscount(BigDecimal seniorDiscount) { this.seniorDiscount = seniorDiscount; }
 
     public LocalDate getJourneyDate() { return journeyDate; }
     public void setJourneyDate(LocalDate journeyDate) { this.journeyDate = journeyDate; }

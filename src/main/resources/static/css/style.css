@@ -1005,6 +1005,152 @@ header.app-header {
   color: var(--color-ink);
 }
 
+/* Booking Grid & Sticky Commercial Fare Summary [RRS-F-007-EXT] */
+
+.booking-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .booking-grid {
+    grid-template-columns: minmax(0, 1.85fr) minmax(320px, 1fr);
+  }
+}
+
+.booking-main {
+  min-width: 0;
+}
+
+.booking-sidebar {
+  position: relative;
+}
+
+@media (min-width: 1024px) {
+  .booking-sidebar {
+    position: sticky;
+    top: 5.5rem;
+  }
+}
+
+.fare-breakdown-card {
+  background-color: var(--color-paper-2);
+  color: var(--color-ink);
+  border: var(--rule-hair) solid var(--color-rule);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.fare-breakdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.fare-breakdown-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin: 0;
+}
+
+.fare-live-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  background-color: var(--color-paper-3);
+  border: var(--rule-hair) solid var(--color-rule);
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-pill);
+}
+
+.fare-breakdown-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fare-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--color-ink-2);
+}
+
+.fare-breakdown-row .fare-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.fare-senior-row {
+  color: var(--color-success);
+}
+
+.fare-senior-row .fare-val {
+  color: var(--color-success);
+}
+
+.badge-subtle {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.675rem;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-paper-3);
+  border: var(--rule-hair) solid var(--color-rule);
+}
+
+.fare-breakdown-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  border-top: var(--rule-hair) solid var(--color-ink-rule);
+}
+
+.fare-total-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.fare-total-sub {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.fare-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.senior-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.senior-checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.senior-checkbox:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 /* Summary Box */
 
 .summary-box {

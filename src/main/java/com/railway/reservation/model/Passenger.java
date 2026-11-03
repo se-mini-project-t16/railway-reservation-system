@@ -29,6 +29,15 @@ public class Passenger {
     @Column(name = "seat_no", length = 20)
     private String seatNo;
 
+    @Column(name = "berth_preference", length = 30)
+    private String berthPreference = "NO_PREFERENCE";
+
+    @Column(name = "meal_preference", length = 20)
+    private String mealPreference = "NO_FOOD";
+
+    @Column(name = "senior_concession")
+    private Boolean seniorConcession = false;
+
     public Passenger() {}
 
     public Passenger(String name, int age, String gender) {
@@ -42,6 +51,16 @@ public class Passenger {
         this.age = age;
         this.gender = gender;
         this.seatNo = seatNo;
+    }
+
+    public Passenger(String name, int age, String gender, String seatNo, String berthPreference, String mealPreference, Boolean seniorConcession) {
+        this.name = name;
+        this.age = age;
+        this.gender = gender;
+        this.seatNo = seatNo;
+        this.berthPreference = berthPreference != null ? berthPreference : "NO_PREFERENCE";
+        this.mealPreference = mealPreference != null ? mealPreference : "NO_FOOD";
+        this.seniorConcession = Boolean.TRUE.equals(seniorConcession);
     }
 
     public Long getId() { return id; }
@@ -61,5 +80,14 @@ public class Passenger {
 
     public String getSeatNo() { return seatNo; }
     public void setSeatNo(String seatNo) { this.seatNo = seatNo; }
+
+    public String getBerthPreference() { return berthPreference; }
+    public void setBerthPreference(String berthPreference) { this.berthPreference = berthPreference; }
+
+    public String getMealPreference() { return mealPreference; }
+    public void setMealPreference(String mealPreference) { this.mealPreference = mealPreference; }
+
+    public Boolean getSeniorConcession() { return seniorConcession; }
+    public void setSeniorConcession(Boolean seniorConcession) { this.seniorConcession = seniorConcession; }
 }
 

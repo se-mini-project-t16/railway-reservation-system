@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 
 @Service
@@ -35,10 +36,36 @@ public class TicketPdfService {
                 writer.write(bold, 12, "Passengers");
                 for (int i = 0; i < ticket.getPassengers().size(); i++) {
                     PassengerDto passenger = ticket.getPassengers().get(i);
-                    writer.write(regular, 11, String.format("%d. %s | Age %d | %s | Seat %s",
-                            i + 1, passenger.getName(), passenger.getAge(), passenger.getGender(), passenger.getSeatNo()));
+                    String pref = "";
+                    if (passenger.getBerthPreference() != null && !"NO_PREFERENCE".equalsIgnoreCase(passenger.getBerthPreference())) {
+                        pref += " | Berth: " + passenger.getBerthPreference();
+                    }
+                    if (passenger.getMealPreference() != null && !"NO_FOOD".equalsIgnoreCase(passenger.getMealPreference())) {
+                        pref += " | Meal: " + passenger.getMealPreference();
+                    }
+                    if (Boolean.TRUE.equals(passenger.getSeniorConcession())) {
+                        pref += " | Senior Concession";
+                    }
+                    writer.write(regular, 11, String.format("%d. %s | Age %d | %s | Seat %s%s",
+                            i + 1, passenger.getName(), passenger.getAge(), passenger.getGender(), passenger.getSeatNo(), pref));
                 }
-                writer.write(bold, 12, "Total fare: " + ticket.getTotalFare());
+                writer.write(bold, 12, "Fare breakdown");
+                if (ticket.getBaseFare() != null) {
+                    writer.write(regular, 11, "Base fare: INR " + ticket.getBaseFare());
+                }
+                if (ticket.getSuperfastCharge() != null) {
+                    writer.write(regular, 11, "Superfast charge: INR " + ticket.getSuperfastCharge());
+                }
+                if (ticket.getReservationFee() != null) {
+                    writer.write(regular, 11, "Reservation fee: INR " + ticket.getReservationFee());
+                }
+                if (ticket.getGst() != null) {
+                    writer.write(regular, 11, "GST (5%): INR " + ticket.getGst());
+                }
+                if (ticket.getSeniorDiscount() != null && ticket.getSeniorDiscount().compareTo(BigDecimal.ZERO) > 0) {
+                    writer.write(regular, 11, "Senior concession (40%): -INR " + ticket.getSeniorDiscount());
+                }
+                writer.write(bold, 12, "Total fare: INR " + ticket.getTotalFare());
                 writer.write(regular, 9, "Payment is not shown as successful unless confirmed by the payment system.");
             }
             document.save(output);

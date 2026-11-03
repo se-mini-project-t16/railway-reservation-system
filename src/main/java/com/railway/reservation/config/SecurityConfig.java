@@ -88,6 +88,7 @@ public class SecurityConfig {
                         "/api/v1/bookings/*/ticket.pdf",
                         "/api/v1/bookings/*/cancel",
                         "/api/v1/bookings/*/refund-preview").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/v1/bookings/fare-quote").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/bookings").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/v1/bookings", "/api/v1/bookings/", "/api/v1/bookings/history").authenticated()
                 // Public PNR status lookup for guests [RRS-F-011]

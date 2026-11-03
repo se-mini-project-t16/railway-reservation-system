@@ -2,6 +2,8 @@ package com.railway.reservation.controller;
 
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
+import com.railway.reservation.dto.FareBreakdownDto;
+import com.railway.reservation.dto.FareQuoteRequestDto;
 import com.railway.reservation.dto.PnrStatusResponseDto;
 import com.railway.reservation.exception.ResourceNotFoundException;
 import com.railway.reservation.model.User;
@@ -40,6 +42,17 @@ public class BookingController {
     }
 
 
+
+    /**
+     * Endpoint to preview authoritative itemized fare breakdown and senior concession quote (RRS-F-007-EXT).
+     */
+    @PostMapping("/fare-quote")
+    public ResponseEntity<FareBreakdownDto> getFareQuote(@Valid @RequestBody FareQuoteRequestDto request) {
+        FareBreakdownDto quote = bookingService.calculateFareQuote(request.getClassId(), request.getPassengers());
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(quote);
+    }
 
     /**
      * Endpoint to book one or more seats on a train (RRS-F-006, RRS-F-007, RRS-SR-006).

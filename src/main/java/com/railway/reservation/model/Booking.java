@@ -42,6 +42,21 @@ public class Booking {
     @Column(name = "total_fare", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalFare;
 
+    @Column(name = "base_fare", precision = 10, scale = 2)
+    private BigDecimal baseFare;
+
+    @Column(name = "superfast_charge", precision = 10, scale = 2)
+    private BigDecimal superfastCharge;
+
+    @Column(name = "reservation_fee", precision = 10, scale = 2)
+    private BigDecimal reservationFee;
+
+    @Column(name = "gst", precision = 10, scale = 2)
+    private BigDecimal gst;
+
+    @Column(name = "senior_discount", precision = 10, scale = 2)
+    private BigDecimal seniorDiscount;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -88,6 +103,21 @@ public class Booking {
 
     public BigDecimal getTotalFare() { return totalFare; }
     public void setTotalFare(BigDecimal totalFare) { this.totalFare = totalFare; }
+
+    public BigDecimal getBaseFare() { return baseFare; }
+    public void setBaseFare(BigDecimal baseFare) { this.baseFare = baseFare; }
+
+    public BigDecimal getSuperfastCharge() { return superfastCharge; }
+    public void setSuperfastCharge(BigDecimal superfastCharge) { this.superfastCharge = superfastCharge; }
+
+    public BigDecimal getReservationFee() { return reservationFee; }
+    public void setReservationFee(BigDecimal reservationFee) { this.reservationFee = reservationFee; }
+
+    public BigDecimal getGst() { return gst; }
+    public void setGst(BigDecimal gst) { this.gst = gst; }
+
+    public BigDecimal getSeniorDiscount() { return seniorDiscount; }
+    public void setSeniorDiscount(BigDecimal seniorDiscount) { this.seniorDiscount = seniorDiscount; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
