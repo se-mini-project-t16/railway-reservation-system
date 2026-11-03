@@ -307,6 +307,100 @@ class PaymentServiceTest {
     }
 
     @Test
+    @DisplayName("RRS-SR-002: handlePaymentCallback verifies valid HMAC-SHA256 signature")
+    void testHandlePaymentCallback_ValidSignature_Success() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-SIG123", "PENDING");
+        sampleBooking.setStatus(BookingStatus.PENDING);
+        payment.setBooking(sampleBooking);
+
+        when(paymentRepository.findByGatewayRef("TXN-SIG123")).thenReturn(Optional.of(payment));
+
+        String validSig = paymentService.calculateHmacSha256("TXN-SIG123", "PNR9876543", "SUCCESS", BigDecimal.valueOf(2300.00));
+        PaymentCallbackRequestDto callbackDto = new PaymentCallbackRequestDto(
+                "TXN-SIG123", "PNR9876543", "SUCCESS", BigDecimal.valueOf(2300.00), validSig);
+
+        PaymentCallbackResponseDto response = paymentService.handlePaymentCallback(callbackDto);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getPaymentStatus());
+        assertEquals(BookingStatus.CONFIRMED, response.getBookingStatus());
+    }
+
+    @Test
+    @DisplayName("RRS-SR-002: handlePaymentCallback rejects tampered HMAC-SHA256 signature [STRIDE Tampering]")
+    void testHandlePaymentCallback_TamperedSignature_ThrowsException() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-SIG123", "PENDING");
+        payment.setBooking(sampleBooking);
+
+        when(paymentRepository.findByGatewayRef("TXN-SIG123")).thenReturn(Optional.of(payment));
+
+        PaymentCallbackRequestDto callbackDto = new PaymentCallbackRequestDto(
+                "TXN-SIG123", "PNR9876543", "SUCCESS", BigDecimal.valueOf(2300.00), "tampered_signature_hex_code_123");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                paymentService.handlePaymentCallback(callbackDto));
+        assertTrue(ex.getMessage().contains("Invalid payment gateway HMAC signature"));
+    }
+
+    @Test
+    @DisplayName("TC-PAY-02: handlePaymentCallback records EXPIRED payment and releases seats")
+    void testHandlePaymentCallback_ExpiredStatus_ReleasesSeats() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-EXP123", "PENDING");
+        sampleBooking.setStatus(BookingStatus.PENDING);
+        payment.setBooking(sampleBooking);
+
+        when(paymentRepository.findByGatewayRef("TXN-EXP123")).thenReturn(Optional.of(payment));
+
+        PaymentCallbackRequestDto callbackDto = new PaymentCallbackRequestDto(
+                "TXN-EXP123", "PNR9876543", "EXPIRED", BigDecimal.valueOf(2300.00));
+
+        PaymentCallbackResponseDto response = paymentService.handlePaymentCallback(callbackDto);
+
+        assertNotNull(response);
+        assertEquals("EXPIRED", response.getPaymentStatus());
+        assertEquals(BookingStatus.FAILED, response.getBookingStatus());
+        assertEquals(BookingStatus.FAILED, sampleBooking.getStatus());
+        assertEquals("EXPIRED", payment.getStatus());
+        verify(bookingRepository).save(sampleBooking);
+    }
+
+    @Test
+    @DisplayName("TC-PAY-01: handlePaymentCallback returns idempotent response on already CONFIRMED booking")
+    void testHandlePaymentCallback_IdempotentOnConfirmed() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-IDEMP123", "SUCCESS");
+        sampleBooking.setStatus(BookingStatus.CONFIRMED);
+        payment.setBooking(sampleBooking);
+
+        when(paymentRepository.findByGatewayRef("TXN-IDEMP123")).thenReturn(Optional.of(payment));
+
+        PaymentCallbackRequestDto callbackDto = new PaymentCallbackRequestDto(
+                "TXN-IDEMP123", "PNR9876543", "SUCCESS", BigDecimal.valueOf(2300.00));
+
+        PaymentCallbackResponseDto response = paymentService.handlePaymentCallback(callbackDto);
+
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getPaymentStatus());
+        assertEquals(BookingStatus.CONFIRMED, response.getBookingStatus());
+    }
+
+    @Test
+    @DisplayName("TC-PAY-02: handlePaymentCallback rejects invalid state transition from CONFIRMED to FAILED")
+    void testHandlePaymentCallback_InvalidTransition_ThrowsException() {
+        Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-INV123", "SUCCESS");
+        sampleBooking.setStatus(BookingStatus.CONFIRMED);
+        payment.setBooking(sampleBooking);
+
+        when(paymentRepository.findByGatewayRef("TXN-INV123")).thenReturn(Optional.of(payment));
+
+        PaymentCallbackRequestDto callbackDto = new PaymentCallbackRequestDto(
+                "TXN-INV123", "PNR9876543", "FAILED", BigDecimal.valueOf(2300.00));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                paymentService.handlePaymentCallback(callbackDto));
+        assertTrue(ex.getMessage().contains("Cannot fail or cancel an already CONFIRMED booking"));
+    }
+
+    @Test
     @DisplayName("TC-CAN-02: Initiate refund records amount and reference on the payment")
     void testInitiateRefund_Success() {
         Payment payment = new Payment(sampleBooking, BigDecimal.valueOf(2300.00), "TXN-REFUND123", "SUCCESS");

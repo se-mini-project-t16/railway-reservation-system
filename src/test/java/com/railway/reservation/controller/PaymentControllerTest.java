@@ -231,6 +231,27 @@ class PaymentControllerTest {
     }
 
     @Test
+    @DisplayName("RRS-SR-002: POST /api/v1/payments/callback accepts HMAC signature")
+    void testHandleCallback_WithSignature_Success() throws Exception {
+        PaymentCallbackRequestDto request = new PaymentCallbackRequestDto(
+                "TXN-CALL123", "PNR1234567", "SUCCESS", BigDecimal.valueOf(1150.00), "mock_valid_hmac_hex_sig");
+
+        PaymentCallbackResponseDto response = new PaymentCallbackResponseDto(
+                "TXN-CALL123", "PNR1234567", "SUCCESS", BookingStatus.CONFIRMED,
+                BigDecimal.valueOf(1150.00), LocalDateTime.now(), "Payment verified successfully."
+        );
+
+        when(paymentService.handlePaymentCallback(any(PaymentCallbackRequestDto.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/v1/payments/callback")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentStatus").value("SUCCESS"))
+                .andExpect(jsonPath("$.bookingStatus").value("CONFIRMED"));
+    }
+
+    @Test
     @DisplayName("TC-PAY-02: POST /api/v1/payments/callback with FAILED updates booking to FAILED")
     void testHandleCallback_Failed() throws Exception {
         PaymentCallbackRequestDto request = new PaymentCallbackRequestDto(

@@ -24,9 +24,9 @@ module.exports = {
         focus: 'var(--color-focus)',
       },
       fontFamily: {
-        mono: ['"Chivo Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
-        display: ['"Chivo Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
-        body: ['"Chivo Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        mono: ['var(--font-mono)'],
+        display: ['var(--font-display)'],
+        body: ['var(--font-body)'],
       },
       borderRadius: {
         card: 'var(--radius-card)',

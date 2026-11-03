@@ -22,6 +22,7 @@ public class PaymentSessionDto {
     private LocalDate journeyDate;
     private Integer passengerCount;
     private LocalDateTime createdAt;
+    private String sessionToken;
 
     public PaymentSessionDto() {}
 
@@ -97,5 +98,8 @@ public class PaymentSessionDto {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getSessionToken() { return sessionToken; }
+    public void setSessionToken(String sessionToken) { this.sessionToken = sessionToken; }
 }
 

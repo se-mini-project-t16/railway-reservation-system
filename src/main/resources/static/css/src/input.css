@@ -1353,6 +1353,326 @@ footer.app-footer {
   }
 }
 
+/* Commercial Payment Sandbox 2.0 Components */
+.payment-wrapper {
+  max-width: 820px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.session-countdown-banner {
+  background: var(--color-paper-2);
+  border: var(--rule-bar) solid var(--color-ink-rule);
+  border-bottom: none;
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.session-timer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  background: var(--color-paper-3);
+  border: var(--rule-hair) solid var(--color-rule);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.session-timer-badge.warning {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.gateway-card {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+  border: var(--rule-bar) solid var(--color-ink-rule);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 2rem;
+}
+
+.gateway-head {
+  padding: 1.25rem 1.75rem;
+  border-bottom: 2px solid var(--color-accent);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.gateway-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  padding: 1.25rem 1.75rem;
+  background: var(--color-paper-2);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.gateway-summary-cell .label {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.gateway-summary-cell .value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.gateway-summary-cell.amount-cell .value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-accent);
+}
+
+/* Payment Tab Navigation */
+.checkout-tabs {
+  display: flex;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  background: var(--color-paper-3);
+  overflow-x: auto;
+}
+
+.checkout-tab-btn {
+  background: none;
+  border: none;
+  padding: 1rem 1.5rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  white-space: nowrap;
+  transition-property: color, border-color, background-color;
+  transition-duration: 150ms;
+}
+
+.checkout-tab-btn:hover {
+  color: var(--color-ink);
+  background-color: var(--color-paper-2);
+}
+
+.checkout-tab-btn:active {
+  background-color: var(--color-paper-1);
+}
+
+.checkout-tab-btn:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.checkout-tab-btn.active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  background-color: var(--color-paper-3);
+}
+
+.checkout-tab-pane {
+  display: none;
+  padding: 1.75rem;
+}
+
+.checkout-tab-pane.active {
+  display: block;
+}
+
+/* Dynamic UPI QR Simulation */
+.upi-qr-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--color-paper-2);
+  border: var(--rule-hair) dashed var(--color-rule);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.upi-qr-container {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  padding: 0.6rem;
+  background: var(--color-paper-3);
+  border: var(--rule-hair) solid var(--color-rule);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.upi-scan-beam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--color-accent);
+  box-shadow: 0 0 10px var(--color-accent);
+  animation: qrBeamSweep 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes qrBeamSweep {
+  0% { transform: translateY(0); opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { transform: translateY(164px); opacity: 0.6; }
+}
+
+/* Interactive Card Mockup */
+.card-mockup-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.card-mockup {
+  width: 100%;
+  max-width: 380px;
+  height: 215px;
+  background: var(--color-paper-2);
+  border: var(--rule-bar) solid var(--color-ink-rule);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  font-family: var(--font-mono);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-ink);
+}
+
+.card-mockup-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-chip {
+  width: 44px;
+  height: 32px;
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+  border: 1px solid var(--color-rule);
+  border-radius: 4px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-network-badge {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 800;
+  padding: 0.2rem 0.6rem;
+  border: var(--rule-hair) solid var(--color-rule);
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+
+.card-mockup-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+.card-mockup-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 0.75rem;
+}
+
+.card-mockup-holder .label,
+.card-mockup-expiry .label {
+  font-size: 0.65rem;
+  color: var(--color-muted);
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+
+.card-mockup-holder .val,
+.card-mockup-expiry .val {
+  font-weight: 700;
+  color: var(--color-ink);
+  text-transform: uppercase;
+}
+
+/* Indian Bank Selector Grid */
+.bank-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.bank-tile {
+  background: var(--color-paper-2);
+  border: var(--rule-hair) solid var(--color-rule);
+  padding: 1rem 0.75rem;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--color-ink);
+  transition-property: border-color, background-color, color;
+  transition-duration: 150ms;
+}
+
+.bank-tile:hover {
+  border-color: var(--color-accent);
+  background-color: var(--color-paper-3);
+}
+
+.bank-tile:active {
+  background-color: var(--color-paper-1);
+}
+
+.bank-tile.selected {
+  border-color: var(--color-accent);
+  border-width: 2px;
+  background-color: var(--color-accent-subtle);
+  color: var(--color-accent);
+}
+
+.bank-tile input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bank-code-pill {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  background: var(--color-paper-3);
+  border: var(--rule-hair) solid var(--color-rule);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
