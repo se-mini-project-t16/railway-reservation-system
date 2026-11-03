@@ -20,5 +20,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByEmail(String email);
     boolean existsByEmailIgnoreCase(String email);
+    long countByRole(com.railway.reservation.model.Role role);
+    org.springframework.data.domain.Page<User> findAllByOrderByCreatedAtDesc(org.springframework.data.domain.Pageable pageable);
 }
 

@@ -1,76 +1,72 @@
 package com.railway.reservation.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/** One payment attempt against a booking. Only masked instrument details are stored. */
 @Entity
 @Table(name = "payments")
 public class Payment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "payment_id")
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id", nullable = false, unique = true)
-    @JsonBackReference
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "booking_id")
     private Booking booking;
 
-    @Column(name = "gateway_ref", length = 100)
-    private String gatewayRef;
+    @Column(name = "txn_ref", nullable = false, unique = true, length = 24)
+    private String txnRef;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 12)
+    private PaymentMethod method;
+
+    @Column(nullable = false, length = 60)
+    private String instrument;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
 
-    @Column(nullable = false, length = 30)
-    private String status = "PENDING";
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private PaymentStatus status;
 
-    @Column(name = "paid_at")
-    private LocalDateTime paidAt;
+    @Column(name = "failure_reason", length = 120)
+    private String failureReason;
 
-    @Column(name = "refund_amount", precision = 10, scale = 2)
-    private BigDecimal refundAmount;
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
 
-    @Column(name = "refund_ref", length = 100)
-    private String refundRef;
+    @Column(name = "refunded_amount", nullable = false, precision = 10, scale = 2)
+    private BigDecimal refundedAmount = BigDecimal.ZERO;
 
-    public Payment() {}
+    protected Payment() {}
 
-    public Payment(Booking booking, BigDecimal amount, String gatewayRef, String status) {
-        this.booking = booking;
+    public Payment(String txnRef, PaymentMethod method, String instrument, BigDecimal amount,
+                   PaymentStatus status, String failureReason, LocalDateTime createdAt) {
+        this.txnRef = txnRef;
+        this.method = method;
+        this.instrument = instrument;
         this.amount = amount;
-        this.gatewayRef = gatewayRef;
         this.status = status;
-        this.paidAt = ("CONFIRMED".equalsIgnoreCase(status) || "SUCCESS".equalsIgnoreCase(status))
-                ? LocalDateTime.now()
-                : null;
+        this.failureReason = failureReason;
+        this.createdAt = createdAt;
     }
 
     public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
     public Booking getBooking() { return booking; }
-    public void setBooking(Booking booking) { this.booking = booking; }
-
-    public String getGatewayRef() { return gatewayRef; }
-    public void setGatewayRef(String gatewayRef) { this.gatewayRef = gatewayRef; }
-
+    void setBooking(Booking booking) { this.booking = booking; }
+    public String getTxnRef() { return txnRef; }
+    public PaymentMethod getMethod() { return method; }
+    public String getInstrument() { return instrument; }
     public BigDecimal getAmount() { return amount; }
-    public void setAmount(BigDecimal amount) { this.amount = amount; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public LocalDateTime getPaidAt() { return paidAt; }
-    public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
-
-    public BigDecimal getRefundAmount() { return refundAmount; }
-    public void setRefundAmount(BigDecimal refundAmount) { this.refundAmount = refundAmount; }
-
-    public String getRefundRef() { return refundRef; }
-    public void setRefundRef(String refundRef) { this.refundRef = refundRef; }
+    public PaymentStatus getStatus() { return status; }
+    public String getFailureReason() { return failureReason; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public BigDecimal getRefundedAmount() { return refundedAmount; }
+    public void setRefundedAmount(BigDecimal refundedAmount) { this.refundedAmount = refundedAmount; }
 }
-

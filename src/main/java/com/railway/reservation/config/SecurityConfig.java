@@ -45,7 +45,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .headers(headers -> headers.frameOptions(frame -> frame.disable())) // for H2 console
+            .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin())) // H2 console, when enabled, uses frames
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> {
@@ -57,10 +57,12 @@ public class SecurityConfig {
                     if (Boolean.TRUE.equals(request.getAttribute(JwtAuthenticationFilter.SESSION_EXPIRED_ATTRIBUTE))) {
                         // RRS-SR-005: token outlived the 15-minute inactivity window
                         body.put("error", "Session Expired");
+                        body.put("code", "SESSION_EXPIRED");
                         body.put("message", "Session expired due to inactivity. Please sign in again.");
                     } else {
                         body.put("error", "Unauthorized");
-                        body.put("message", authException.getMessage() != null ? authException.getMessage() : "Full authentication is required to access this resource");
+                        body.put("code", "SIGN_IN_REQUIRED");
+                        body.put("message", "Sign in to continue.");
                     }
                     body.put("path", request.getRequestURI());
                     response.getWriter().write(objectMapper.writeValueAsString(body));
@@ -72,36 +74,29 @@ public class SecurityConfig {
                     body.put("timestamp", LocalDateTime.now());
                     body.put("status", HttpStatus.FORBIDDEN.value());
                     body.put("error", "Forbidden");
-                    body.put("message", accessDeniedException.getMessage() != null ? accessDeniedException.getMessage() : "Access is denied");
+                    body.put("code", "FORBIDDEN");
+                    body.put("message", "You do not have access to this.");
                     body.put("path", request.getRequestURI());
                     response.getWriter().write(objectMapper.writeValueAsString(body));
                 })
             )
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/h2-console/**").permitAll()
+                .requestMatchers("/h2-console/**", "/error").permitAll()
                 .requestMatchers("/api/v1/health/**").permitAll()
+                // Diagnostic routes registered only by the reliability tests
                 .requestMatchers("/api/v1/test/**").permitAll()
-                .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
-                .requestMatchers("/api/v1/trains/**").permitAll()
-                // Specific booking endpoints requiring authentication (must precede generic /bookings/*)
-                .requestMatchers("/api/v1/bookings/*/ticket",
-                        "/api/v1/bookings/*/ticket.pdf",
-                        "/api/v1/bookings/*/cancel",
-                        "/api/v1/bookings/*/refund-preview").authenticated()
-                .requestMatchers(HttpMethod.POST, "/api/v1/bookings/fare-quote").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/bookings").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/v1/bookings", "/api/v1/bookings/", "/api/v1/bookings/history").authenticated()
-                // Public PNR status lookup for guests [RRS-F-011]
-                .requestMatchers(HttpMethod.GET, "/api/v1/bookings/*").permitAll()
-                // Payment callbacks for gateway simulation
-                .requestMatchers("/api/v1/payments/callback", "/api/v1/payments/verify").permitAll()
-                // Payment session initiation and reads require authentication [RRS-SR-006]
-                .requestMatchers(HttpMethod.POST, "/api/v1/payments/initiate").authenticated()
-                .requestMatchers("/api/v1/payments/**").authenticated()
-                .requestMatchers("/", "/index.html", "/payment.html", "/admin.html", "/css/**", "/js/**", "/favicon.ico").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/users/register", "/api/v1/users/login").permitAll()
+                // Guests can discover journeys and check a PNR (statuses only, no names) [RRS-F-004, RRS-F-011]
+                .requestMatchers(HttpMethod.GET, "/api/v1/stations/**", "/api/v1/trains/**", "/api/v1/pnr/**",
+                        "/api/v1/policies/**", "/api/v1/payments/banks").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/bookings/quote").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                .anyRequest().authenticated()
+                // Booking, payment, tickets and the account need a signed-in owner [RRS-SR-006]
+                .requestMatchers("/api/**").authenticated()
+                // Pages, styles, scripts, fonts and the 404 page are public
+                .anyRequest().permitAll()
             )
+            .addFilterBefore(new SecurityHeadersFilter(), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
