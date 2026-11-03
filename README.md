@@ -13,16 +13,15 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 
 ## Technology Stack
 
-- **Backend:** Java 25 (LTS), Spring Boot 4.1.1 (Spring Web MVC, Spring Data JPA, Hibernate, Bean Validation)
-- **Security:** Spring Security, JWT (with sliding window renewal and 15-minute inactivity timeout), BCrypt password hashing, OWASP HTML Sanitizer
-- **Frontend:** HTML5, Tailwind CSS (Hallmark Wayfind / Platform Design System with Light/Dark Theme Parity), Modern Vanilla JavaScript (ES Modules, Safe DOM Manipulation)
-- **Reporting & Documents:** iText 7 (PDF E-Ticket generation)
-- **Database:** MySQL / H2 In-Memory (for zero-setup local testing and automated builds)
-- **Observability:** Spring Boot Actuator, Custom Database Health Indicator, SLF4J/Logback with MDC correlation IDs and structured JSON audit logging
-- **Performance:** Apache JMeter 5.6.3 (load testing suite)
-- **Build & Testing:** Maven, JUnit 5, Mockito, Spring Test
+- **Backend:** Java 25, Spring Boot 4.1.1 (Spring Web MVC, Spring Data JPA with Hibernate, Bean Validation, scheduling)
+- **Security:** Spring Security with stateless JWT (sliding renewal, 15-minute inactivity timeout), BCrypt password hashing, account lockout, server-side ownership checks on every booking, a strict Content Security Policy
+- **Frontend:** semantic HTML, hand-written CSS on a token system (Hallmark "Wayfind" theme, light and dark), vanilla JavaScript ES modules. No build step and no CDN: the font is self-hosted.
+- **Documents:** Apache PDFBox (e-ticket PDF), CSV export of reservation charts
+- **Database:** H2 (file database by default, in-memory for tests); MySQL driver included
+- **Observability:** SLF4J/Logback with correlation IDs and user IDs on every log line, daily rotated log files, a health endpoint
+- **Build and tests:** Maven wrapper, JUnit 5, Spring MockMvc; Apache JMeter for load tests
 
-> **Platform Modernization Note:** The initial software requirements and design specifications (SRS/SAD/STP) originally designated Java 17 and Spring Boot 3.3.4 as the project baseline. The active implementation platform has been modernized to **Java 25 (LTS)** and **Spring Boot 4.1.1**, maintaining 100% functional traceability with all specification requirements.
+> **Platform note:** the submitted SRS, SAD and test plan named Java 17 and Spring Boot 3.3.4. The implementation was moved to Java 25 and Spring Boot 4.1.1 before development finished; every specified requirement is still traceable.
 
 ## Development Sprints & Milestones
 
@@ -48,68 +47,54 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 - **Search Performance Benchmark (`RRS-NF-001`, `RRS-NF-004`):** 100 concurrent virtual user JMeter load test achieving 200–290 ms p95 latency (sub-3s target) and 0% errors.
 - **Sprint 2 Test Suite:** Expanded from 127 to **256 automated regression tests** (100% pass rate).
 
-## System Capabilities & Feature Overview
+### Sprint 3: Product rebuild [2nd Nov – 6th Nov]
+- Rebuilt the reservation engine and the whole interface. See the capabilities below.
 
-### 1. Passenger Subsystem
-- **User Authentication & Session Management (`RRS-F-001`, `RRS-F-002`, `RRS-F-003`, `RRS-SR-001`, `RRS-SR-002`, `RRS-SR-005`):** Secure signup and login with BCrypt password hashing, JWT token issuance with sliding window renewal, client-side inactivity tracking, and warning banner on session timeout.
-- **Train Search & Fare Calculation (`RRS-F-004`, `RRS-F-005`):** Station-to-station schedule and route discovery with distance and class-based fare calculation.
-- **Seat Availability & Allocation (`RRS-F-006`):** Real-time seat availability checking and dynamic allocation of lowest available seat numbers per coach class.
-- **Booking & Passenger Details (`RRS-F-007`, `RRS-F-010`):** Multi-passenger details collection with age/gender validation, confirmed booking allocation with unique 10-digit alphanumeric PNR, and downloadable PDF E-Tickets.
-- **Payment Gateway Simulation (`RRS-F-008`, `RRS-F-009`):** Online payment initiation, simulated payment gateway redirect, asynchronous payment callback processing with SHA-256 HMAC signature verification, and automated rollback with seat release upon payment failure.
-- **PNR Inquiry & Booking History (`RRS-F-011`, `RRS-F-014`):** Real-time PNR status lookup for any booking, alongside authenticated passenger booking history with chronological sorting and status filtering (`ALL`, `CONFIRMED`, `CANCELLED`).
-- **Ticket Cancellation & Refunds (`RRS-F-012`, `RRS-F-013`):** Pre-departure ticket cancellation with instant refund calculation preview based on tiered cancellation rules (hours before departure), immediate seat release back to available inventory, and audit logging.
+## System Capabilities
 
-### 2. Administrator Subsystem
-- **Train, Route & Fare Management (`RRS-F-015`):** Full CRUD capabilities for administrators (`ROLE_ADMIN`) to add, update, and delete trains, intermediate routes, schedules, and class fares.
-- **Filtered Bookings Report (`RRS-F-016`):** Comprehensive administrative reporting with optional train number and journey date filters, detailed passenger rosters, and aggregate financial metrics (total bookings, failed payments, cancellations, total refunds).
-- **Role-Based Access Control (`RRS-SR-004`):** Strict authorization enforcing `ROLE_ADMIN` on all `/api/v1/admin/**` endpoints (`403 Forbidden` for standard passengers).
+### Passengers
+- **Search** trains between any two stations on a route, including intermediate stops, with running days, overnight arrivals (+1, +2), an optional search across all stations in a city, filters (class, departure time, train type, available now) and sorting.
+- **Availability** per class as a railway shows it: `AVL n`, `RAC n`, `WL n` or `REGRET`, plus a six-day availability calendar. Other booking channels are simulated, so trains fill up realistically closer to departure.
+- **Fares** calculated on the server from distance (tapering rates for long journeys), class, reservation and superfast charges, catering on premium trains, Tatkal charges and 5% GST on AC classes.
+- **Booking** in three steps (travellers, review, payment) for up to six travellers (four for Tatkal), with berth and meal preferences, lower berths for travellers aged 60+ and women aged 45+, groups seated together, saved travellers, and an option to book only if every berth is confirmed. Booking needs sign-in; guests are returned to the same booking after signing in.
+- **Quotas:** General, and Tatkal opening at 10:00 (AC) or 11:00 (non-AC) the day before the train leaves its origin.
+- **Payment** (simulated) by UPI, card or net banking, with a 10-minute seat hold, a live countdown, declines and retries, and protection against double charging. Card numbers are never stored.
+- **E-ticket** page and PDF, print view, public **PNR status** (statuses only, never names), and **My trips** (upcoming, past, cancelled).
+- **Cancellation** of some or all travellers, with a refund preview from the rule table before confirming. Freed berths go to RAC, and RAC places go to the waiting list automatically.
+- **Train schedule** pages (route, halts, day numbers, coach composition), **station boards**, a refund rules page, and an account page with profile, password change and saved travellers.
 
-### 3. Non-Functional & Operational Hardening
-- **Sub-3s Response Time under Concurrency (`RRS-NF-001`, `RRS-NF-004`):** Verified under a 100 concurrent virtual user benchmark with JMeter, achieving 200–290 ms p95 response latency and 0% errors.
-- **High Availability & Health Diagnostics (`RRS-NF-002`):** System health monitoring via Spring Boot Actuator `/actuator/health` with a custom `DatabaseHealthIndicator` providing database connectivity checks, latency, and thread metrics.
-- **Structured Error Logging (`RRS-NF-005`):** MDC-based request correlation IDs (`corr`) and user ID tracking propagated across all log statements with centralized exception handling and JSON error responses.
-- **Security & Injection Rejection (`RRS-SR-003`):** Parameterized queries and strict `SafeTextRules` input validation rejecting SQL injection and XSS payloads.
+### Operations console (`/admin/`)
+- Overview of today's bookings, revenue, refunds, pending holds, the last seven days, class mix and departures in the next 48 hours.
+- Fleet management: create trains with a full route editor, edit coaches and running days, stop or restart bookings, delete unused trains. The route is locked once tickets exist.
+- Bookings search by PNR, email, train, date and status, with cancellation on a passenger's behalf.
+- **Reservation chart:** coach-by-coach berth map for any departure, showing who holds each berth and for which stretch, plus RAC and waiting lists and a CSV export.
+- Stations, users (unlock locked accounts) and the editable refund rule table.
+
+### Background jobs
+- Unpaid holds are released when their 10 minutes run out.
+- When the chart is prepared (four hours before the train leaves its origin), fully waitlisted e-tickets are cancelled and refunded less a clerkage charge.
 
 ## Local Setup
 
-The application requires `APP_JWT_SECRET` at startup (minimum 32 UTF-8 bytes).
-
-**Linux / macOS (Bash / Zsh):**
 ```bash
-export APP_JWT_SECRET=$(openssl rand -base64 32)
 ./mvnw spring-boot:run
 ```
 
-**Windows (PowerShell):**
-```powershell
-$jwtRandom = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-$jwtBytes = New-Object byte[] 32
-$jwtRandom.GetBytes($jwtBytes)
-$env:APP_JWT_SECRET = [Convert]::ToBase64String($jwtBytes)
-$jwtRandom.Dispose()
-.\mvnw.cmd spring-boot:run
-```
+Open http://localhost:8080. The first start seeds 98 stations and 66 long-distance trains; bookings are kept in `./data` between restarts (delete that folder to start fresh).
 
-Once started, open `http://localhost:8080` in your web browser.
+Useful settings (environment variables):
 
-### Frontend Build & Design System
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `APP_JWT_SECRET` | JWT signing key (32+ bytes) | a development key |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | the seeded operations account | `admin@railway.gov.in` / `Admin@123` |
+| `DB_URL` | JDBC URL, for example `jdbc:h2:mem:railwaydb` for a throwaway database | `./data/railwaydb` |
+| `H2_CONSOLE` | `true` to enable the H2 console at `/h2-console` | `false` |
 
-The application styling is compiled from source CSS tokens using Tailwind CSS:
-
-```bash
-# Install frontend build dependencies
-npm install
-
-# Build compiled stylesheet (src/main/resources/static/css/style.css)
-npm run build:css
-
-# Watch for CSS changes during development
-npm run watch:css
-```
+For testing payments: card `4111 1111 1111 1111` (any future expiry, any CVV) succeeds, card `4000 0000 0000 0002` is declined, and any UPI ID starting with `decline` is declined.
 
 ### Running Automated Tests
 
-Execute the full regression test suite (256 unit, integration, RBAC security, cancellation, PDF generation, booking history, and admin reporting tests):
 ```bash
 ./mvnw clean test
 ```
