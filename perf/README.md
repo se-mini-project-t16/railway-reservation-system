@@ -7,11 +7,13 @@ and **RRS-NF-004** (support 100 concurrent users without failure).
 The test targets the existing public endpoint:
 
 ```text
-GET /api/v1/trains/search?src=Chennai&dst=Bengaluru&date=<YYYY-MM-DD>
+GET /api/v1/trains/search?from=MAS&to=SBC&date=<YYYY-MM-DD>
 ```
 
-It uses the demo dataset seeded by `TrainDataInitializer` when
-`app.seed-demo-data=true`. This is a **local demo benchmark**, not a
+It uses the station and timetable data seeded by `RailDataSeeder` when
+`app.seed-demo-data=true` (the default). The search now also computes live
+availability for every class on every train, so results recorded before the
+November 2026 rebuild are not directly comparable and the benchmark should be re-run. This is a **local demo benchmark**, not a
 production-scale performance claim.
 
 ## Prerequisites
