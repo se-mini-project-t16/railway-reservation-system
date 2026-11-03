@@ -1,9 +1,13 @@
 package com.railway.reservation.service;
 
+import com.railway.reservation.dto.AdminDashboardStatsDto;
 import com.railway.reservation.dto.BookingReportDto;
+import com.railway.reservation.dto.CoachSeatMatrixDto;
 import com.railway.reservation.dto.CreateTrainDto;
+import com.railway.reservation.dto.ReservationChartDto;
 import com.railway.reservation.dto.TrainClassDto;
 import com.railway.reservation.dto.TrainResponseDto;
+import com.railway.reservation.dto.TrainStopDto;
 import com.railway.reservation.dto.UpdateTrainDto;
 import com.railway.reservation.exception.DuplicateTrainException;
 import com.railway.reservation.exception.ResourceNotFoundException;
@@ -244,5 +248,90 @@ class AdminServiceTest {
         assertThat(report.getBookings().get(0).getFare()).isEqualByComparingTo("900.00");
         assertThat(report.getBookings().get(0).getPassengers().get(0).name()).isEqualTo("Alice Smith");
         assertThat(report.getBookings().get(0).getPassengers().get(0).seatNo()).isEqualTo("CC-1");
+    }
+
+    @Test
+    @DisplayName("getDashboardStats calculates today and all-time revenue and occupancy metrics")
+    void getDashboardStats_CalculatesMetrics() {
+        when(trainRepository.count()).thenReturn(5L);
+        when(bookingRepository.countByStatus(BookingStatus.CONFIRMED)).thenReturn(12L);
+        when(trainRepository.findAll()).thenReturn(List.of(existingTrain));
+
+        Booking confirmed = new Booking("PNR_TODAY", null, existingTrain, existingTrain.getClasses().get(0),
+                LocalDate.now(), new BigDecimal("900.00"));
+        confirmed.setStatus(BookingStatus.CONFIRMED);
+        confirmed.addPassenger(new Passenger("Today Pax", 30, "Male", "CC-1"));
+
+        when(bookingRepository.findBookingsCreatedBetween(any(), any())).thenReturn(List.of(confirmed));
+        when(bookingRepository.findAll()).thenReturn(List.of(confirmed));
+
+        AdminDashboardStatsDto stats = adminService.getDashboardStats();
+
+        assertThat(stats).isNotNull();
+        assertThat(stats.getActiveFleetTrains()).isEqualTo(5L);
+        assertThat(stats.getTodayBookings()).isEqualTo(1L);
+        assertThat(stats.getTodayRevenue()).isEqualByComparingTo("900.00");
+        assertThat(stats.getTotalBookingsAllTime()).isEqualTo(12L);
+        assertThat(stats.getTotalRevenueAllTime()).isEqualByComparingTo("900.00");
+        assertThat(stats.getAverageOccupancyRate()).isGreaterThan(0.0);
+    }
+
+    @Test
+    @DisplayName("getCoachSeatMatrix maps 2D seat cells and passenger details for confirmed bookings")
+    void getCoachSeatMatrix_GeneratesGrid() {
+        LocalDate date = LocalDate.of(2026, 11, 10);
+        TrainClass cc = existingTrain.getClasses().get(0);
+
+        Booking booking = new Booking("PNR_GRID", null, existingTrain, cc, date, new BigDecimal("450.00"));
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.addPassenger(new Passenger("John Doe", 35, "Male", "CC-1"));
+
+        when(trainRepository.findById(1L)).thenReturn(Optional.of(existingTrain));
+        when(bookingRepository.findActiveTrainBookingsWithPassengers(1L, date, BookingStatus.CONFIRMED))
+                .thenReturn(List.of(booking));
+
+        CoachSeatMatrixDto matrix = adminService.getCoachSeatMatrix(1L, date, "CC");
+
+        assertThat(matrix).isNotNull();
+        assertThat(matrix.getTrainNo()).isEqualTo("12675");
+        assertThat(matrix.getClassName()).isEqualTo("CC");
+        assertThat(matrix.getTotalSeats()).isEqualTo(100);
+        assertThat(matrix.getBookedSeatsCount()).isEqualTo(1);
+        assertThat(matrix.getAvailableSeatsCount()).isEqualTo(99);
+        assertThat(matrix.getSeats()).hasSize(100);
+
+        // First seat is booked by John Doe
+        assertThat(matrix.getSeats().get(0).getStatus()).isEqualTo("BOOKED");
+        assertThat(matrix.getSeats().get(0).getPassengerName()).isEqualTo("John Doe");
+        assertThat(matrix.getSeats().get(0).getPnr()).isEqualTo("PNR_GRID");
+
+        // Second seat is available
+        assertThat(matrix.getSeats().get(1).getStatus()).isEqualTo("AVAILABLE");
+        assertThat(matrix.getSeats().get(1).getPassengerName()).isNull();
+    }
+
+    @Test
+    @DisplayName("getReservationChart and generateReservationChartCsv return passenger chart data")
+    void getReservationChart_AndCsv_Success() {
+        LocalDate date = LocalDate.of(2026, 11, 10);
+        TrainClass cc = existingTrain.getClasses().get(0);
+
+        Booking booking = new Booking("PNR_CHART", null, existingTrain, cc, date, new BigDecimal("450.00"));
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.addPassenger(new Passenger("Sarah Connor", 29, "Female", "CC-5"));
+
+        when(trainRepository.findById(1L)).thenReturn(Optional.of(existingTrain));
+        when(bookingRepository.findActiveTrainBookingsWithPassengers(1L, date, BookingStatus.CONFIRMED))
+                .thenReturn(List.of(booking));
+
+        ReservationChartDto chart = adminService.getReservationChart(1L, date);
+        assertThat(chart).isNotNull();
+        assertThat(chart.getTotalPassengers()).isEqualTo(1);
+        assertThat(chart.getEntries().get(0).getPassengerName()).isEqualTo("Sarah Connor");
+        assertThat(chart.getEntries().get(0).getSeatNumber()).isEqualTo("CC-5");
+
+        String csv = adminService.generateReservationChartCsv(1L, date);
+        assertThat(csv).contains("PNR,Coach/Class,Seat Number,Passenger Name");
+        assertThat(csv).contains("PNR_CHART,CC,CC-5,Sarah Connor,29,Female,CONFIRMED");
     }
 }

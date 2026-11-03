@@ -1672,6 +1672,8 @@
     }
   });
 
+  const adminCommandCenterLink = document.getElementById('adminCommandCenterLink');
+
   function updateAuthNavUI() {
     const token = getStoredToken();
     if (token && !isTokenExpired(token)) {
@@ -1691,11 +1693,17 @@
         `;
         openLoginModalBtn.setAttribute('title', `Signed in as ${email}. Click to sign out.`);
       }
+      if (adminCommandCenterLink) {
+        adminCommandCenterLink.style.display = (payload && payload.role === 'ROLE_ADMIN') ? 'inline-flex' : 'none';
+      }
       const emailDisplay = document.getElementById('authenticatedUserEmail');
       if (emailDisplay) {
         emailDisplay.textContent = email;
       }
     } else {
+      if (adminCommandCenterLink) {
+        adminCommandCenterLink.style.display = 'none';
+      }
       if (openLoginModalBtn) {
         openLoginModalBtn.innerHTML = `
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

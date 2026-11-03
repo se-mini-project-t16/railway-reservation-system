@@ -452,6 +452,87 @@ class AdminControllerTest {
                 .andExpect(jsonPath("$.message").value(containsString("bookings exist")));
     }
 
+    @Test
+    @DisplayName("Admin retrieves operations dashboard stats (200 OK) with live metrics")
+    void testAdminGetStats_Success() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/stats")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activeFleetTrains").isNumber())
+                .andExpect(jsonPath("$.todayBookings").isNumber())
+                .andExpect(jsonPath("$.averageOccupancyRate").isNumber());
+    }
+
+    @Test
+    @DisplayName("Admin retrieves 2D visual coach seat matrix (200 OK) with cell breakdown")
+    void testAdminGetCoachSeatMatrix_Success() throws Exception {
+        Train train = new Train("12675", "Kovai Express", "Chennai", "Bengaluru",
+                LocalTime.of(6, 10), LocalTime.of(11, 30));
+        train.addClass(new TrainClass("CC", 50, new BigDecimal("450.00")));
+        Train saved = trainRepository.save(train);
+
+        mockMvc.perform(get("/api/v1/admin/trains/" + saved.getId() + "/seat-matrix")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("date", LocalDate.now().plusDays(3).toString())
+                        .param("className", "CC"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trainNo").value("12675"))
+                .andExpect(jsonPath("$.className").value("CC"))
+                .andExpect(jsonPath("$.totalSeats").value(50))
+                .andExpect(jsonPath("$.seats", hasSize(50)))
+                .andExpect(jsonPath("$.seats[0].status").value("AVAILABLE"));
+    }
+
+    @Test
+    @DisplayName("Admin retrieves reservation chart JSON and CSV export (200 OK)")
+    void testAdminGetReservationChartAndCsv_Success() throws Exception {
+        Train train = new Train("12675", "Kovai Express", "Chennai", "Bengaluru",
+                LocalTime.of(6, 10), LocalTime.of(11, 30));
+        TrainClass tc = new TrainClass("CC", 50, new BigDecimal("450.00"));
+        train.addClass(tc);
+        Train savedTrain = trainRepository.save(train);
+
+        Booking booking = new Booking("PNRCHART12", passengerUser, savedTrain, tc, LocalDate.now().plusDays(2), new BigDecimal("450.00"));
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.addPassenger(new Passenger("Charter Pax", 32, "Male", "CC-1"));
+        bookingRepository.save(booking);
+
+        // 1. JSON Chart
+        mockMvc.perform(get("/api/v1/admin/trains/" + savedTrain.getId() + "/chart")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("date", LocalDate.now().plusDays(2).toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trainNo").value("12675"))
+                .andExpect(jsonPath("$.totalPassengers").value(1))
+                .andExpect(jsonPath("$.entries[0].passengerName").value("Charter Pax"))
+                .andExpect(jsonPath("$.entries[0].seatNumber").value("CC-1"));
+
+        // 2. CSV Export
+        mockMvc.perform(get("/api/v1/admin/trains/" + savedTrain.getId() + "/chart/csv")
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("date", LocalDate.now().plusDays(2).toString()))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", containsString("text/csv")))
+                .andExpect(content().string(containsString("PNR,Coach/Class,Seat Number,Passenger Name")))
+                .andExpect(content().string(containsString("PNRCHART12,CC,CC-1,Charter Pax,32,Male,CONFIRMED")));
+    }
+
+    @Test
+    @DisplayName("RRS-SR-004: Passenger receives 403 Forbidden on all new admin endpoints")
+    void testPassengerReceives403OnAdminEndpoints() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/stats")
+                        .header("Authorization", "Bearer " + passengerToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/admin/trains/1/seat-matrix")
+                        .header("Authorization", "Bearer " + passengerToken))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/admin/trains/1/chart")
+                        .header("Authorization", "Bearer " + passengerToken))
+                .andExpect(status().isForbidden());
+    }
+
     private CreateTrainDto sampleCreateDto() {
         return new CreateTrainDto(
                 "54321",

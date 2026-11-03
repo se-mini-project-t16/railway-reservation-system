@@ -98,7 +98,7 @@ public class SecurityConfig {
                 // Payment session initiation and reads require authentication [RRS-SR-006]
                 .requestMatchers(HttpMethod.POST, "/api/v1/payments/initiate").authenticated()
                 .requestMatchers("/api/v1/payments/**").authenticated()
-                .requestMatchers("/", "/index.html", "/payment.html", "/css/**", "/js/**", "/favicon.ico").permitAll()
+                .requestMatchers("/", "/index.html", "/payment.html", "/admin.html", "/css/**", "/js/**", "/favicon.ico").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
