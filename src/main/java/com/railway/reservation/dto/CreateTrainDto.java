@@ -47,6 +47,9 @@ public class CreateTrainDto {
     @Valid
     private List<TrainClassDto> classes = new ArrayList<>();
 
+    @Valid
+    private List<TrainStopDto> stops = new ArrayList<>();
+
     public CreateTrainDto() {}
 
     public CreateTrainDto(String trainNo, String name, String sourceStation, String destinationStation,
@@ -114,5 +117,13 @@ public class CreateTrainDto {
 
     public void setClasses(List<TrainClassDto> classes) {
         this.classes = classes;
+    }
+
+    public List<TrainStopDto> getStops() {
+        return stops;
+    }
+
+    public void setStops(List<TrainStopDto> stops) {
+        this.stops = stops;
     }
 }

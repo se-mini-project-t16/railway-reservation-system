@@ -21,6 +21,7 @@ public class TrainResponseDto {
     private LocalTime arrivalTime;
 
     private List<TrainClassResponseDto> classes = new ArrayList<>();
+    private List<TrainStopDto> stops = new ArrayList<>();
 
     public TrainResponseDto() {}
 
@@ -99,5 +100,13 @@ public class TrainResponseDto {
 
     public void setClasses(List<TrainClassResponseDto> classes) {
         this.classes = classes;
+    }
+
+    public List<TrainStopDto> getStops() {
+        return stops;
+    }
+
+    public void setStops(List<TrainStopDto> stops) {
+        this.stops = stops;
     }
 }

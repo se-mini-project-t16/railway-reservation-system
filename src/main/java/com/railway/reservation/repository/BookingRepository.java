@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +19,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Optional<Booking> findByPnr(String pnr);
     Optional<Booking> findByPnrAndUserId(String pnr, Long userId);
     List<Booking> findByUserIdOrderByCreatedAtDesc(Long userId);
+    long countByStatus(BookingStatus status);
 
     @Query("SELECT b FROM Booking b " +
            "JOIN FETCH b.user " +
@@ -38,6 +40,28 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findForAdminReport(
         @Param("trainNo") String trainNo,
         @Param("journeyDate") LocalDate journeyDate
+    );
+
+    @Query("SELECT DISTINCT b FROM Booking b " +
+           "JOIN FETCH b.train t " +
+           "JOIN FETCH b.trainClass tc " +
+           "LEFT JOIN FETCH b.passengers p " +
+           "WHERE b.train.id = :trainId AND b.journeyDate = :journeyDate " +
+           "AND b.status = :status " +
+           "ORDER BY b.createdAt ASC")
+    List<Booking> findActiveTrainBookingsWithPassengers(
+        @Param("trainId") Long trainId,
+        @Param("journeyDate") LocalDate journeyDate,
+        @Param("status") BookingStatus status
+    );
+
+    @Query("SELECT b FROM Booking b " +
+           "JOIN FETCH b.train t " +
+           "LEFT JOIN FETCH b.payment p " +
+           "WHERE b.createdAt >= :startOfDay AND b.createdAt < :endOfDay")
+    List<Booking> findBookingsCreatedBetween(
+        @Param("startOfDay") LocalDateTime startOfDay,
+        @Param("endOfDay") LocalDateTime endOfDay
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

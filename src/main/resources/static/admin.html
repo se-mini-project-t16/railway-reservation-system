@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Railway Reservation System - Enterprise Operations Command Center. Fleet management, 2D visual coach seat matrix, and reservation charts.">
+  <title>Operations Command Center - Railway Reservation System</title>
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('rrs_theme');
+        var mode = saved ? saved : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-mode', mode);
+      } catch (e) {
+        document.documentElement.setAttribute('data-mode', 'dark');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .admin-nav-tab {
+      padding: 0.625rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--color-muted);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+    .admin-nav-tab:hover {
+      color: var(--color-ink);
+    }
+    .admin-nav-tab.active {
+      color: var(--color-accent);
+      border-bottom-color: var(--color-accent);
+    }
+    .coach-container {
+      background: var(--color-paper-2);
+      border: 1px solid var(--color-rule);
+      border-radius: 6px;
+      padding: 1.25rem;
+      overflow-x: auto;
+    }
+    .coach-floorplan {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-width: 680px;
+    }
+    .coach-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .seat-cell {
+      width: 52px;
+      height: 48px;
+      border: 1px solid var(--color-rule);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-family: var(--font-mono);
+      position: relative;
+      user-select: none;
+      transition: border-color 0.15s ease;
+    }
+    .seat-cell.available {
+      background: var(--color-paper);
+      border-color: var(--color-success);
+      color: var(--color-ink);
+    }
+    .seat-cell.booked {
+      background: var(--color-paper-3);
+      border-color: var(--color-rule);
+      color: var(--color-muted);
+      cursor: pointer;
+    }
+    .seat-cell.booked:hover {
+      border-color: var(--color-accent);
+      color: var(--color-ink);
+    }
+    .seat-cell .seat-tooltip {
+      visibility: hidden;
+      position: absolute;
+      bottom: 110%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      border: 1px solid var(--color-rule);
+      padding: 0.4rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      white-space: nowrap;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .seat-cell.booked:hover .seat-tooltip {
+      visibility: visible;
+    }
+    .aisle-gap {
+      width: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-muted);
+      font-size: 0.7rem;
+    }
+  </style>
+</head>
+<body class="bg-paper text-ink font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="app-header border-b border-rule bg-paper sticky top-0 z-40" role="banner">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <a href="index.html" class="flex items-center gap-2 font-mono font-bold text-sm tracking-tight text-ink hover:text-accent" aria-label="Return to passenger portal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"/>
+            <polyline points="12 19 5 12 12 5"/>
+          </svg>
+          <span>Passenger Portal</span>
+        </a>
+        <span class="text-rule" aria-hidden="true">|</span>
+        <div class="flex items-center gap-2">
+          <div class="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" aria-hidden="true"></div>
+          <span class="font-mono text-sm font-bold text-ink">Operations Command Center</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex items-center gap-2 font-mono text-xs px-2.5 py-1 border border-rule rounded bg-paper-2 text-muted">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span id="adminLiveClock">--:--:--</span>
+        </div>
+
+        <button type="button" class="theme-toggle-btn" id="adminThemeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+          <svg id="adminThemeIconSun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display: none;">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <svg id="adminThemeIconMoon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+
+        <div id="adminUserBadge" class="font-mono text-xs font-semibold px-2.5 py-1 bg-paper-2 border border-rule rounded text-ink hidden sm:block">
+          admin@railway.gov.in
+        </div>
+
+        <button type="button" class="btn btn-sm btn-outline" id="adminLogoutBtn">
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Flash Notification Banner -->
+  <div class="container mx-auto px-4 mt-3" id="adminFlashContainer" aria-live="polite"></div>
+
+  <!-- Admin Login Barrier Modal -->
+  <div class="modal-overlay" id="adminAuthBarrier" role="dialog" aria-modal="true" style="display: none;">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <h2 class="modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <span>Administrator Access Required</span>
+        </h2>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--color-muted); margin-bottom: 1.25rem;">
+        This operations console is restricted to certified railway administration personnel with ROLE_ADMIN privileges.
+      </p>
+      <form id="adminLoginForm">
+        <div class="form-group mb-3">
+          <label for="adminAuthEmail" class="form-label">Admin Email</label>
+          <input type="email" id="adminAuthEmail" class="form-control" value="admin@railway.gov.in" required>
+        </div>
+        <div class="form-group mb-4">
+          <label for="adminAuthPassword" class="form-label">Password</label>
+          <input type="password" id="adminAuthPassword" class="form-control" value="Admin@123" required>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <a href="index.html" class="btn btn-outline">Cancel</a>
+          <button type="submit" class="btn btn-primary" id="adminAuthSubmitBtn">
+            <span id="adminAuthSpinner" class="spinner" style="display: none;" aria-hidden="true"></span>
+            <span>Authenticate</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <main class="container mx-auto px-4 py-6 flex-1 flex flex-col gap-6" id="adminWorkspace">
+
+    <!-- Navigation Tabs -->
+    <nav class="flex border-b border-rule gap-2 overflow-x-auto" aria-label="Operations Navigation">
+      <button type="button" class="admin-nav-tab active" data-tab="tabOverview" id="btnTabOverview">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="9"/>
+          <rect x="14" y="3" width="7" height="5"/>
+          <rect x="14" y="12" width="7" height="9"/>
+          <rect x="3" y="16" width="7" height="5"/>
+        </svg>
+        <span>Operations Overview</span>
+      </button>
+
+      <button type="button" class="admin-nav-tab" data-tab="tabFleet" id="btnTabFleet">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="3" width="16" height="16" rx="2"/>
+          <path d="M4 11h16"/>
+          <path d="M12 3v8"/>
+          <path d="M8 19l-2 3"/>
+          <path d="M16 19l2 3"/>
+        </svg>
+        <span>Fleet Manager</span>
+      </button>
+
+      <button type="button" class="admin-nav-tab" data-tab="tabMatrix" id="btnTabMatrix">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+          <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+        </svg>
+        <span>2D Coach Seat Matrix</span>
+      </button>
+
+      <button type="button" class="admin-nav-tab" data-tab="tabChart" id="btnTabChart">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+        <span>Reservation Manifest</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: OPERATIONS OVERVIEW -->
+    <section id="tabOverview" class="tab-content flex flex-col gap-6">
+      <!-- Live KPI Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="panel p-4 flex flex-col justify-between border-l-4 border-accent">
+          <div class="text-xs text-muted font-mono">Today Confirmed Bookings</div>
+          <div class="text-3xl font-extrabold font-mono text-ink mt-2" id="kpiTodayBookings">0</div>
+          <div class="text-xs text-muted mt-2">Active passenger reservations created today</div>
+        </div>
+
+        <div class="panel p-4 flex flex-col justify-between border-l-4 border-success">
+          <div class="text-xs text-muted font-mono">Today Gross Revenue</div>
+          <div class="text-3xl font-extrabold font-mono text-ink mt-2" id="kpiTodayRevenue">₹0.00</div>
+          <div class="text-xs text-muted mt-2">Settled fare collections across all payment methods</div>
+        </div>
+
+        <div class="panel p-4 flex flex-col justify-between border-l-4 border-rule">
+          <div class="text-xs text-muted font-mono">Active Fleet Trains</div>
+          <div class="text-3xl font-extrabold font-mono text-ink mt-2" id="kpiActiveFleet">0</div>
+          <div class="text-xs text-muted mt-2">Scheduled express, superfast and mail corridors</div>
+        </div>
+
+        <div class="panel p-4 flex flex-col justify-between border-l-4 border-accent-2">
+          <div class="text-xs text-muted font-mono">Average Fleet Occupancy</div>
+          <div class="text-3xl font-extrabold font-mono text-ink mt-2" id="kpiAvgOccupancy">0.0%</div>
+          <div class="text-xs text-muted mt-2">Realized seat utilization across active departures</div>
+        </div>
+      </div>
+
+      <!-- Quick Actions and Secondary Summary -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="panel p-5 lg:col-span-2">
+          <h3 class="text-base font-bold text-ink mb-4 flex items-center justify-between">
+            <span>Operational Health &amp; Audit Logs</span>
+            <button type="button" class="btn btn-sm btn-outline" id="btnRefreshStats">Refresh Metrics</button>
+          </h3>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <div class="p-3 bg-paper-2 rounded border border-rule">
+              <div class="text-xs text-muted font-mono">All-Time Bookings</div>
+              <div class="text-xl font-bold font-mono text-ink mt-1" id="kpiTotalBookings">0</div>
+            </div>
+            <div class="p-3 bg-paper-2 rounded border border-rule">
+              <div class="text-xs text-muted font-mono">All-Time Revenue</div>
+              <div class="text-xl font-bold font-mono text-ink mt-1" id="kpiTotalRevenue">₹0.00</div>
+            </div>
+            <div class="p-3 bg-paper-2 rounded border border-rule">
+              <div class="text-xs text-muted font-mono">Today Cancellations</div>
+              <div class="text-xl font-bold font-mono text-ink mt-1" id="kpiTodayCancellations">0</div>
+            </div>
+            <div class="p-3 bg-paper-2 rounded border border-rule">
+              <div class="text-xs text-muted font-mono">Today Refunds</div>
+              <div class="text-xl font-bold font-mono text-ink mt-1" id="kpiTodayRefunds">₹0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold text-ink mb-2">Fast Actions</h3>
+            <p class="text-xs text-muted mb-4">Direct shortcuts to critical railway dispatch and fleet controls.</p>
+          </div>
+          <div class="flex flex-col gap-2">
+            <button type="button" class="btn btn-primary w-full justify-center" id="btnOverviewAddTrain">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              <span>Add New Train Corridor</span>
+            </button>
+            <button type="button" class="btn btn-outline w-full justify-center" id="btnOverviewViewMatrix">
+              <span>Inspect Coach Seat Matrix</span>
+            </button>
+            <button type="button" class="btn btn-outline w-full justify-center" id="btnOverviewGenerateChart">
+              <span>Generate Passenger Chart</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: FLEET MANAGEMENT -->
+    <section id="tabFleet" class="tab-content flex flex-col gap-4" style="display: none;">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-ink">Railway Fleet Inventory</h2>
+          <p class="text-xs text-muted">Manage scheduled trains, route stops, class capacities, and fares.</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btnOpenAddTrainModal">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Add Train</span>
+        </button>
+      </div>
+
+      <div class="panel overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-rule bg-paper-2 font-mono text-muted">
+              <th class="p-3">Train No</th>
+              <th class="p-3">Train Name</th>
+              <th class="p-3">Route (Origin -> Destination)</th>
+              <th class="p-3">Timings</th>
+              <th class="p-3">Classes &amp; Quotas</th>
+              <th class="p-3">Stops</th>
+              <th class="p-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="fleetTableBody" class="divide-y divide-rule font-sans">
+            <tr>
+              <td colspan="7" class="p-6 text-center text-muted">Loading fleet inventory...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 3: 2D COACH SEAT MATRIX -->
+    <section id="tabMatrix" class="tab-content flex flex-col gap-6" style="display: none;">
+      <div class="panel p-4 flex flex-wrap items-end gap-4 justify-between">
+        <div class="flex flex-wrap items-end gap-4">
+          <div>
+            <label for="matrixTrainSelect" class="form-label text-xs">Select Train</label>
+            <select id="matrixTrainSelect" class="form-control text-xs font-mono"></select>
+          </div>
+          <div>
+            <label for="matrixDateInput" class="form-label text-xs">Journey Date</label>
+            <input type="date" id="matrixDateInput" class="form-control text-xs font-mono">
+          </div>
+          <div>
+            <label for="matrixClassSelect" class="form-label text-xs">Class / Coach</label>
+            <select id="matrixClassSelect" class="form-control text-xs font-mono"></select>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btnLoadMatrix">
+            Load Seat Matrix
+          </button>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex items-center gap-4 text-xs font-mono">
+          <div class="flex items-center gap-1.5">
+            <div class="w-3.5 h-3.5 rounded bg-paper border border-success"></div>
+            <span>Vacant (Available)</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <div class="w-3.5 h-3.5 rounded bg-paper-3 border border-rule"></div>
+            <span>Occupied (Reserved)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Matrix Header Summary -->
+      <div class="panel p-4 flex flex-wrap justify-between items-center gap-4 border-l-4 border-accent" id="matrixSummaryBar">
+        <div>
+          <div class="text-sm font-bold text-ink" id="matrixTrainHeader">Train --</div>
+          <div class="text-xs text-muted" id="matrixRouteHeader">Route: --</div>
+        </div>
+        <div class="flex items-center gap-6 font-mono text-xs">
+          <div>Total Seats: <strong id="matrixTotalSeats" class="text-ink">0</strong></div>
+          <div>Booked: <strong id="matrixBookedSeats" class="text-ink">0</strong></div>
+          <div>Vacant: <strong id="matrixVacantSeats" class="text-success">0</strong></div>
+          <div>Occupancy: <strong id="matrixOccupancyRate" class="text-accent">0.0%</strong></div>
+        </div>
+      </div>
+
+      <!-- Visual Coach Layout -->
+      <div class="coach-container">
+        <div class="coach-floorplan" id="coachFloorplanContainer">
+          <div class="p-8 text-center text-muted text-xs">Select a train and date to inspect its 2D coach floorplan.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: RESERVATION CHARTS & MANIFEST -->
+    <section id="tabChart" class="tab-content flex flex-col gap-4" style="display: none;">
+      <div class="panel p-4 flex flex-wrap items-end justify-between gap-4">
+        <div class="flex flex-wrap items-end gap-4">
+          <div>
+            <label for="chartTrainSelect" class="form-label text-xs">Select Train</label>
+            <select id="chartTrainSelect" class="form-control text-xs font-mono"></select>
+          </div>
+          <div>
+            <label for="chartDateInput" class="form-label text-xs">Journey Date</label>
+            <input type="date" id="chartDateInput" class="form-control text-xs font-mono">
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btnLoadChart">
+            Generate Manifest
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn btn-outline btn-sm" id="btnPrintChart">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 6 2 18 2 18 9"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+            <span>Print Manifest</span>
+          </button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnExportChartCsv">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="panel overflow-x-auto" id="printableManifestArea">
+        <div class="p-4 border-b border-rule flex justify-between items-center bg-paper-2">
+          <div>
+            <h3 class="font-bold text-sm text-ink" id="manifestTrainTitle">Official Train Reservation Chart</h3>
+            <div class="text-xs text-muted" id="manifestTrainSubtitle">Departure schedule and seat allocations</div>
+          </div>
+          <div class="font-mono text-xs text-ink font-semibold" id="manifestPassengerCount">
+            Total Passengers: 0
+          </div>
+        </div>
+
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-rule bg-paper font-mono text-muted">
+              <th class="p-3">PNR</th>
+              <th class="p-3">Coach/Class</th>
+              <th class="p-3">Seat Number</th>
+              <th class="p-3">Passenger Name</th>
+              <th class="p-3">Age / Gender</th>
+              <th class="p-3">Status</th>
+              <th class="p-3">Boarding -> Destination</th>
+            </tr>
+          </thead>
+          <tbody id="chartTableBody" class="divide-y divide-rule font-sans">
+            <tr>
+              <td colspan="7" class="p-6 text-center text-muted">Select a train corridor to view passenger reservation manifest.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Add/Edit Train Modal -->
+  <div class="modal-overlay" id="trainFormModal" role="dialog" aria-modal="true" style="display: none;">
+    <div class="modal-box modal-box-large" style="max-width: 720px; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="trainFormModalTitle">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="3" width="16" height="16" rx="2"/>
+            <path d="M4 11h16"/>
+            <path d="M12 3v8"/>
+          </svg>
+          <span id="trainModalModeText">Add New Train Corridor</span>
+        </h2>
+        <button type="button" class="modal-close" id="btnCloseTrainModalBtn" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <form id="trainForm" style="overflow-y: auto; flex: 1; padding: 0.5rem 0;" class="flex flex-col gap-4">
+        <input type="hidden" id="editTrainId">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="formTrainNo" class="form-label">Train Number *</label>
+            <input type="text" id="formTrainNo" class="form-control font-mono" required placeholder="e.g. 12675">
+          </div>
+          <div class="form-group">
+            <label for="formTrainName" class="form-label">Train Name *</label>
+            <input type="text" id="formTrainName" class="form-control" required placeholder="e.g. Kovai Express">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="formSourceStation" class="form-label">Source Station *</label>
+            <input type="text" id="formSourceStation" class="form-control" required placeholder="e.g. Chennai Central">
+          </div>
+          <div class="form-group">
+            <label for="formDestStation" class="form-label">Destination Station *</label>
+            <input type="text" id="formDestStation" class="form-control" required placeholder="e.g. Coimbatore Junction">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="form-group">
+            <label for="formDepartureTime" class="form-label">Departure Time *</label>
+            <input type="time" step="1" id="formDepartureTime" class="form-control font-mono" required value="06:10:00">
+          </div>
+          <div class="form-group">
+            <label for="formArrivalTime" class="form-label">Arrival Time *</label>
+            <input type="time" step="1" id="formArrivalTime" class="form-control font-mono" required value="11:30:00">
+          </div>
+        </div>
+
+        <!-- Class Quotas Section -->
+        <div>
+          <label class="form-label flex justify-between items-center">
+            <span>Class Quotas &amp; Base Fares *</span>
+            <span class="text-xs text-muted font-normal">Define coach classes for booking</span>
+          </label>
+          <div id="formClassesContainer" class="flex flex-col gap-2">
+            <!-- Dynamic Class Rows -->
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; border-top: var(--rule-hair) solid var(--color-rule); padding-top: 1rem; margin-top: 0.5rem;">
+          <button type="button" class="btn btn-outline" id="btnCancelTrainModalBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveTrainSubmit">
+            <span id="saveTrainSpinner" class="spinner" style="display: none;" aria-hidden="true"></span>
+            <span>Save Train</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer border-t border-rule bg-paper mt-auto" role="contentinfo">
+    <div class="container mx-auto px-4 py-4 flex flex-wrap justify-between items-center text-xs text-muted">
+      <div>Railway Reservation System Operations Console</div>
+      <div>Compliant with RRS-F-015-EXT and Role-Based Security RRS-SR-004</div>
+    </div>
+  </footer>
+
+  <script src="js/admin.js"></script>
+</body>
+</html>
