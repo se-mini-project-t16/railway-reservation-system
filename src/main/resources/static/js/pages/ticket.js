@@ -114,11 +114,11 @@ function openCancel(b, apiBase, onChange) {
     preview.replaceChildren(h('p', { class: 'muted small' }, 'Working out the refund.'));
     try {
       const pv = await api(`${apiBase}/${b.pnr}/cancel/preview`, { method: 'POST', body: { passengerIds: chosen } });
-      preview.replaceChildren(h('table', { class: 'table' },
+      preview.replaceChildren(h('table', { class: 'table table--stack' },
         h('thead', {}, h('tr', {}, h('th', {}, 'Traveller'), h('th', {}, 'Rule'), h('th', { class: 'num' }, 'Fare'), h('th', { class: 'num' }, 'Deduction'), h('th', { class: 'num' }, 'Refund'))),
-        h('tbody', {}, pv.lines.map((l) => h('tr', {}, h('td', {}, l.name), h('td', { class: 'small' }, l.rule),
-          h('td', { class: 'num' }, money(l.fare)), h('td', { class: 'num' }, money(l.deduction)), h('td', { class: 'num' }, money(l.refund))))),
-        h('tfoot', {}, h('tr', {}, h('td', { colspan: 4, class: 'strong' }, 'Refund to your payment method'), h('td', { class: 'num strong' }, money(pv.totalRefund))))));
+        h('tbody', {}, pv.lines.map((l) => h('tr', {}, h('td', { 'data-label': 'Traveller' }, l.name), h('td', { class: 'small', 'data-label': 'Rule' }, l.rule),
+          h('td', { class: 'num', 'data-label': 'Fare' }, money(l.fare)), h('td', { class: 'num', 'data-label': 'Deduction' }, money(l.deduction)), h('td', { class: 'num', 'data-label': 'Refund' }, money(l.refund)))))),
+        h('div', { class: 'row row--between refund-total' }, h('strong', {}, 'Refund to your payment method'), h('strong', {}, money(pv.totalRefund))));
       confirm.textContent = `Cancel and refund ${money(pv.totalRefund)}`;
     } catch (err) {
       preview.replaceChildren(notice('error', 'This cannot be cancelled.', err.message));

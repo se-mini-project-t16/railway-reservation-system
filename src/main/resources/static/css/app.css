@@ -562,3 +562,20 @@ details .fare-lines { margin-top: var(--space-xs); max-width: 20rem; }
   .hero-main .searchboard-grid { grid-template-columns: minmax(0, 1fr); }
   .hero-main .f-class { grid-column: 1; }
 }
+
+/* Softened corners (trial): boxes, controls and dialogs take --radius-card; joined strips stay square */
+.panel, .searchboard, .hero-board, .class-cell, .class-panel, .route-step, .notice, .detail, dialog.dialog,
+.icon-btn, .nav a, .nav button.navlink, .account-menu, .combo-list, .form-errors, .rake span, .tabs [role="tab"], .tabs a, .admin-tabs a { border-radius: var(--radius-card); }
+.searchboard { overflow: hidden; }
+.cells button, .seg label, .date-strip a, .calendar > div, .berth { border-radius: 0; }
+.seg label:first-of-type, .cells button:first-child { border-radius: var(--radius-card) 0 0 var(--radius-card); }
+.seg label:last-of-type, .cells button:last-child { border-radius: 0 var(--radius-card) var(--radius-card) 0; }
+/* A button beside fields that carry a hint line lines up with the inputs, not the hints */
+.toolbar:has(.help) > .btn, .pnr-strip:has(.help) > .btn { margin-bottom: calc(var(--text-sm) * 1.55 + var(--space-2xs)); }
+/* Tab rows: rounded tabs sit inside the row with air above the rule, not on it */
+.admin-tabs { padding-block: var(--space-xs); }
+.admin-tabs .container { gap: var(--space-2xs); }
+.tabs { padding-bottom: var(--space-xs); gap: var(--space-2xs); }
+.refund-total { padding-top: var(--space-sm); border-top: var(--rule-bar) solid var(--color-ink); }
+@media (max-width: 40rem) { .admin-bar .container { gap: var(--space-sm); } }
+@media (max-width: 30rem) { .admin-bar .wordmark span { display: none; } }

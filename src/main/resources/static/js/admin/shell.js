@@ -23,7 +23,6 @@ export async function mountAdmin(active) {
   wm.innerHTML = LOGO;
   wm.append(h('span', {}, 'Operations console'));
   const out = h('button', { type: 'button', class: 'btn', onclick: () => { signOut(); location.assign('/'); } }, 'Sign out');
-  out.classList.add('admin-out');
   bar.replaceChildren(h('div', { class: 'container' }, wm,
     h('span', { class: 'who', style: null }, profile ? profile.email : ''),
     h('div', { class: 'nav-tools' }, h('a', { class: 'btn admin-out', href: '/' }, 'Passenger site'), themeToggle(), out)));

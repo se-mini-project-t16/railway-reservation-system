@@ -14,7 +14,7 @@
   --color-rule: oklch(80% 0.011 250); --color-ink-rule: oklch(34% 0.014 262);
   --color-accent: oklch(51% 0.22 264); --color-accent-2: oklch(81% 0.16 82); --color-accent-ink: oklch(99.5% 0.003 250); --color-focus: oklch(51% 0.22 264);
   --font-display: "Chivo Mono", ui-monospace, monospace; --font-body: var(--font-display); --font-outlier: var(--font-body);
-  --radius-card: 0; --radius-pill: 999px; --rule-hair: 1px; --rule-bar: 2px;
+  --radius-card: 6px; --radius-pill: 999px; --rule-hair: 1px; --rule-bar: 2px;
   --shadow-card: 0 24px 40px -24px oklch(8% 0.01 260 / 0.6);
   --tracking-display: -0.03em; --display-weight: 800;
   /* Departure-board plates: ink fields that carry signs and figures */
@@ -22,7 +22,7 @@
   --color-amber-ink: var(--color-ink);
   --color-overlay: oklch(16% 0.014 262 / 0.55);
   /* App controls sit at 40px with a 44px hit area; public inputs at 48px */
-  --control-h: 40px; --control-h-lg: 48px; --radius-input: 0;
+  --control-h: 40px; --control-h-lg: 48px; --radius-input: 6px;
   --header-h: 64px;
   --color-berth-other: var(--color-paper-2); --color-berth-free-edge: var(--color-ink-rule);
   --body-weight: 400;

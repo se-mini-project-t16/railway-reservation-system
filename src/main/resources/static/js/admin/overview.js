@@ -16,7 +16,7 @@ async function load() {
       h('h2', { id: 'wk', class: 'section-title' }, 'Revenue, last seven days'), bars, labels,
       h('div', { class: 'table-wrap' }, h('table', { class: 'table', style: null },
         h('thead', {}, h('tr', {}, h('th', {}, 'Day'), h('th', { class: 'num' }, 'Bookings'), h('th', { class: 'num' }, 'Travellers'), h('th', { class: 'num' }, 'Revenue'), h('th', { class: 'num' }, 'Refunds'))),
-        h('tbody', {}, [...o.lastWeek].reverse().map((d) => h('tr', {}, h('td', {}, fmtDate(d.date)), h('td', { class: 'num' }, d.bookings),
+        h('tbody', {}, [...o.lastWeek].reverse().map((d) => h('tr', {}, h('td', { class: 'nowrap' }, fmtDate(d.date, { day: 'numeric', month: 'short' })), h('td', { class: 'num' }, d.bookings),
           h('td', { class: 'num' }, d.travellers), h('td', { class: 'num' }, money(d.revenue)), h('td', { class: 'num' }, money(d.refunds))))))));
     const side = h('div', { class: 'stack-lg' },
       h('section', { 'aria-labelledby': 'mix' }, h('h2', { id: 'mix', class: 'section-title' }, 'Travellers by class, this week'),
