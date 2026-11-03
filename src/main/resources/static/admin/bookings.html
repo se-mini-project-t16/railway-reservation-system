@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookings | Operations console</title>
+  <meta name="description" content="Find any booking by PNR, passenger email, train, date or status.">
+  <script src="/js/theme-init.js"></script>
+  <link rel="preload" href="/fonts/chivo-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script type="module" src="/js/admin/bookings.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="admin-bar"></header>
+  <nav class="admin-tabs" aria-label="Console"></nav>
+  <main id="main" class="container page">
+    <div class="page-head"><div><h1>Bookings</h1><p>Search every booking made on the system.</p></div></div>
+    <form class="toolbar" id="bf" novalidate>
+      <div class="field"><label for="b-pnr">PNR</label><input class="input" id="b-pnr" name="pnr" inputmode="numeric" maxlength="10" autocomplete="off"></div>
+      <div class="field"><label for="b-email">Passenger email</label><input class="input" id="b-email" name="email" autocomplete="off"></div>
+      <div class="field"><label for="b-train">Train number</label><input class="input" id="b-train" name="train" inputmode="numeric" maxlength="5" autocomplete="off"></div>
+      <div class="field"><label for="b-date">Journey date</label><input class="input" id="b-date" name="date" type="date"></div>
+      <div class="field"><label for="b-status">Status</label><div class="select-wrap"><select class="select" id="b-status" name="status">
+        <option value="">Any</option><option value="BOOKED">Booked</option><option value="PARTIALLY_CANCELLED">Partly cancelled</option>
+        <option value="CANCELLED">Cancelled</option><option value="PAYMENT_PENDING">Awaiting payment</option>
+        <option value="PAYMENT_FAILED">Payment not completed</option><option value="EXPIRED">Hold expired</option></select></div></div>
+      <button class="btn btn--primary" type="submit">Search</button>
+      <a class="btn btn--quiet" href="/admin/bookings.html">Clear</a>
+    </form>
+    <div id="list" aria-live="polite"><div class="skeleton-row"></div></div>
+  </main>
+</body>
+</html>

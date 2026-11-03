@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Account | Railway Reservation System</title>
+  <meta name="description" content="Your profile, saved travellers and password.">
+  <script src="/js/theme-init.js"></script>
+  <link rel="preload" href="/fonts/chivo-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script type="module" src="/js/pages/account.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header"><div class="container"><a class="wordmark" href="/">Railway Reservation</a></div></header>
+  <main id="main" class="container page">
+    <div class="page-head">
+      <div>
+        <h1>Account</h1>
+        <p id="member"></p>
+      </div>
+    </div>
+    <div class="ticket-grid">
+      <div class="stack">
+        <section class="panel" aria-labelledby="trav-title">
+          <div class="row row--between"><h2 id="trav-title">Saved travellers</h2><button class="btn" type="button" id="add-trav">Add a traveller</button></div>
+          <p class="small muted">Add them to a booking in one tap. Up to 20.</p>
+          <div id="travellers" aria-live="polite"></div>
+        </section>
+      </div>
+      <div class="stack">
+        <section class="panel" aria-labelledby="prof-title">
+          <h2 id="prof-title">Profile</h2>
+          <form id="profile" class="stack" novalidate>
+            <div class="field"><label for="p-name">Full name</label><input class="input" id="p-name" name="name" autocomplete="name" maxlength="100" aria-describedby="p-name-help"><span class="help" id="p-name-help"></span></div>
+            <div class="field"><label for="p-email">Email</label><input class="input" id="p-email" disabled><span class="help" data-hint="Your sign-in email cannot be changed.">Your sign-in email cannot be changed.</span></div>
+            <div class="field"><label for="p-phone">Mobile number</label><input class="input" id="p-phone" name="phone" inputmode="numeric" maxlength="10" autocomplete="tel-national" aria-describedby="p-phone-help"><span class="help" id="p-phone-help"></span></div>
+            <div id="p-msg" role="status"></div>
+            <button class="btn btn--primary" type="submit">Save profile</button>
+          </form>
+        </section>
+        <section class="panel" aria-labelledby="pw-title">
+          <h2 id="pw-title">Password</h2>
+          <form id="password" class="stack" novalidate>
+            <div class="field"><label for="pw-cur">Current password</label><input class="input" id="pw-cur" name="currentPassword" type="password" autocomplete="current-password" aria-describedby="pw-cur-help"><span class="help" id="pw-cur-help"></span></div>
+            <div class="field"><label for="pw-new">New password</label><input class="input" id="pw-new" name="newPassword" type="password" autocomplete="new-password" minlength="8" aria-describedby="pw-new-help"><span class="help" id="pw-new-help" data-hint="At least 8 characters.">At least 8 characters.</span></div>
+            <div id="pw-msg" role="status"></div>
+            <button class="btn" type="submit">Change password</button>
+          </form>
+        </section>
+      </div>
+    </div>
+  </main>
+  <footer class="site-footer"></footer>
+</body>
+</html>

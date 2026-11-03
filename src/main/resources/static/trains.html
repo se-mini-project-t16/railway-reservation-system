@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trains | Railway Reservation System</title>
+  <meta name="description" content="Trains between two stations with berth availability and fares by class.">
+  <script src="/js/theme-init.js"></script>
+  <link rel="preload" href="/fonts/chivo-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script type="module" src="/js/pages/trains.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header"><div class="container"><a class="wordmark" href="/">Railway Reservation</a></div></header>
+  <main id="main">
+    <section class="query-bar" aria-label="Change search">
+      <div class="container">
+        <form id="search" action="/trains.html" method="get" novalidate>
+          <div class="field">
+            <label for="from">From</label>
+            <input class="input" id="from" name="from" placeholder="Station or code" required aria-describedby="from-help">
+            <span class="help" id="from-help"></span>
+          </div>
+          <button class="icon-btn swap" type="button" id="swap" aria-label="Swap departure and arrival stations"></button>
+          <div class="field">
+            <label for="to">To</label>
+            <input class="input" id="to" name="to" placeholder="Station or code" required aria-describedby="to-help">
+            <span class="help" id="to-help"></span>
+          </div>
+          <div class="field">
+            <label for="date">Journey date</label>
+            <input class="input" id="date" name="date" type="date" required aria-describedby="date-help">
+            <span class="help" id="date-help"></span>
+          </div>
+          <div class="field">
+            <label for="quota">Quota</label>
+            <div class="select-wrap">
+              <select class="select" id="quota" name="quota">
+                <option value="GN">General</option>
+                <option value="TQ">Tatkal</option>
+              </select>
+            </div>
+            <span class="help"></span>
+          </div>
+          <input type="hidden" name="nearby" id="nearby-field">
+          <button class="btn btn--primary q-submit" type="submit">Search</button>
+        </form>
+      </div>
+    </section>
+    <div class="container"><nav class="date-strip" id="date-strip" aria-label="Other dates"></nav></div>
+
+    <div class="container results-layout">
+      <aside class="filters" id="filters" aria-label="Filter trains">
+        <button class="btn filters-toggle" type="button" aria-expanded="false" aria-controls="filters-body" id="filters-toggle">Filters and sort</button>
+        <div class="filters-body" id="filters-body">
+          <fieldset>
+            <legend>Sort by</legend>
+            <div class="select-wrap">
+              <select class="select" id="sort" aria-label="Sort by">
+                <option value="dep">Departure time</option>
+                <option value="arr">Arrival time</option>
+                <option value="dur">Shortest journey</option>
+                <option value="fare">Lowest fare</option>
+              </select>
+            </div>
+          </fieldset>
+          <fieldset id="f-class"><legend>Class</legend></fieldset>
+          <fieldset id="f-time">
+            <legend>Departs</legend>
+            <label class="check"><input type="checkbox" value="0"> Before 06:00</label>
+            <label class="check"><input type="checkbox" value="1"> 06:00 to 12:00</label>
+            <label class="check"><input type="checkbox" value="2"> 12:00 to 18:00</label>
+            <label class="check"><input type="checkbox" value="3"> After 18:00</label>
+          </fieldset>
+          <fieldset id="f-type"><legend>Train type</legend></fieldset>
+          <fieldset>
+            <legend>Availability</legend>
+            <label class="check"><input type="checkbox" id="f-avl"> Berths available now</label>
+            <label class="check"><input type="checkbox" id="f-nearby"> Other stations in the same city</label>
+          </fieldset>
+        </div>
+      </aside>
+      <section aria-labelledby="results-title">
+        <div class="results-head">
+          <div>
+            <h1 id="results-title">Trains</h1>
+            <p id="results-sub"></p>
+          </div>
+        </div>
+        <div id="results" aria-live="polite" aria-busy="true">
+          <div class="skeleton-row"></div><div class="skeleton-row"></div><div class="skeleton-row"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer class="site-footer"></footer>
+</body>
+</html>
