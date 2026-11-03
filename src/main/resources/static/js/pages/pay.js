@@ -5,7 +5,6 @@ import { $, h, money, fmtDate, params, notice, setBusy, setFieldError, clearFiel
 
 const pnr = (params().get('pnr') || '').replace(/\D/g, '');
 const root = $('#pay-root');
-let booking;
 let timer;
 
 function summary(b) {
@@ -187,7 +186,6 @@ async function load() {
   }
   try {
     const [b, banks] = await Promise.all([api(`/bookings/${pnr}`), api('/payments/banks')]);
-    booking = b;
     setTitle(`Pay for PNR ${b.pnr}`);
     if (b.status === 'BOOKED' || b.status === 'PARTIALLY_CANCELLED' || b.status === 'CANCELLED') { location.replace(`/ticket.html?pnr=${b.pnr}`); return; }
     if (b.status !== 'PAYMENT_PENDING') { closed(b); return; }
@@ -201,4 +199,3 @@ if (requireSignIn()) {
   mountShell();
   load();
 }
-void booking;

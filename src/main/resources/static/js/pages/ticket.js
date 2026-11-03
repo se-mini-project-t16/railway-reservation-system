@@ -1,7 +1,7 @@
 import { mountShell } from '../core/shell.js';
 import { api } from '../core/api.js';
 import { requireSignIn } from '../core/session.js';
-import { $, $$, h, icon, money, fmtDate, fmtDateLong, fmtDateTime, duration, params, notice, setBusy, statusChip,
+import { $, h, icon, money, fmtDate, fmtDateLong, fmtDateTime, duration, params, notice, setBusy, statusChip,
   bookingStatusChip, BERTHS, GENDERS, setTitle } from '../core/ui.js';
 
 const q = params();
@@ -168,4 +168,3 @@ if (location.pathname === '/ticket.html' && requireSignIn()) {
   mountShell();
   load();
 }
-void $$;
