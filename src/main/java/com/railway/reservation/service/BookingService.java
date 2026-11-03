@@ -2,10 +2,17 @@ package com.railway.reservation.service;
 
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
+import com.railway.reservation.dto.FareBreakdownDto;
+import com.railway.reservation.dto.PassengerDto;
 import com.railway.reservation.dto.PnrStatusResponseDto;
 import java.util.List;
 
 public interface BookingService {
+
+    /**
+     * Calculates authoritative itemized fare breakdown and senior citizen concession (RRS-F-007-EXT).
+     */
+    FareBreakdownDto calculateFareQuote(Long classId, List<PassengerDto> passengers);
 
     /**
      * Reserves seats, validates passenger details, calculates total fare,

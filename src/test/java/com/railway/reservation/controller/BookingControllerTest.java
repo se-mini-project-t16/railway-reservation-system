@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
+import com.railway.reservation.dto.FareBreakdownDto;
+import com.railway.reservation.dto.FareQuoteRequestDto;
 import com.railway.reservation.dto.PassengerDto;
 import com.railway.reservation.dto.PnrStatusResponseDto;
 import com.railway.reservation.exception.PaymentNotVerifiedException;
@@ -36,6 +38,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -658,6 +661,56 @@ class BookingControllerTest {
 
         verify(bookingService).getBookingHistory(101L);
         verify(bookingService, never()).getBookingHistory(eq(102L));
+    }
+
+    @Test
+    @DisplayName("TC-BKG-01: POST /api/v1/bookings/fare-quote returns 200 OK with authoritative breakdown [RRS-F-007-EXT]")
+    void testFareQuote_Success() throws Exception {
+        FareQuoteRequestDto request = new FareQuoteRequestDto(
+                100L,
+                List.of(new PassengerDto("Alice Smith", 65, "Female", null, "LOWER", "VEG", true))
+        );
+
+        FareBreakdownDto mockQuote = new FareBreakdownDto(
+                1, BigDecimal.valueOf(1150.00), BigDecimal.valueOf(1028.57),
+                BigDecimal.valueOf(30.00), BigDecimal.valueOf(40.00),
+                BigDecimal.valueOf(51.43), BigDecimal.valueOf(411.43),
+                BigDecimal.valueOf(738.57), 1, true
+        );
+
+        when(bookingService.calculateFareQuote(eq(100L), anyList())).thenReturn(mockQuote);
+
+        mockMvc.perform(post("/api/v1/bookings/fare-quote")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.passengerCount").value(1))
+                .andExpect(jsonPath("$.farePerSeat").value(1150.0))
+                .andExpect(jsonPath("$.baseFare").value(1028.57))
+                .andExpect(jsonPath("$.superfastCharge").value(30.0))
+                .andExpect(jsonPath("$.reservationFee").value(40.0))
+                .andExpect(jsonPath("$.gst").value(51.43))
+                .andExpect(jsonPath("$.seniorDiscount").value(411.43))
+                .andExpect(jsonPath("$.totalFare").value(738.57))
+                .andExpect(jsonPath("$.eligibleSeniorCount").value(1))
+                .andExpect(jsonPath("$.ac").value(true));
+
+        verify(bookingService).calculateFareQuote(eq(100L), anyList());
+    }
+
+    @Test
+    @DisplayName("TC-BKG-01 (Negative): POST /api/v1/bookings/fare-quote without classId returns 400 Bad Request")
+    void testFareQuote_MissingClassId_Returns400() throws Exception {
+        FareQuoteRequestDto request = new FareQuoteRequestDto(
+                null,
+                List.of(new PassengerDto("Alice Smith", 30, "Female"))
+        );
+
+        mockMvc.perform(post("/api/v1/bookings/fare-quote")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
     }
 
     @ParameterizedTest

@@ -23,6 +23,14 @@ public class PassengerDto {
 
     private String seatNo;
 
+    @SafeText
+    private String berthPreference = "NO_PREFERENCE";
+
+    @SafeText
+    private String mealPreference = "NO_FOOD";
+
+    private Boolean seniorConcession = false;
+
     public PassengerDto() {}
 
     public PassengerDto(String name, int age, String gender) {
@@ -38,6 +46,16 @@ public class PassengerDto {
         this.seatNo = seatNo;
     }
 
+    public PassengerDto(String name, int age, String gender, String seatNo, String berthPreference, String mealPreference, Boolean seniorConcession) {
+        this.name = name;
+        this.age = age;
+        this.gender = gender;
+        this.seatNo = seatNo;
+        this.berthPreference = berthPreference != null ? berthPreference : "NO_PREFERENCE";
+        this.mealPreference = mealPreference != null ? mealPreference : "NO_FOOD";
+        this.seniorConcession = Boolean.TRUE.equals(seniorConcession);
+    }
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -49,5 +67,14 @@ public class PassengerDto {
 
     public String getSeatNo() { return seatNo; }
     public void setSeatNo(String seatNo) { this.seatNo = seatNo; }
+
+    public String getBerthPreference() { return berthPreference; }
+    public void setBerthPreference(String berthPreference) { this.berthPreference = berthPreference; }
+
+    public String getMealPreference() { return mealPreference; }
+    public void setMealPreference(String mealPreference) { this.mealPreference = mealPreference; }
+
+    public Boolean getSeniorConcession() { return seniorConcession; }
+    public void setSeniorConcession(Boolean seniorConcession) { this.seniorConcession = seniorConcession; }
 }
 

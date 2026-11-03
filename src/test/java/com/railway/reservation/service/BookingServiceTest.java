@@ -2,6 +2,7 @@ package com.railway.reservation.service;
 
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
+import com.railway.reservation.dto.FareBreakdownDto;
 import com.railway.reservation.dto.PassengerDto;
 import com.railway.reservation.dto.PaymentSessionDto;
 import com.railway.reservation.dto.PnrStatusResponseDto;
@@ -465,5 +466,105 @@ class BookingServiceTest {
     void testGetBookingHistory_NullUserId() {
         assertThrows(IllegalArgumentException.class, () -> bookingService.getBookingHistory(null));
         verify(bookingRepository, never()).findByUserIdOrderByJourneyDateDescCreatedAtDesc(anyLong());
+    }
+
+    @Test
+    @DisplayName("TC-BKG-01: Calculate authoritative fare quote with itemized breakdown and AC GST [RRS-F-007-EXT]")
+    void testCalculateFareQuote_AcClassBreakdown() {
+        when(trainClassRepository.findById(100L)).thenReturn(Optional.of(sampleClass));
+
+        List<PassengerDto> passengers = List.of(
+                new PassengerDto("Senior Citizen", 65, "Female", null, "LOWER", "VEG", true),
+                new PassengerDto("Regular Pax", 32, "Male", null, "UPPER", "NON_VEG", false)
+        );
+
+        FareBreakdownDto quote = bookingService.calculateFareQuote(100L, passengers);
+
+        assertNotNull(quote);
+        assertEquals(2, quote.getPassengerCount());
+        assertEquals(1, quote.getEligibleSeniorCount());
+        assertTrue(quote.isAc());
+        assertEquals(BigDecimal.valueOf(1150.00).setScale(2), quote.getFarePerSeat());
+        // For AC fare 1150: resFee=40, sfCharge=30, taxable=1080 -> base=1028.57, gst=51.43
+        // Senior concession: 40% of 1028.57 = 411.43
+        assertNotNull(quote.getBaseFare());
+        assertNotNull(quote.getSuperfastCharge());
+        assertNotNull(quote.getReservationFee());
+        assertNotNull(quote.getGst());
+        assertNotNull(quote.getSeniorDiscount());
+        assertEquals(BigDecimal.valueOf(411.43), quote.getSeniorDiscount());
+        // Total payable: 2300.00 - 411.43 = 1888.57
+        assertEquals(BigDecimal.valueOf(1888.57), quote.getTotalFare());
+    }
+
+    @Test
+    @DisplayName("TC-BKG-02: Create booking persists berth, meal, concession, and stores itemized fare breakdown [RRS-F-007-EXT]")
+    void testCreateBooking_WithPreferencesAndSeniorConcession() {
+        BookingRequestDto request = new BookingRequestDto(
+                1L, 10L, 100L, LocalDate.now().plusDays(2),
+                List.of(
+                        new PassengerDto("Elderly Walker", 68, "Female", null, "LOWER", "VEG", true)
+                )
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleUser));
+        when(trainRepository.findById(10L)).thenReturn(Optional.of(sampleTrain));
+        when(trainClassRepository.findById(100L)).thenReturn(Optional.of(sampleClass));
+        when(bookingRepository.countBookedSeats(eq(10L), eq(100L), any(LocalDate.class), anyList())).thenReturn(0);
+        when(bookingRepository.findActiveSeatNumbers(eq(10L), eq(100L), any(LocalDate.class), anyList())).thenReturn(List.of());
+        when(bookingRepository.findByPnr(anyString())).thenReturn(Optional.empty());
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(inv -> {
+            Booking b = inv.getArgument(0);
+            b.setId(777L);
+            return b;
+        });
+
+        PaymentSessionDto mockPayment = new PaymentSessionDto(
+                1L, "TXN-CONCESSION", "PNRCONCESS", BigDecimal.valueOf(738.57),
+                "PENDING", "/payment.html?pnr=PNRCONCESS", "GATEWAY", "12601",
+                "Mangalore Mail", "Chennai Central", "Mangalore Central",
+                LocalDate.now().plusDays(2), 1, LocalDateTime.now()
+        );
+        when(paymentService.initiatePaymentSession(any(Booking.class))).thenReturn(mockPayment);
+
+        BookingResponseDto response = bookingService.createBooking(request);
+
+        assertNotNull(response);
+        assertEquals(1, response.getPassengers().size());
+        PassengerDto p = response.getPassengers().get(0);
+        assertEquals("Elderly Walker", p.getName());
+        assertEquals("LOWER", p.getBerthPreference());
+        assertEquals("VEG", p.getMealPreference());
+        assertTrue(p.getSeniorConcession());
+
+        // Check fare breakdown in response
+        assertNotNull(response.getBaseFare());
+        assertNotNull(response.getSuperfastCharge());
+        assertNotNull(response.getReservationFee());
+        assertNotNull(response.getGst());
+        assertEquals(BigDecimal.valueOf(411.43), response.getSeniorDiscount());
+        assertEquals(BigDecimal.valueOf(738.57), response.getTotalFare());
+
+        verify(passengerRepository).save(any(Passenger.class));
+    }
+
+    @Test
+    @DisplayName("TC-BKG-03 (Negative): Reject senior concession attempt when passenger age is under 60 [RRS-SR-003]")
+    void testCreateBooking_UnderageSeniorConcession_ThrowsException() {
+        BookingRequestDto request = new BookingRequestDto(
+                1L, 10L, 100L, LocalDate.now().plusDays(2),
+                List.of(
+                        new PassengerDto("Young Pax", 45, "Male", null, "WINDOW", "NON_VEG", true)
+                )
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sampleUser));
+        when(trainRepository.findById(10L)).thenReturn(Optional.of(sampleTrain));
+        when(trainClassRepository.findById(100L)).thenReturn(Optional.of(sampleClass));
+        when(bookingRepository.countBookedSeats(eq(10L), eq(100L), any(LocalDate.class), anyList())).thenReturn(0);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> bookingService.createBooking(request));
+        assertTrue(ex.getMessage().contains("Senior citizen concession is only valid for passengers aged 60 and above"));
+        verify(bookingRepository, never()).save(any(Booking.class));
     }
 }

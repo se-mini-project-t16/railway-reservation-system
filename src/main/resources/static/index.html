@@ -287,45 +287,87 @@
             <span class="invalid-feedback" id="userIdError" style="display: none; margin-top: 0.35rem;">Please sign in with a valid account.</span>
           </div>
 
-          <!-- Passenger Rows -->
-          <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem;">Passenger List (Max 6)</h3>
-          <div style="overflow-x: auto;">
-            <table class="passenger-table" id="passengersTable">
-              <thead>
-                <tr>
-                  <th style="width: 5%;">#</th>
-                  <th style="width: 45%;">Full Name <span class="required">*</span></th>
-                  <th style="width: 20%;">Age (1-120) <span class="required">*</span></th>
-                  <th style="width: 20%;">Gender <span class="required">*</span></th>
-                  <th style="width: 10%; text-align: center;">Action</th>
-                </tr>
-              </thead>
-              <tbody id="passengerRowsContainer">
-                <!-- Dynamically generated rows -->
-              </tbody>
-            </table>
-          </div>
+          <div class="booking-grid">
+            <div class="booking-main">
+              <!-- Passenger Rows -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <h3 style="font-size: 1.05rem; font-weight: 700; margin: 0;">Passenger List (Max 6)</h3>
+                <span class="field-hint" style="margin: 0;">Senior concessions automatically verified by age (60+)</span>
+              </div>
+              <div style="overflow-x: auto;">
+                <table class="passenger-table" id="passengersTable">
+                  <thead>
+                    <tr>
+                      <th style="width: 4%;">#</th>
+                      <th style="width: 25%;">Full Name <span class="required">*</span></th>
+                      <th style="width: 13%;">Age <span class="required">*</span></th>
+                      <th style="width: 14%;">Gender <span class="required">*</span></th>
+                      <th style="width: 16%;">Berth</th>
+                      <th style="width: 14%;">Meal</th>
+                      <th style="width: 8%; text-align: center;">Senior</th>
+                      <th style="width: 6%; text-align: center;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="passengerRowsContainer">
+                    <!-- Dynamically generated rows -->
+                  </tbody>
+                </table>
+              </div>
 
-          <div style="margin-bottom: 1.25rem;">
-            <button type="button" class="btn btn-secondary btn-sm" id="addPassengerBtn">
-              + Add Another Passenger
-            </button>
-          </div>
-
-          <!-- Live Fare Total and Booking Submit -->
-          <div class="summary-box">
-            <div>
-              <div style="font-size: 0.9rem; color: #166534;">Total Journey Fare:</div>
-              <div class="summary-total" id="totalFareDisplay">₹0.00</div>
-              <div style="font-size: 0.8rem; color: #166534;" id="passengerCountSummary">1 Passenger</div>
+              <div style="margin-bottom: 1.25rem;">
+                <button type="button" class="btn btn-secondary btn-sm" id="addPassengerBtn">
+                  + Add Another Passenger
+                </button>
+              </div>
             </div>
 
-            <div style="display: flex; gap: 0.75rem;">
-              <button type="button" class="btn btn-secondary" id="cancelBookingStepBtn">Cancel</button>
-              <button type="submit" class="btn btn-success" id="confirmBookingBtn">
-                <span id="bookingBtnSpinner" class="spinner" style="display: none;" aria-hidden="true"></span>
-                <span id="bookingBtnText">Confirm &amp; Book Ticket</span>
-              </button>
+            <!-- Sticky Commercial Fare Summary Card -->
+            <div class="booking-sidebar">
+              <div class="fare-breakdown-card" id="fareBreakdownCard">
+                <div class="fare-breakdown-header">
+                  <h3 class="fare-breakdown-title">Fare Breakdown</h3>
+                  <span class="fare-live-badge">Live Quote</span>
+                </div>
+
+                <div class="fare-breakdown-rows">
+                  <div class="fare-breakdown-row">
+                    <span class="fare-label">Base Fare (<span id="farePassengerCount">1</span> pax)</span>
+                    <span class="fare-val" id="breakdownBaseFare">₹0.00</span>
+                  </div>
+                  <div class="fare-breakdown-row">
+                    <span class="fare-label">Superfast Charge</span>
+                    <span class="fare-val" id="breakdownSuperfastCharge">₹0.00</span>
+                  </div>
+                  <div class="fare-breakdown-row">
+                    <span class="fare-label">Reservation Fee</span>
+                    <span class="fare-val" id="breakdownReservationFee">₹0.00</span>
+                  </div>
+                  <div class="fare-breakdown-row">
+                    <span class="fare-label">GST (5%)</span>
+                    <span class="fare-val" id="breakdownGst">₹0.00</span>
+                  </div>
+                  <div class="fare-breakdown-row fare-senior-row" id="breakdownSeniorRow" style="display: none;">
+                    <span class="fare-label">Senior Concession (40%) <span id="seniorCountBadge" class="badge-subtle">0</span></span>
+                    <span class="fare-val" id="breakdownSeniorDiscount">-₹0.00</span>
+                  </div>
+                </div>
+
+                <div class="fare-breakdown-total">
+                  <div>
+                    <div class="fare-total-label">Total Payable</div>
+                    <div class="fare-total-sub" id="passengerCountSummary">1 Passenger</div>
+                  </div>
+                  <div class="summary-total" id="totalFareDisplay">₹0.00</div>
+                </div>
+
+                <div class="fare-actions">
+                  <button type="submit" class="btn btn-primary" id="confirmBookingBtn">
+                    <span id="bookingBtnSpinner" class="spinner" style="display: none;" aria-hidden="true"></span>
+                    <span id="bookingBtnText">Confirm &amp; Book Ticket</span>
+                  </button>
+                  <button type="button" class="btn btn-secondary" id="cancelBookingStepBtn">Cancel</button>
+                </div>
+              </div>
             </div>
           </div>
         </form>
@@ -398,6 +440,7 @@
                 <th>Passenger Name</th>
                 <th>Age</th>
                 <th>Gender</th>
+                <th>Preferences</th>
                 <th>Status</th>
               </tr>
             </thead>

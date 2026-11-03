@@ -3,6 +3,7 @@ package com.railway.reservation.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.railway.reservation.dto.BookingRequestDto;
+import com.railway.reservation.dto.FareQuoteRequestDto;
 import com.railway.reservation.dto.PassengerDto;
 import com.railway.reservation.dto.RegisterRequestDto;
 import com.railway.reservation.model.Booking;
@@ -39,6 +40,7 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -166,7 +168,15 @@ class BookingUiIntegrationTest {
                 .andExpect(content().string(containsString("id=\"routeModal\"")))
                 .andExpect(content().string(containsString("id=\"chipDateToday\"")))
                 .andExpect(content().string(containsString("id=\"chipDateTomorrow\"")))
-                .andExpect(content().string(containsString("id=\"chipDateWeekend\"")));
+                .andExpect(content().string(containsString("id=\"chipDateWeekend\"")))
+                // RRS-F-007-EXT: Sticky commercial fare summary card & breakdown elements
+                .andExpect(content().string(containsString("id=\"fareBreakdownCard\"")))
+                .andExpect(content().string(containsString("id=\"breakdownBaseFare\"")))
+                .andExpect(content().string(containsString("id=\"breakdownSuperfastCharge\"")))
+                .andExpect(content().string(containsString("id=\"breakdownReservationFee\"")))
+                .andExpect(content().string(containsString("id=\"breakdownGst\"")))
+                .andExpect(content().string(containsString("id=\"breakdownSeniorRow\"")))
+                .andExpect(content().string(containsString("id=\"breakdownSeniorDiscount\"")));
     }
 
     @Test
@@ -400,5 +410,75 @@ class BookingUiIntegrationTest {
         Payment payment = new Payment(booking, booking.getTotalFare(), "TXN-" + pnr, paymentStatus);
         paymentRepository.save(payment);
         booking.setPayment(payment);
+    }
+
+    @Test
+    @DisplayName("TC-BKG-01: End-to-end fare quote preview returns itemized breakdown [RRS-F-007-EXT]")
+    void testFareQuoteEndpoint_EndToEndIntegration() throws Exception {
+        FareQuoteRequestDto quoteRequest = new FareQuoteRequestDto(
+                ccClass.getId(),
+                List.of(
+                        new PassengerDto("Ramesh Kumar", 64, "Male", null, "LOWER", "VEG", true),
+                        new PassengerDto("Priya Kumar", 30, "Female", null, "UPPER", "NON_VEG", false)
+                )
+        );
+
+        mockMvc.perform(post("/api/v1/bookings/fare-quote")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(quoteRequest)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.passengerCount").value(2))
+                .andExpect(jsonPath("$.farePerSeat").value(450.0))
+                .andExpect(jsonPath("$.eligibleSeniorCount").value(1))
+                .andExpect(jsonPath("$.baseFare").exists())
+                .andExpect(jsonPath("$.superfastCharge").exists())
+                .andExpect(jsonPath("$.reservationFee").exists())
+                .andExpect(jsonPath("$.gst").exists())
+                .andExpect(jsonPath("$.seniorDiscount").exists())
+                .andExpect(jsonPath("$.totalFare").exists());
+    }
+
+    @Test
+    @DisplayName("TC-BKG-02: End-to-end booking stores berth preference, meal choice, and senior concession [RRS-F-007-EXT]")
+    void testCreateBooking_EndToEnd_WithPreferencesAndConcession() throws Exception {
+        String token = jwtService.generateToken(testUser);
+
+        BookingRequestDto bookingRequest = new BookingRequestDto(
+                testUser.getId(),
+                savedTrain.getId(),
+                ccClass.getId(),
+                LocalDate.now().plusDays(4),
+                List.of(
+                        new PassengerDto("Venkatesh Rao", 67, "Male", null, "SIDE_LOWER", "VEG", true)
+                )
+        );
+
+        MvcResult result = mockMvc.perform(post("/api/v1/bookings")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(bookingRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.pnr").exists())
+                .andExpect(jsonPath("$.passengers[0].berthPreference").value("SIDE_LOWER"))
+                .andExpect(jsonPath("$.passengers[0].mealPreference").value("VEG"))
+                .andExpect(jsonPath("$.passengers[0].seniorConcession").value(true))
+                .andExpect(jsonPath("$.seniorDiscount").exists())
+                .andReturn();
+
+        String responseJson = result.getResponse().getContentAsString();
+        String createdPnr = objectMapper.readTree(responseJson).get("pnr").asText();
+
+        Booking persisted = bookingRepository.findByPnr(createdPnr).orElseThrow();
+        assertEquals(1, persisted.getPassengers().size());
+        Passenger passenger = persisted.getPassengers().get(0);
+        assertEquals("SIDE_LOWER", passenger.getBerthPreference());
+        assertEquals("VEG", passenger.getMealPreference());
+        assertTrue(passenger.getSeniorConcession());
+        assertNotNull(persisted.getBaseFare());
+        assertNotNull(persisted.getSuperfastCharge());
+        assertNotNull(persisted.getReservationFee());
+        assertNotNull(persisted.getGst());
+        assertNotNull(persisted.getSeniorDiscount());
     }
 }

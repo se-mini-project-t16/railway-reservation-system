@@ -74,6 +74,16 @@
   const bookingBtnSpinner = document.getElementById('bookingBtnSpinner');
   const bookingBtnText = document.getElementById('bookingBtnText');
 
+  // Commercial Fare Breakdown [RRS-F-007-EXT]
+  const breakdownBaseFare = document.getElementById('breakdownBaseFare');
+  const breakdownSuperfastCharge = document.getElementById('breakdownSuperfastCharge');
+  const breakdownReservationFee = document.getElementById('breakdownReservationFee');
+  const breakdownGst = document.getElementById('breakdownGst');
+  const breakdownSeniorRow = document.getElementById('breakdownSeniorRow');
+  const breakdownSeniorDiscount = document.getElementById('breakdownSeniorDiscount');
+  const seniorCountBadge = document.getElementById('seniorCountBadge');
+  const farePassengerCount = document.getElementById('farePassengerCount');
+
   // Confirmation Section
   const confirmationSection = document.getElementById('confirmationSection');
   const confirmationHeading = document.getElementById('confirmationHeading');
@@ -962,6 +972,76 @@
     tdGender.appendChild(genderSelect);
     tr.appendChild(tdGender);
 
+    // Berth Preference
+    const tdBerth = document.createElement('td');
+    const berthSelect = document.createElement('select');
+    berthSelect.className = 'form-control passenger-berth';
+    berthSelect.setAttribute('aria-label', `Passenger ${rowId} berth preference`);
+    const berthOptions = [
+      { val: 'NO_PREFERENCE', label: 'No Preference' },
+      { val: 'LOWER', label: 'Lower Berth' },
+      { val: 'MIDDLE', label: 'Middle Berth' },
+      { val: 'UPPER', label: 'Upper Berth' },
+      { val: 'SIDE_LOWER', label: 'Side Lower' },
+      { val: 'SIDE_UPPER', label: 'Side Upper' },
+      { val: 'WINDOW', label: 'Window Seat' }
+    ];
+    berthOptions.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.val;
+      opt.textContent = b.label;
+      berthSelect.appendChild(opt);
+    });
+    tdBerth.appendChild(berthSelect);
+    tr.appendChild(tdBerth);
+
+    // Meal Choice
+    const tdMeal = document.createElement('td');
+    const mealSelect = document.createElement('select');
+    mealSelect.className = 'form-control passenger-meal';
+    mealSelect.setAttribute('aria-label', `Passenger ${rowId} meal choice`);
+    const mealOptions = [
+      { val: 'NO_FOOD', label: 'No Food' },
+      { val: 'VEG', label: 'Vegetarian' },
+      { val: 'NON_VEG', label: 'Non-Veg' }
+    ];
+    mealOptions.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.val;
+      opt.textContent = m.label;
+      mealSelect.appendChild(opt);
+    });
+    tdMeal.appendChild(mealSelect);
+    tr.appendChild(tdMeal);
+
+    // Senior Citizen Discount Checkbox
+    const tdSenior = document.createElement('td');
+    tdSenior.className = 'senior-checkbox-wrapper';
+    const seniorCheck = document.createElement('input');
+    seniorCheck.type = 'checkbox';
+    seniorCheck.className = 'senior-checkbox passenger-senior-check';
+    seniorCheck.title = 'Available for age 60 and above (40% concession on base fare)';
+    seniorCheck.setAttribute('aria-label', `Passenger ${rowId} senior citizen concession`);
+    seniorCheck.disabled = true; // disabled until age >= 60
+    tdSenior.appendChild(seniorCheck);
+    tr.appendChild(tdSenior);
+
+    // Listeners on age to toggle senior concession checkbox and re-quote fare
+    ageInput.addEventListener('input', () => {
+      const ageVal = parseInt(ageInput.value, 10);
+      if (!isNaN(ageVal) && ageVal >= 60) {
+        seniorCheck.disabled = false;
+      } else {
+        seniorCheck.disabled = true;
+        seniorCheck.checked = false;
+      }
+      updateTotalFare();
+    });
+
+    seniorCheck.addEventListener('change', () => {
+      updateTotalFare();
+    });
+
     // Action (Remove)
     const tdAction = document.createElement('td');
     tdAction.style.textAlign = 'center';
@@ -1000,13 +1080,121 @@
 
   addPassengerBtn.addEventListener('click', addPassengerRow);
 
+  let fareQuoteDebounceTimer = null;
+
   function updateTotalFare() {
     if (!selectedClass) return;
-    const count = passengerRowsContainer.querySelectorAll('tr').length;
+    const rows = passengerRowsContainer.querySelectorAll('tr');
+    const count = rows.length;
+    if (farePassengerCount) farePassengerCount.textContent = String(count);
+
     const unitFare = parseFloat(selectedClass.fare) || 0;
-    const total = (count * unitFare).toFixed(2);
-    totalFareDisplay.textContent = `₹${total}`;
-    passengerCountSummary.textContent = `${count} Passenger${count > 1 ? 's' : ''} (₹${unitFare} each)`;
+    const isAc = (selectedClass.className || '').toUpperCase().includes('AC') ||
+                 (selectedClass.className || '').toUpperCase().includes('CC') ||
+                 (selectedClass.className || '').toUpperCase().includes('EC') ||
+                 (selectedClass.className || '').toUpperCase().includes('1A') ||
+                 (selectedClass.className || '').toUpperCase().includes('2A') ||
+                 (selectedClass.className || '').toUpperCase().includes('3A');
+
+    // Immediate optimistic local calculation
+    let resFeePerSeat = isAc ? 40.00 : 20.00;
+    let sfChargePerSeat = isAc ? 30.00 : 15.00;
+    if (unitFare <= resFeePerSeat + sfChargePerSeat) {
+      resFeePerSeat = 0;
+      sfChargePerSeat = 0;
+    }
+    const taxablePerSeat = unitFare - resFeePerSeat - sfChargePerSeat;
+    const basePerSeat = isAc ? Math.round((taxablePerSeat / 1.05) * 100) / 100 : taxablePerSeat;
+    const gstPerSeat = isAc ? Math.round((taxablePerSeat - basePerSeat) * 100) / 100 : 0;
+
+    let totalBase = 0;
+    let totalSf = 0;
+    let totalRes = 0;
+    let totalGst = 0;
+    let totalDiscount = 0;
+    let seniorCount = 0;
+
+    const passengerDtos = [];
+    rows.forEach(r => {
+      const ageInput = r.querySelector('.passenger-age');
+      const seniorCheck = r.querySelector('.passenger-senior-check');
+      const age = parseInt(ageInput ? ageInput.value : '', 10) || 0;
+      const isSenior = age >= 60 && seniorCheck && seniorCheck.checked;
+
+      totalBase += basePerSeat;
+      totalSf += sfChargePerSeat;
+      totalRes += resFeePerSeat;
+      totalGst += gstPerSeat;
+
+      if (isSenior) {
+        seniorCount++;
+        const disc = Math.round(basePerSeat * 0.40 * 100) / 100;
+        totalDiscount += disc;
+      }
+
+      passengerDtos.push({
+        name: (r.querySelector('.passenger-name') || {}).value || 'Passenger',
+        age: age || 30,
+        gender: (r.querySelector('.passenger-gender') || {}).value || 'Male',
+        berthPreference: (r.querySelector('.passenger-berth') || {}).value || 'NO_PREFERENCE',
+        mealPreference: (r.querySelector('.passenger-meal') || {}).value || 'NO_FOOD',
+        seniorConcession: isSenior
+      });
+    });
+
+    const localTotal = (totalBase + totalSf + totalRes + totalGst - totalDiscount).toFixed(2);
+    if (breakdownBaseFare) breakdownBaseFare.textContent = `₹${totalBase.toFixed(2)}`;
+    if (breakdownSuperfastCharge) breakdownSuperfastCharge.textContent = `₹${totalSf.toFixed(2)}`;
+    if (breakdownReservationFee) breakdownReservationFee.textContent = `₹${totalRes.toFixed(2)}`;
+    if (breakdownGst) breakdownGst.textContent = `₹${totalGst.toFixed(2)}`;
+
+    if (totalDiscount > 0) {
+      if (breakdownSeniorRow) breakdownSeniorRow.style.display = 'flex';
+      if (breakdownSeniorDiscount) breakdownSeniorDiscount.textContent = `-₹${totalDiscount.toFixed(2)}`;
+      if (seniorCountBadge) seniorCountBadge.textContent = String(seniorCount);
+    } else {
+      if (breakdownSeniorRow) breakdownSeniorRow.style.display = 'none';
+    }
+
+    totalFareDisplay.textContent = `₹${localTotal}`;
+    passengerCountSummary.textContent = `${count} Passenger${count > 1 ? 's' : ''}`;
+
+    // Debounced authoritative server quote
+    clearTimeout(fareQuoteDebounceTimer);
+    fareQuoteDebounceTimer = setTimeout(async () => {
+      try {
+        const quoteRes = await fetch('/api/v1/bookings/fare-quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            classId: selectedClass.classId,
+            trainId: selectedTrain ? selectedTrain.trainId : null,
+            journeyDate: activeSearchDate,
+            passengers: passengerDtos
+          })
+        });
+        if (quoteRes.ok) {
+          const quote = await quoteRes.json();
+          if (breakdownBaseFare) breakdownBaseFare.textContent = `₹${parseFloat(quote.baseFare).toFixed(2)}`;
+          if (breakdownSuperfastCharge) breakdownSuperfastCharge.textContent = `₹${parseFloat(quote.superfastCharge).toFixed(2)}`;
+          if (breakdownReservationFee) breakdownReservationFee.textContent = `₹${parseFloat(quote.reservationFee).toFixed(2)}`;
+          if (breakdownGst) breakdownGst.textContent = `₹${parseFloat(quote.gst).toFixed(2)}`;
+
+          if (quote.seniorDiscount && parseFloat(quote.seniorDiscount) > 0) {
+            if (breakdownSeniorRow) breakdownSeniorRow.style.display = 'flex';
+            if (breakdownSeniorDiscount) breakdownSeniorDiscount.textContent = `-₹${parseFloat(quote.seniorDiscount).toFixed(2)}`;
+            if (seniorCountBadge) seniorCountBadge.textContent = String(quote.eligibleSeniorCount);
+          } else {
+            if (breakdownSeniorRow) breakdownSeniorRow.style.display = 'none';
+          }
+
+          totalFareDisplay.textContent = `₹${parseFloat(quote.totalFare).toFixed(2)}`;
+          passengerCountSummary.textContent = `${count} Passenger${count > 1 ? 's' : ''}`;
+        }
+      } catch (_) {
+        // Optimistic local calculation preserved
+      }
+    }, 150);
   }
 
   cancelBookingStepBtn.addEventListener('click', () => {
@@ -1264,10 +1452,21 @@
         ageInput.classList.remove('is-invalid');
       }
 
+      const berthSelect = row.querySelector('.passenger-berth');
+      const mealSelect = row.querySelector('.passenger-meal');
+      const seniorCheck = row.querySelector('.passenger-senior-check');
+
+      const berthVal = berthSelect ? berthSelect.value : 'NO_PREFERENCE';
+      const mealVal = mealSelect ? mealSelect.value : 'NO_FOOD';
+      const seniorVal = Boolean(seniorCheck && seniorCheck.checked && ageVal >= 60);
+
       passengers.push({
         name: nameVal,
         age: ageVal,
-        gender: genderVal
+        gender: genderVal,
+        berthPreference: berthVal,
+        mealPreference: mealVal,
+        seniorConcession: seniorVal
       });
     });
 
@@ -1401,6 +1600,21 @@
         const tdGender = document.createElement('td');
         tdGender.textContent = p.gender;
         row.appendChild(tdGender);
+
+        const tdPref = document.createElement('td');
+        const prefParts = [];
+        if (p.berthPreference && p.berthPreference !== 'NO_PREFERENCE') {
+          prefParts.push(p.berthPreference.replace('_', ' '));
+        }
+        if (p.mealPreference && p.mealPreference !== 'NO_FOOD') {
+          prefParts.push(p.mealPreference.replace('_', ' '));
+        }
+        if (p.seniorConcession) {
+          prefParts.push('Senior 40%');
+        }
+        tdPref.textContent = prefParts.length > 0 ? prefParts.join(' • ') : 'Standard';
+        tdPref.style.fontSize = '0.825rem';
+        row.appendChild(tdPref);
 
         const tdStatus = document.createElement('td');
         const stBadge = document.createElement('span');

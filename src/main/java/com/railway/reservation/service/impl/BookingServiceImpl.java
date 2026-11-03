@@ -2,6 +2,7 @@ package com.railway.reservation.service.impl;
 
 import com.railway.reservation.dto.BookingRequestDto;
 import com.railway.reservation.dto.BookingResponseDto;
+import com.railway.reservation.dto.FareBreakdownDto;
 import com.railway.reservation.dto.PassengerDto;
 import com.railway.reservation.dto.PaymentSessionDto;
 import com.railway.reservation.dto.PnrStatusResponseDto;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -57,6 +59,82 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public FareBreakdownDto calculateFareQuote(Long classId, List<PassengerDto> passengers) {
+        if (classId == null) {
+            throw new IllegalArgumentException("Class ID cannot be null");
+        }
+        if (passengers == null || passengers.isEmpty()) {
+            throw new IllegalArgumentException("At least one passenger is required for fare calculation");
+        }
+
+        TrainClass trainClass = trainClassRepository.findById(classId)
+                .orElseThrow(() -> new ResourceNotFoundException("Class not found with id: " + classId));
+
+        BigDecimal seatFare = trainClass.getFare();
+        String className = trainClass.getClassName() != null ? trainClass.getClassName().toUpperCase() : "";
+        boolean isAc = className.contains("AC") || className.contains("1A") || className.contains("2A")
+                || className.contains("3A") || className.contains("CC") || className.contains("EC")
+                || className.contains("EXECUTIVE");
+
+        BigDecimal resFeePerSeat = isAc ? BigDecimal.valueOf(40.00) : BigDecimal.valueOf(20.00);
+        BigDecimal sfChargePerSeat = isAc ? BigDecimal.valueOf(30.00) : BigDecimal.valueOf(15.00);
+
+        if (seatFare.compareTo(resFeePerSeat.add(sfChargePerSeat)) <= 0) {
+            resFeePerSeat = BigDecimal.ZERO;
+            sfChargePerSeat = BigDecimal.ZERO;
+        }
+
+        BigDecimal taxablePerSeat = seatFare.subtract(resFeePerSeat).subtract(sfChargePerSeat);
+        BigDecimal basePerSeat;
+        BigDecimal gstPerSeat;
+
+        if (isAc) {
+            basePerSeat = taxablePerSeat.divide(BigDecimal.valueOf(1.05), 2, RoundingMode.HALF_UP);
+            gstPerSeat = taxablePerSeat.subtract(basePerSeat);
+        } else {
+            basePerSeat = taxablePerSeat;
+            gstPerSeat = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        int passengerCount = passengers.size();
+        BigDecimal totalBase = BigDecimal.ZERO;
+        BigDecimal totalSf = BigDecimal.ZERO;
+        BigDecimal totalRes = BigDecimal.ZERO;
+        BigDecimal totalGst = BigDecimal.ZERO;
+        BigDecimal totalSeniorDiscount = BigDecimal.ZERO;
+        int eligibleSeniorCount = 0;
+
+        for (PassengerDto p : passengers) {
+            totalBase = totalBase.add(basePerSeat);
+            totalSf = totalSf.add(sfChargePerSeat);
+            totalRes = totalRes.add(resFeePerSeat);
+            totalGst = totalGst.add(gstPerSeat);
+
+            if (p != null && p.getAge() >= 60 && Boolean.TRUE.equals(p.getSeniorConcession())) {
+                eligibleSeniorCount++;
+                BigDecimal discount = basePerSeat.multiply(BigDecimal.valueOf(0.40)).setScale(2, RoundingMode.HALF_UP);
+                totalSeniorDiscount = totalSeniorDiscount.add(discount);
+            }
+        }
+
+        BigDecimal totalPayable = totalBase.add(totalSf).add(totalRes).add(totalGst).subtract(totalSeniorDiscount);
+
+        return new FareBreakdownDto(
+                passengerCount,
+                seatFare.setScale(2, RoundingMode.HALF_UP),
+                totalBase.setScale(2, RoundingMode.HALF_UP),
+                totalSf.setScale(2, RoundingMode.HALF_UP),
+                totalRes.setScale(2, RoundingMode.HALF_UP),
+                totalGst.setScale(2, RoundingMode.HALF_UP),
+                totalSeniorDiscount.setScale(2, RoundingMode.HALF_UP),
+                totalPayable.setScale(2, RoundingMode.HALF_UP),
+                eligibleSeniorCount,
+                isAc
+        );
+    }
+
+    @Override
     @Transactional
     public BookingResponseDto createBooking(BookingRequestDto request) {
         // 1. Verify User exists
@@ -89,18 +167,35 @@ public class BookingServiceImpl implements BookingService {
                     requestedSeats, availableSeats, trainClass.getClassName(), request.getJourneyDate()));
         }
 
-        // 5. Calculate total fare
-        BigDecimal totalFare = trainClass.getFare().multiply(BigDecimal.valueOf(requestedSeats));
+        // Validate each passenger (including senior citizen concession eligibility)
+        for (PassengerDto pDto : request.getPassengers()) {
+            if (pDto.getAge() < 60 && Boolean.TRUE.equals(pDto.getSeniorConcession())) {
+                throw new IllegalArgumentException(
+                        "Senior citizen concession is only valid for passengers aged 60 and above (Passenger: " + pDto.getName() + ")");
+            }
+        }
+
+        // 5. Calculate authoritative itemized fare breakdown (RRS-F-007-EXT)
+        FareBreakdownDto fareQuote = calculateFareQuote(trainClass.getId(), request.getPassengers());
+        BigDecimal standardFare = trainClass.getFare().multiply(BigDecimal.valueOf(requestedSeats));
+        BigDecimal totalFare = fareQuote.getSeniorDiscount().compareTo(BigDecimal.ZERO) > 0
+                ? standardFare.subtract(fareQuote.getSeniorDiscount())
+                : standardFare;
 
         // 6. Generate unique 10-character PNR
         String pnr = generateUniquePnr();
 
         // 7. Create and persist Booking record with PENDING status awaiting payment (RRS-F-008, SAD Section 4.2.1)
         Booking booking = new Booking(pnr, user, train, trainClass, request.getJourneyDate(), totalFare);
+        booking.setBaseFare(fareQuote.getBaseFare());
+        booking.setSuperfastCharge(fareQuote.getSuperfastCharge());
+        booking.setReservationFee(fareQuote.getReservationFee());
+        booking.setGst(fareQuote.getGst());
+        booking.setSeniorDiscount(fareQuote.getSeniorDiscount());
         booking.setStatus(BookingStatus.PENDING);
         booking = bookingRepository.save(booking);
 
-        // 8. Assign seats and persist passengers (RRS-F-007)
+        // 8. Assign seats and persist passengers (RRS-F-007, RRS-F-007-EXT)
         List<PassengerDto> passengerDtos = new ArrayList<>();
         String classPrefix = trainClass.getClassName().replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
         if (classPrefix.length() > 3) {
@@ -130,11 +225,27 @@ public class BookingServiceImpl implements BookingService {
             } while (takenSeats.contains(nextSeat));
             String seatNo = seatPrefix + nextSeat;
 
-            Passenger passenger = new Passenger(pDto.getName().trim(), pDto.getAge(), pDto.getGender().trim(), seatNo);
+            Passenger passenger = new Passenger(
+                    pDto.getName().trim(),
+                    pDto.getAge(),
+                    pDto.getGender().trim(),
+                    seatNo,
+                    pDto.getBerthPreference(),
+                    pDto.getMealPreference(),
+                    pDto.getSeniorConcession()
+            );
             booking.addPassenger(passenger);
             passengerRepository.save(passenger);
 
-            passengerDtos.add(new PassengerDto(passenger.getName(), passenger.getAge(), passenger.getGender(), seatNo));
+            passengerDtos.add(new PassengerDto(
+                    passenger.getName(),
+                    passenger.getAge(),
+                    passenger.getGender(),
+                    seatNo,
+                    passenger.getBerthPreference(),
+                    passenger.getMealPreference(),
+                    passenger.getSeniorConcession()
+            ));
         }
 
         // 9. Initiate Payment Session with Sandbox Payment Gateway (RRS-F-008, TC-PAY-01)
@@ -148,7 +259,8 @@ public class BookingServiceImpl implements BookingService {
     public BookingResponseDto getBookingByPnr(String pnr) {
         Booking booking = findBookingByPnr(pnr);
         List<PassengerDto> passengerDtos = booking.getPassengers().stream()
-                .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo()))
+                .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo(),
+                        p.getBerthPreference(), p.getMealPreference(), p.getSeniorConcession()))
                 .toList();
 
         return mapToResponseDto(booking, passengerDtos);
@@ -192,7 +304,8 @@ public class BookingServiceImpl implements BookingService {
         return bookings.stream()
                 .map(b -> {
                     List<PassengerDto> passengerDtos = b.getPassengers().stream()
-                            .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo()))
+                            .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo(),
+                                    p.getBerthPreference(), p.getMealPreference(), p.getSeniorConcession()))
                             .toList();
                     return mapToResponseDto(b, passengerDtos);
                 })
@@ -225,7 +338,8 @@ public class BookingServiceImpl implements BookingService {
 
     private BookingResponseDto mapToFullTicketDto(Booking booking) {
         List<PassengerDto> passengerDtos = booking.getPassengers().stream()
-                .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo()))
+                .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo(),
+                        p.getBerthPreference(), p.getMealPreference(), p.getSeniorConcession()))
                 .toList();
 
         return mapToResponseDto(booking, passengerDtos);
@@ -299,6 +413,25 @@ public class BookingServiceImpl implements BookingService {
         dto.setJourneyDate(booking.getJourneyDate());
         dto.setBookingTime(booking.getCreatedAt());
         dto.setPassengers(passengerDtos);
+
+        if (booking.getBaseFare() != null) {
+            dto.setBaseFare(booking.getBaseFare());
+            dto.setSuperfastCharge(booking.getSuperfastCharge());
+            dto.setReservationFee(booking.getReservationFee());
+            dto.setGst(booking.getGst());
+            dto.setSeniorDiscount(booking.getSeniorDiscount());
+        } else if (trainClass != null && passengerDtos != null && !passengerDtos.isEmpty()) {
+            try {
+                FareBreakdownDto quote = calculateFareQuote(trainClass.getId(), passengerDtos);
+                dto.setBaseFare(quote.getBaseFare());
+                dto.setSuperfastCharge(quote.getSuperfastCharge());
+                dto.setReservationFee(quote.getReservationFee());
+                dto.setGst(quote.getGst());
+                dto.setSeniorDiscount(quote.getSeniorDiscount());
+            } catch (Exception ignored) {
+                // Keep default nulls if historical booking cannot re-resolve trainClass
+            }
+        }
 
         LocalDate today = LocalDate.now();
         LocalDateTime now = LocalDateTime.now();
