@@ -237,15 +237,7 @@ public class BookingServiceImpl implements BookingService {
             booking.addPassenger(passenger);
             passengerRepository.save(passenger);
 
-            passengerDtos.add(new PassengerDto(
-                    passenger.getName(),
-                    passenger.getAge(),
-                    passenger.getGender(),
-                    seatNo,
-                    passenger.getBerthPreference(),
-                    passenger.getMealPreference(),
-                    passenger.getSeniorConcession()
-            ));
+            passengerDtos.add(mapToPassengerDto(passenger));
         }
 
         // 9. Initiate Payment Session with Sandbox Payment Gateway (RRS-F-008, TC-PAY-01)
@@ -259,8 +251,7 @@ public class BookingServiceImpl implements BookingService {
     public BookingResponseDto getBookingByPnr(String pnr) {
         Booking booking = findBookingByPnr(pnr);
         List<PassengerDto> passengerDtos = booking.getPassengers().stream()
-                .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo(),
-                        p.getBerthPreference(), p.getMealPreference(), p.getSeniorConcession()))
+                .map(this::mapToPassengerDto)
                 .toList();
 
         return mapToResponseDto(booking, passengerDtos);
@@ -304,8 +295,7 @@ public class BookingServiceImpl implements BookingService {
         return bookings.stream()
                 .map(b -> {
                     List<PassengerDto> passengerDtos = b.getPassengers().stream()
-                            .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo(),
-                                    p.getBerthPreference(), p.getMealPreference(), p.getSeniorConcession()))
+                            .map(this::mapToPassengerDto)
                             .toList();
                     return mapToResponseDto(b, passengerDtos);
                 })
@@ -338,11 +328,25 @@ public class BookingServiceImpl implements BookingService {
 
     private BookingResponseDto mapToFullTicketDto(Booking booking) {
         List<PassengerDto> passengerDtos = booking.getPassengers().stream()
-                .map(p -> new PassengerDto(p.getName(), p.getAge(), p.getGender(), p.getSeatNo(),
-                        p.getBerthPreference(), p.getMealPreference(), p.getSeniorConcession()))
+                .map(this::mapToPassengerDto)
                 .toList();
 
         return mapToResponseDto(booking, passengerDtos);
+    }
+
+    private PassengerDto mapToPassengerDto(Passenger p) {
+        PassengerDto dto = new PassengerDto(
+                p.getName(),
+                p.getAge(),
+                p.getGender(),
+                p.getSeatNo(),
+                p.getBerthPreference(),
+                p.getMealPreference(),
+                p.getSeniorConcession()
+        );
+        dto.setId(p.getId());
+        dto.setStatus(p.getStatus() != null ? p.getStatus() : "CONFIRMED");
+        return dto;
     }
 
     private PnrStatusResponseDto mapToPublicDto(Booking booking) {

@@ -1,6 +1,6 @@
-/* Hallmark: Wayfind / Platform — railway reservation system */
+/* Hallmark: Wayfind / Platform - railway reservation system */
 
-/* Hallmark: Wayfind / Platform — railway reservation system */
+/* Hallmark: Wayfind / Platform - railway reservation system */
 
 :root {
   color-scheme: light dark;
@@ -1035,6 +1035,7 @@ header.app-header {
   }
 }
 
+.fare-breakdown-panel,
 .fare-breakdown-card {
   background-color: var(--color-paper-2);
   color: var(--color-ink);
@@ -1801,6 +1802,10 @@ footer.app-footer {
   }
 }
 
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
 .block {
   display: block;
 }
@@ -1851,6 +1856,10 @@ footer.app-footer {
 
 .uppercase {
   text-transform: uppercase;
+}
+
+.line-through {
+  text-decoration-line: line-through;
 }
 
 .outline {

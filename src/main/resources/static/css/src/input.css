@@ -1,4 +1,4 @@
-/* Hallmark: Wayfind / Platform — railway reservation system */
+/* Hallmark: Wayfind / Platform - railway reservation system */
 @import "../tokens.css";
 
 *, *::before, *::after {
@@ -940,6 +940,7 @@ header.app-header {
   }
 }
 
+.fare-breakdown-panel,
 .fare-breakdown-card {
   background-color: var(--color-paper-2);
   color: var(--color-ink);

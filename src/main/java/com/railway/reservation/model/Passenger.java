@@ -38,6 +38,9 @@ public class Passenger {
     @Column(name = "senior_concession")
     private Boolean seniorConcession = false;
 
+    @Column(name = "status", length = 20)
+    private String status = "CONFIRMED";
+
     public Passenger() {}
 
     public Passenger(String name, int age, String gender) {
@@ -89,5 +92,8 @@ public class Passenger {
 
     public Boolean getSeniorConcession() { return seniorConcession; }
     public void setSeniorConcession(Boolean seniorConcession) { this.seniorConcession = seniorConcession; }
+
+    public String getStatus() { return status != null ? status : "CONFIRMED"; }
+    public void setStatus(String status) { this.status = status; }
 }
 
