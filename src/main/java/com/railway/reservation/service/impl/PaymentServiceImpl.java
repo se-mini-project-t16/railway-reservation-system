@@ -21,8 +21,11 @@ import java.math.RoundingMode;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 @Service
 public class PaymentServiceImpl implements PaymentService {
@@ -40,6 +43,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Value("${app.payment.mock-fallback:true}")
     private boolean mockFallback;
+
+    @Value("${app.payment.secret-key:rrs_sandbox_hmac_secret_key_2026}")
+    private String hmacSecretKey;
 
     public PaymentServiceImpl(PaymentRepository paymentRepository, BookingRepository bookingRepository) {
         this.paymentRepository = paymentRepository;
@@ -136,6 +142,40 @@ public class PaymentServiceImpl implements PaymentService {
             }
         }
 
+        // 4. HMAC-SHA256 signature verification (RRS-SR-002, RRS-F-008-EXT)
+        if (callbackRequest.getSignature() != null && !callbackRequest.getSignature().isBlank()) {
+            String expectedSignature = calculateHmacSha256(gatewayRef, pnr, status, payment.getAmount());
+            byte[] expectedBytes = expectedSignature.getBytes(StandardCharsets.UTF_8);
+            byte[] receivedBytes = callbackRequest.getSignature().trim().getBytes(StandardCharsets.UTF_8);
+            if (!MessageDigest.isEqual(expectedBytes, receivedBytes)) {
+                logger.error("AUDIT SECURITY ALERT: Payment gateway HMAC signature mismatch! gatewayRef={} [STRIDE Tampering]", gatewayRef);
+                throw new IllegalArgumentException("Invalid payment gateway HMAC signature [STRIDE Tampering]");
+            }
+            logger.info("AUDIT: Payment gateway HMAC-SHA256 signature verified successfully for gatewayRef={}", gatewayRef);
+        }
+
+        // 5. Idempotency and State Transition Validation
+        if (booking.getStatus() == BookingStatus.CONFIRMED) {
+            if ("SUCCESS".equalsIgnoreCase(status) || "CONFIRMED".equalsIgnoreCase(status)) {
+                logger.info("AUDIT: Idempotent payment SUCCESS callback for confirmed booking PNR={}", booking.getPnr());
+                return new PaymentCallbackResponseDto(
+                        gatewayRef,
+                        booking.getPnr(),
+                        "SUCCESS",
+                        BookingStatus.CONFIRMED,
+                        payment.getAmount(),
+                        payment.getPaidAt(),
+                        "Payment already verified successfully. Booking is CONFIRMED."
+                );
+            } else {
+                throw new IllegalStateException("Cannot fail or cancel an already CONFIRMED booking via payment callback");
+            }
+        }
+
+        if (booking.getStatus() == BookingStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot process payment callback for an already CANCELLED booking");
+        }
+
         boolean isSuccess = "SUCCESS".equalsIgnoreCase(status) || "CONFIRMED".equalsIgnoreCase(status);
 
         if (isSuccess) {
@@ -161,25 +201,41 @@ public class PaymentServiceImpl implements PaymentService {
                     "Payment verified successfully. Booking is now CONFIRMED."
             );
         } else {
+            // Idempotent failure handling if already failed
+            if (booking.getStatus() == BookingStatus.FAILED) {
+                logger.info("AUDIT: Idempotent payment failure callback for failed booking PNR={}", booking.getPnr());
+                return new PaymentCallbackResponseDto(
+                        gatewayRef,
+                        booking.getPnr(),
+                        payment.getStatus(),
+                        BookingStatus.FAILED,
+                        payment.getAmount(),
+                        null,
+                        "Payment already marked as failed. Held seats have been released."
+                );
+            }
+
             // RRS-F-009, TC-PAY-02: Update booking to FAILED, immediately release held seats
-            payment.setStatus("FAILED");
+            String terminalStatus = "EXPIRED".equalsIgnoreCase(status) ? "EXPIRED"
+                    : ("CANCELLED".equalsIgnoreCase(status) ? "CANCELLED" : "FAILED");
+            payment.setStatus(terminalStatus);
             paymentRepository.save(payment);
 
             booking.setStatus(BookingStatus.FAILED);
             bookingRepository.save(booking);
 
             // STRIDE Repudiation Mitigation: Log failed payment with user id and timestamp
-            logger.warn("AUDIT: Payment FAILED/DECLINED. gatewayRef={}, pnr={}, amount={}, timestamp={}, userId={}. Held seats released. [RRS-F-009, TC-PAY-02]",
-                    gatewayRef, booking.getPnr(), payment.getAmount(), LocalDateTime.now(), booking.getUser().getId());
+            logger.warn("AUDIT: Payment {} ({}) recorded. gatewayRef={}, pnr={}, amount={}, timestamp={}, userId={}. Held seats released. [RRS-F-009, TC-PAY-02]",
+                    terminalStatus, status, gatewayRef, booking.getPnr(), payment.getAmount(), LocalDateTime.now(), booking.getUser().getId());
 
             return new PaymentCallbackResponseDto(
                     gatewayRef,
                     booking.getPnr(),
-                    "FAILED",
+                    terminalStatus,
                     BookingStatus.FAILED,
                     payment.getAmount(),
                     null,
-                    "Payment failed or was declined. Booking is marked as FAILED and held seats have been released."
+                    "Payment " + terminalStatus.toLowerCase() + ". Booking is marked as FAILED and held seats have been released."
             );
         }
     }
@@ -240,7 +296,7 @@ public class PaymentServiceImpl implements PaymentService {
         String paymentUrl = resolvePaymentUrl(booking, payment);
         String provider = (externalGatewayUrl != null && !externalGatewayUrl.isBlank()) ? "SANDBOX_EXTERNAL" : "SANDBOX_MOCK";
 
-        return new PaymentSessionDto(
+        PaymentSessionDto dto = new PaymentSessionDto(
                 payment.getId(),
                 payment.getGatewayRef(),
                 booking.getPnr(),
@@ -256,6 +312,39 @@ public class PaymentServiceImpl implements PaymentService {
                 booking.getPassengers() != null ? booking.getPassengers().size() : 0,
                 booking.getCreatedAt() != null ? booking.getCreatedAt() : LocalDateTime.now()
         );
+        dto.setSessionToken(calculateHmacSha256(payment.getGatewayRef(), booking.getPnr(), "PENDING", payment.getAmount()));
+        return dto;
+    }
+
+    @Override
+    public String calculateHmacSha256(String gatewayRef, String pnr, String status, BigDecimal amount) {
+        String formattedAmount = (amount != null)
+                ? amount.setScale(2, RoundingMode.HALF_UP).toPlainString()
+                : "0.00";
+        String payload = (gatewayRef != null ? gatewayRef.trim() : "") + "|"
+                + (pnr != null ? pnr.trim() : "") + "|"
+                + (status != null ? status.trim().toUpperCase() : "") + "|"
+                + formattedAmount;
+        String key = (hmacSecretKey != null && !hmacSecretKey.isBlank())
+                ? hmacSecretKey
+                : "rrs_sandbox_hmac_secret_key_2026";
+        return calculateHmacHex(payload, key);
+    }
+
+    private String calculateHmacHex(String data, String key) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(secretKey);
+            byte[] hmacBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(hmacBytes.length * 2);
+            for (byte b : hmacBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to calculate HMAC-SHA256 signature", e);
+        }
     }
 
     private String resolvePaymentUrl(Booking booking, Payment payment) {

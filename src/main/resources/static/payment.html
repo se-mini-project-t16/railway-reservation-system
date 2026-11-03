@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Payment Gateway Sandbox — National Rail Ticketing Portal</title>
+  <meta name="description" content="National Rail Ticketing Portal: Commercial Payment Gateway Sandbox 2.0 with dynamic UPI QR, card mockup, and Net Banking selector.">
+  <title>Payment Gateway Sandbox: National Rail Ticketing Portal</title>
   <script>
     (function () {
       try {
@@ -17,189 +18,23 @@
   </script>
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    .payment-container {
-      max-width: 780px;
-      margin: 2.5rem auto;
-      padding: 0 1rem;
+    /* Hallmark: Wayfind / Platform - Payment Checkout Sandbox */
+    .whitespace-nowrap {
+      white-space: nowrap;
     }
-    .gateway-header {
-      background: var(--color-paper-3);
-      border: var(--rule-bar) solid var(--color-ink-rule);
-      border-bottom: 2px solid var(--color-accent);
-      padding: 1.25rem 1.75rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      color: var(--color-ink);
+    html, body {
+      overflow-x: clip;
     }
-    .gateway-brand {
-      display: flex;
-      align-items: center;
-      gap: 0.85rem;
+    :focus-visible {
+      outline: 2px solid var(--color-focus);
+      outline-offset: 2px;
     }
-    .gateway-brand svg {
-      width: 28px;
-      height: 28px;
-      color: var(--color-accent);
+    :active:not([disabled]) {
+      transform: translateY(1px);
     }
-    .gateway-title h1 {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--color-ink);
-      margin: 0;
-    }
-    .gateway-title p {
-      font-size: 0.78rem;
-      color: var(--color-muted);
-      margin: 0;
-    }
-    .security-badge {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      background: var(--color-success-bg);
-      color: var(--color-success);
-      padding: 0.35rem 0.75rem;
-      border-radius: var(--radius-pill);
-      font-size: 0.78rem;
-      font-weight: 600;
-      border: var(--rule-hair) solid var(--color-success);
-    }
-    .security-badge svg {
-      width: 14px;
-      height: 14px;
-      color: currentColor;
-    }
-    .gateway-body {
-      background: var(--color-paper-3);
-      border: var(--rule-bar) solid var(--color-ink-rule);
-      border-top: none;
-      padding: 2rem;
-      box-shadow: var(--shadow-card);
-      color: var(--color-ink);
-    }
-    .order-summary-box {
-      background: var(--color-paper-2);
-      border: var(--rule-hair) solid var(--color-rule);
-      padding: 1.25rem 1.5rem;
-      margin-bottom: 1.75rem;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 1rem;
-    }
-    .summary-item .label {
-      font-size: 0.75rem;
-      color: var(--color-muted);
-      margin-bottom: 0.2rem;
-      font-weight: 600;
-    }
-    .summary-item .value {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--color-ink);
-      font-variant-numeric: tabular-nums;
-    }
-    .summary-item.amount-item .value {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: var(--color-accent);
-    }
-    .tab-nav {
-      display: flex;
-      gap: 0.5rem;
-      border-bottom: var(--rule-hair) solid var(--color-rule);
-      margin-bottom: 1.5rem;
-    }
-    .tab-btn {
-      background: none;
-      border: none;
-      padding: 0.75rem 1.25rem;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--color-muted);
-      cursor: pointer;
-      border-bottom: 3px solid transparent;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-family: var(--font-body);
-      transition-property: color, border-color;
-      transition-duration: 150ms;
-      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .tab-btn:hover {
-      color: var(--color-ink);
-    }
-    .tab-btn.active {
-      color: var(--color-accent);
-      border-bottom-color: var(--color-accent);
-    }
-    .tab-pane {
-      display: none;
-    }
-    .tab-pane.active {
-      display: block;
-    }
-    .action-row {
-      display: flex;
-      gap: 1rem;
-      margin-top: 2rem;
-      padding-top: 1.5rem;
-      border-top: var(--rule-hair) solid var(--color-rule);
-    }
-    .action-row .btn {
-      flex: 1;
-      padding: 0.85rem;
-      font-size: 0.95rem;
-      font-weight: 700;
-    }
-    .btn-pay {
-      background: var(--color-accent);
-      color: var(--color-accent-ink);
-      border: var(--rule-hair) solid var(--color-accent);
-    }
-    .btn-pay:hover:not(:disabled) {
-      background: var(--color-accent-hover);
-    }
-    .btn-cancel {
-      background: var(--color-paper-2);
-      color: var(--color-danger);
-      border: var(--rule-hair) solid var(--color-danger);
-    }
-    .btn-cancel:hover:not(:disabled) {
-      background: var(--color-danger-bg);
-    }
-    .qr-mock {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      background: var(--color-paper-2);
-      border: 1px dashed var(--color-rule);
-      margin-bottom: 1rem;
-    }
-    .qr-box {
-      width: 140px;
-      height: 140px;
-      background: var(--color-paper-3);
-      border: var(--rule-hair) solid var(--color-rule);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 0.75rem;
-    }
-    .env-tag {
-      font-size: 0.75rem;
-      color: var(--color-warning);
-      background: var(--color-warning-bg);
-      border: var(--rule-hair) solid var(--color-warning);
-      padding: 0.5rem 0.85rem;
-      margin-bottom: 1.25rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      line-height: 1.4;
+    :disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
   </style>
 </head>
@@ -221,83 +56,125 @@
         </div>
         <div class="brand-text">
           <h1>National Rail Ticketing Portal</h1>
-          <span class="subtext">Secure Payment Sandbox</span>
+          <span class="subtext">Secure Commercial Payment Gateway Sandbox 2.0</span>
         </div>
       </div>
       <div class="header-actions">
+        <button type="button" class="btn btn-sm btn-outline" id="themeToggleBtn" aria-label="Toggle theme">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          <span id="themeToggleText">Theme</span>
+        </button>
         <a href="/" class="btn btn-sm btn-outline">&larr; Return to Portal</a>
       </div>
     </div>
   </header>
 
-  <!-- Main Content -->
-  <main class="payment-container">
-    <div class="env-tag">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <span><strong>PAYMENT SIMULATION SANDBOX:</strong> This is a secure educational demonstration sandbox. No real monetary transactions or card debits occur.</span>
-    </div>
-
-    <div class="gateway-header">
-      <div class="gateway-brand">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-          <line x1="1" y1="10" x2="23" y2="10"/>
+  <!-- Main Payment View -->
+  <main class="payment-wrapper">
+    <!-- Sandbox Environment Notice -->
+    <div class="notice-box notice-warning" style="margin-bottom: 1.25rem;">
+      <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        <div class="gateway-title">
-          <h1>Secure Payment Gateway</h1>
-          <p>National Electronic Settlement Gateway (Sandbox)</p>
+        <div>
+          <strong>PAYMENT SIMULATION SANDBOX:</strong>
+          <span>This is an educational payment gateway simulation. No real financial debits or bank charges will be incurred. All transactions are cryptographically signed with HMAC-SHA256 tokens.</span>
         </div>
       </div>
-      <div class="security-badge">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </div>
+
+    <!-- 5-Minute Session Countdown Banner -->
+    <div class="session-countdown-banner" id="sessionCountdownBanner">
+      <div style="display:flex; align-items:center; gap:0.6rem;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
         </svg>
-        <span>256-Bit TLS Secured</span>
+        <span style="font-size:0.85rem; font-weight:600;">Inventory Hold Active (5-Minute Guarantee):</span>
+      </div>
+      <div class="session-timer-badge" id="sessionTimerBadge" aria-live="polite">
+        <span>Session Expires In:</span>
+        <span id="sessionTimerText" style="font-weight:800;">05:00</span>
       </div>
     </div>
 
-    <div class="gateway-body">
-      <!-- Order Summary -->
-      <div class="order-summary-box">
-        <div class="summary-item">
+    <!-- Gateway Card -->
+    <div class="gateway-card">
+      <div class="gateway-head">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <div style="background:var(--color-accent); color:var(--color-accent-ink); padding:0.4rem; display:flex;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+              <line x1="1" y1="10" x2="23" y2="10"/>
+            </svg>
+          </div>
+          <div>
+            <h2 style="font-size:1.15rem; font-weight:700; margin:0;">National Railway Settlement Gateway</h2>
+            <p style="font-size:0.78rem; color:var(--color-muted); margin:0;">NPCI / RBI Sandbox Protocol 2.0</p>
+          </div>
+        </div>
+        <div class="badge badge-success" style="display:inline-flex; align-items:center; gap:0.35rem;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>HMAC-SHA256 Verified</span>
+        </div>
+      </div>
+
+      <!-- Order Summary Grid -->
+      <div class="gateway-summary-grid">
+        <div class="gateway-summary-cell">
           <div class="label">Booking PNR</div>
           <div class="value" id="summaryPnr">---</div>
         </div>
-        <div class="summary-item">
-          <div class="label">Train Number</div>
+        <div class="gateway-summary-cell">
+          <div class="label">Train Service</div>
           <div class="value" id="summaryTrainNo">---</div>
         </div>
-        <div class="summary-item">
-          <div class="label">Gateway Reference</div>
+        <div class="gateway-summary-cell">
+          <div class="label">Gateway Ref</div>
           <div class="value" id="summaryGatewayRef">---</div>
         </div>
-        <div class="summary-item amount-item">
-          <div class="label">Total Amount Payable</div>
+        <div class="gateway-summary-cell amount-cell">
+          <div class="label">Total Payable</div>
           <div class="value" id="summaryAmount">₹0.00</div>
         </div>
       </div>
 
-      <!-- Payment Tabs -->
-      <div class="tab-nav">
-        <button type="button" class="tab-btn active" data-tab="tabCard">
+      <!-- Tab Navigation -->
+      <div class="checkout-tabs" role="tablist" aria-label="Payment Methods">
+        <button type="button" class="checkout-tab-btn active" id="tabBtnUpi" role="tab" aria-selected="true" aria-controls="paneUpi" data-tab="paneUpi">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+            <line x1="14" y1="14" x2="14" y2="14.01"/>
+            <line x1="14" y1="18" x2="18" y2="18"/>
+            <line x1="18" y1="14" x2="21" y2="14"/>
+          </svg>
+          <span>UPI / Dynamic QR</span>
+        </button>
+        <button type="button" class="checkout-tab-btn" id="tabBtnCard" role="tab" aria-selected="false" aria-controls="paneCard" data-tab="paneCard">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
             <line x1="1" y1="10" x2="23" y2="10"/>
           </svg>
-          Credit / Debit Card
+          <span>Credit / Debit Card</span>
         </button>
-        <button type="button" class="tab-btn" data-tab="tabUpi">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-          UPI / QR Code
-        </button>
-        <button type="button" class="tab-btn" data-tab="tabNetBanking">
+        <button type="button" class="checkout-tab-btn" id="tabBtnNetBanking" role="tab" aria-selected="false" aria-controls="paneNetBanking" data-tab="paneNetBanking">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="3" y1="21" x2="21" y2="21"/>
             <line x1="3" y1="10" x2="21" y2="10"/>
@@ -305,175 +182,570 @@
             <line x1="4" y1="10" x2="4" y2="21"/>
             <line x1="20" y1="10" x2="20" y2="21"/>
           </svg>
-          Net Banking
+          <span>Net Banking</span>
         </button>
       </div>
 
-      <!-- Card Tab -->
-      <div class="tab-pane active" id="tabCard">
-        <div class="form-grid" style="display:grid; grid-template-columns:1fr; gap:1rem;">
-          <div class="form-group">
-            <label for="cardNumber">Card Number</label>
-            <input type="text" id="cardNumber" class="form-control" placeholder="4111 2222 3333 4444" maxlength="19">
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-            <div class="form-group">
-              <label for="cardExpiry">Expiry (MM/YY)</label>
-              <input type="text" id="cardExpiry" class="form-control" placeholder="12/28" maxlength="5">
-            </div>
-            <div class="form-group">
-              <label for="cardCvv">CVV</label>
-              <input type="password" id="cardCvv" class="form-control" placeholder="123" maxlength="4">
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="cardHolder">Cardholder Name</label>
-            <input type="text" id="cardHolder" class="form-control" placeholder="Passenger Name">
-          </div>
-        </div>
-      </div>
-
-      <!-- UPI Tab -->
-      <div class="tab-pane" id="tabUpi">
-        <div class="qr-mock">
-          <div class="qr-box">
-            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="3" width="7" height="7"/>
-              <rect x="14" y="3" width="7" height="7"/>
-              <rect x="3" y="14" width="7" height="7"/>
-              <line x1="14" y1="14" x2="14" y2="14.01"/>
-              <line x1="14" y1="18" x2="18" y2="18"/>
-              <line x1="18" y1="14" x2="21" y2="14"/>
+      <!-- Tab 1: UPI / Dynamic QR -->
+      <div class="checkout-tab-pane active" id="paneUpi" role="tabpanel" aria-labelledby="tabBtnUpi">
+        <div class="upi-qr-wrapper">
+          <div class="upi-qr-container" aria-label="Dynamic UPI QR Code">
+            <!-- Simulated Scanning Beam -->
+            <div class="upi-scan-beam" aria-hidden="true"></div>
+            <!-- High-Contrast SVG QR Pattern -->
+            <svg viewBox="0 0 100 100" width="100%" height="100%" shape-rendering="crispEdges" aria-hidden="true">
+              <!-- Background -->
+              <rect width="100" height="100" fill="var(--color-paper-3)"/>
+              <!-- Top-Left Finder -->
+              <rect x="10" y="10" width="26" height="26" fill="var(--color-ink)"/>
+              <rect x="14" y="14" width="18" height="18" fill="var(--color-paper-3)"/>
+              <rect x="18" y="18" width="10" height="10" fill="var(--color-accent)"/>
+              <!-- Top-Right Finder -->
+              <rect x="64" y="10" width="26" height="26" fill="var(--color-ink)"/>
+              <rect x="68" y="14" width="18" height="18" fill="var(--color-paper-3)"/>
+              <rect x="72" y="18" width="10" height="10" fill="var(--color-accent)"/>
+              <!-- Bottom-Left Finder -->
+              <rect x="10" y="64" width="26" height="26" fill="var(--color-ink)"/>
+              <rect x="14" y="68" width="18" height="18" fill="var(--color-paper-3)"/>
+              <rect x="18" y="72" width="10" height="10" fill="var(--color-accent)"/>
+              <!-- Simulated Data Pattern -->
+              <rect x="42" y="12" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="52" y="12" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="42" y="24" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="52" y="24" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="12" y="42" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="24" y="42" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="12" y="52" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="42" y="42" width="16" height="16" fill="var(--color-accent)"/>
+              <rect x="64" y="42" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="76" y="42" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="88" y="42" width="4" height="6" fill="var(--color-ink)"/>
+              <rect x="42" y="64" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="52" y="76" width="6" height="6" fill="var(--color-ink)"/>
+              <rect x="64" y="64" width="8" height="8" fill="var(--color-ink)"/>
+              <rect x="78" y="64" width="8" height="8" fill="var(--color-ink)"/>
+              <rect x="64" y="78" width="6" height="12" fill="var(--color-ink)"/>
+              <rect x="76" y="78" width="14" height="12" fill="var(--color-ink)"/>
             </svg>
           </div>
-          <span style="font-size:0.85rem; font-weight:600; color:var(--color-ink);">Scan with any UPI Application</span>
-          <span style="font-size:0.75rem; color:var(--color-muted);">GPay, PhonePe, Paytm, BHIM UPI</span>
+          <div style="font-weight:700; font-size:0.95rem; margin-bottom:0.25rem;">Scan with any UPI Application</div>
+          <div style="font-size:0.8rem; color:var(--color-muted); margin-bottom:1rem;">Compatible with Google Pay, PhonePe, Paytm, BHIM, Cred</div>
+          <button type="button" class="btn btn-secondary whitespace-nowrap" id="btnSimulateUpiApp" style="width:100%; max-width:340px; white-space:nowrap;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+              <line x1="12" y1="18" x2="12.01" y2="18"/>
+            </svg>
+            <span>Simulate Phone App Scan &amp; Approve</span>
+          </button>
         </div>
+
+        <div style="position:relative; text-align:center; margin:1.5rem 0;">
+          <hr style="border:none; border-top:var(--rule-hair) solid var(--color-rule);">
+          <span style="position:absolute; top:-0.65rem; left:50%; transform:translateX(-50%); background:var(--color-paper-3); padding:0 0.75rem; font-size:0.75rem; font-weight:700; color:var(--color-muted);">OR PAY VIA UPI ID / VPA</span>
+        </div>
+
         <div class="form-group">
-          <label for="upiId">Or enter UPI ID / VPA</label>
-          <input type="text" id="upiId" class="form-control" placeholder="username@upi">
+          <label for="upiVpaInput" class="form-label">Virtual Payment Address (VPA / UPI ID)</label>
+          <div style="display:flex; gap:0.5rem;">
+            <input type="text" id="upiVpaInput" class="form-control" placeholder="e.g. mobile@upi or username@okhdfcbank" style="font-family:var(--font-mono);">
+            <button type="button" class="btn btn-outline" id="btnVerifyUpiVpa" style="white-space:nowrap;">Verify ID</button>
+          </div>
+          <span id="upiValidationMsg" class="form-hint" style="display:none;"></span>
         </div>
       </div>
 
-      <!-- Net Banking Tab -->
-      <div class="tab-pane" id="tabNetBanking">
-        <div class="form-group">
-          <label for="bankSelect">Select Your Bank</label>
-          <select id="bankSelect" class="form-control">
-            <option value="SBI">State Bank of India (SBI)</option>
-            <option value="HDFC">HDFC Bank</option>
-            <option value="ICICI">ICICI Bank</option>
-            <option value="AXIS">Axis Bank</option>
+      <!-- Tab 2: Credit / Debit Card -->
+      <div class="checkout-tab-pane" id="paneCard" role="tabpanel" aria-labelledby="tabBtnCard">
+        <!-- Interactive Card Mockup -->
+        <div class="card-mockup-wrapper">
+          <div class="card-mockup" id="cardMockupPreview" aria-hidden="true">
+            <div class="card-mockup-top">
+              <div class="card-chip">
+                <svg width="24" height="18" viewBox="0 0 24 18" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <rect x="1" y="1" width="22" height="16" rx="2"/>
+                  <line x1="8" y1="1" x2="8" y2="17"/>
+                  <line x1="16" y1="1" x2="16" y2="17"/>
+                  <line x1="1" y1="9" x2="23" y2="9"/>
+                </svg>
+              </div>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                  <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                  <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                  <line x1="12" y1="20" x2="12.01" y2="20"/>
+                </svg>
+                <div class="card-network-badge" id="cardNetworkBadge">RUPAY</div>
+              </div>
+            </div>
+
+            <div class="card-mockup-number" id="previewCardNumber">•••• •••• •••• ••••</div>
+
+            <div class="card-mockup-bottom">
+              <div class="card-mockup-holder">
+                <div class="label">CARDHOLDER NAME</div>
+                <div class="val" id="previewCardHolder">TRAVELLER NAME</div>
+              </div>
+              <div class="card-mockup-expiry">
+                <div class="label">EXPIRES</div>
+                <div class="val" id="previewCardExpiry">MM/YY</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Form Fields -->
+        <div style="display:flex; flex-direction:column; gap:1rem;">
+          <div class="form-group">
+            <label for="cardNumberInput" class="form-label">Card Number</label>
+            <input type="text" id="cardNumberInput" class="form-control font-mono" placeholder="4111 2222 3333 4444" maxlength="19" autocomplete="cc-number">
+            <span class="form-hint" id="cardNumberHint">Enter 16-digit debit or credit card number</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+            <div class="form-group">
+              <label for="cardExpiryInput" class="form-label">Valid Thru (MM/YY)</label>
+              <input type="text" id="cardExpiryInput" class="form-control font-mono" placeholder="MM/YY" maxlength="5" autocomplete="cc-exp">
+            </div>
+            <div class="form-group">
+              <label for="cardCvvInput" class="form-label">CVV / CVC</label>
+              <input type="password" id="cardCvvInput" class="form-control font-mono" placeholder="•••" maxlength="4" autocomplete="cc-csc">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cardHolderInput" class="form-label">Cardholder Name (as printed on card)</label>
+            <input type="text" id="cardHolderInput" class="form-control" placeholder="e.g. SHAKTHI RAJA" autocomplete="cc-name">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Net Banking -->
+      <div class="checkout-tab-pane" id="paneNetBanking" role="tabpanel" aria-labelledby="tabBtnNetBanking">
+        <div style="font-size:0.85rem; font-weight:700; margin-bottom:0.75rem; color:var(--color-ink);">Select Primary Indian Bank</div>
+        <div class="bank-grid" id="popularBanksGrid" role="radiogroup" aria-label="Popular Banks">
+          <label class="bank-tile selected" id="tileHdfc">
+            <input type="radio" name="bankOption" value="HDFC" checked>
+            <span class="bank-code-pill">HDFC</span>
+            <span>HDFC Bank</span>
+          </label>
+          <label class="bank-tile" id="tileSbi">
+            <input type="radio" name="bankOption" value="SBI">
+            <span class="bank-code-pill">SBI</span>
+            <span>State Bank of India</span>
+          </label>
+          <label class="bank-tile" id="tileIcici">
+            <input type="radio" name="bankOption" value="ICICI">
+            <span class="bank-code-pill">ICICI</span>
+            <span>ICICI Bank</span>
+          </label>
+          <label class="bank-tile" id="tileAxis">
+            <input type="radio" name="bankOption" value="AXIS">
+            <span class="bank-code-pill">AXIS</span>
+            <span>Axis Bank</span>
+          </label>
+          <label class="bank-tile" id="tileKotak">
+            <input type="radio" name="bankOption" value="KOTAK">
+            <span class="bank-code-pill">KOTAK</span>
+            <span>Kotak Mahindra</span>
+          </label>
+        </div>
+
+        <div class="form-group" style="margin-top:1.25rem;">
+          <label for="allBanksDropdown" class="form-label">Or Select Other Scheduled Indian Bank</label>
+          <select id="allBanksDropdown" class="form-control">
+            <option value="">-- Choose from other Indian Banks --</option>
             <option value="PNB">Punjab National Bank</option>
+            <option value="BOB">Bank of Baroda</option>
+            <option value="CANARA">Canara Bank</option>
+            <option value="UBI">Union Bank of India</option>
+            <option value="INDUSIND">IndusInd Bank</option>
+            <option value="YES">Yes Bank</option>
+            <option value="IDFC">IDFC FIRST Bank</option>
+            <option value="FEDERAL">Federal Bank</option>
           </select>
         </div>
       </div>
 
-      <!-- Actions -->
-      <div class="action-row">
-        <button type="button" class="btn btn-cancel" id="cancelPayBtn">
-          Cancel &amp; Return
+      <!-- Action Row -->
+      <div style="padding:1.5rem 1.75rem; background:var(--color-paper-2); border-top:var(--rule-hair) solid var(--color-rule); display:flex; gap:1rem; flex-wrap:wrap;">
+        <button type="button" class="btn btn-outline whitespace-nowrap" id="cancelPayBtn" style="flex:1; min-width:200px; color:var(--color-danger); border-color:var(--color-danger); white-space:nowrap;">
+          <span>Cancel &amp; Release Seats</span>
         </button>
-        <button type="button" class="btn btn-pay" id="confirmPayBtn">
+        <button type="button" class="btn btn-primary whitespace-nowrap" id="confirmPayBtn" style="flex:2; min-width:250px; white-space:nowrap;">
           <span id="payBtnText">Authorize Payment &amp; Confirm Booking</span>
         </button>
+      </div>
+
+      <!-- Processing Lockout Overlay -->
+      <div id="processingLockout" style="display:none; padding:1.5rem; text-align:center; background:var(--color-paper-3); border-top:var(--rule-hair) solid var(--color-rule);">
+        <div class="spinner" style="margin:0 auto 0.75rem auto;"></div>
+        <div style="font-weight:700; font-size:1rem; color:var(--color-ink);" id="lockoutTitle">Processing Authorization…</div>
+        <div style="font-size:0.8rem; color:var(--color-muted);" id="lockoutSubtext">Generating SHA-256 HMAC signature token and confirming seat allocation…</div>
       </div>
     </div>
   </main>
 
+  <!-- Footer -->
   <footer class="app-footer">
     <div class="container" style="text-align: center;">
-      <p>&copy; 2026 National Railway Reservation Portal. Secure Payment Sandbox Environment.</p>
+      <p>&copy; 2026 National Railway Reservation Portal. Secure Commercial Payment Sandbox Environment.</p>
     </div>
   </footer>
 
   <script>
     (function () {
       'use strict';
+
+      // 1. Session and Query Context
       const params = new URLSearchParams(window.location.search);
-      const pnr = params.get('pnr') || '---';
-      const gatewayRef = params.get('gatewayRef') || 'TXN-SANDBOX-' + Math.floor(100000 + Math.random() * 900000);
-      const amount = params.get('amount') || '0.00';
-      const trainNo = params.get('trainNo') || '---';
+      const pnr = (params.get('pnr') || '').trim();
+      const gatewayRef = (params.get('gatewayRef') || 'TXN-' + Math.random().toString(36).substring(2, 10).toUpperCase()).trim();
+      const amountStr = params.get('amount') || '0.00';
+      const parsedAmount = parseFloat(amountStr) || 0.00;
+      const formattedAmount = parsedAmount.toFixed(2);
+      const trainNo = (params.get('trainNo') || '---').trim();
 
-      document.getElementById('summaryPnr').textContent = pnr;
-      document.getElementById('summaryTrainNo').textContent = trainNo;
-      document.getElementById('summaryGatewayRef').textContent = gatewayRef;
-      document.getElementById('summaryAmount').textContent = '₹' + amount;
-      document.getElementById('payBtnText').textContent = 'Authorize ₹' + amount + ' (Simulate Success)';
+      let activeTab = 'paneUpi';
+      let selectedBank = 'HDFC';
+      let countdownSeconds = 300; // 5 minutes standard reservation hold
+      let countdownTimerInterval = null;
 
-      // Tab Switching
-      const tabs = document.querySelectorAll('.tab-btn');
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          tabs.forEach(t => t.classList.remove('active'));
-          document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-          tab.classList.add('active');
-          const target = tab.getAttribute('data-tab');
-          document.getElementById(target).classList.add('active');
-        });
-      });
+      // DOM Elements
+      const summaryPnr = document.getElementById('summaryPnr');
+      const summaryTrainNo = document.getElementById('summaryTrainNo');
+      const summaryGatewayRef = document.getElementById('summaryGatewayRef');
+      const summaryAmount = document.getElementById('summaryAmount');
+      const payBtnText = document.getElementById('payBtnText');
+      const confirmPayBtn = document.getElementById('confirmPayBtn');
+      const cancelPayBtn = document.getElementById('cancelPayBtn');
+      const processingLockout = document.getElementById('processingLockout');
+      const sessionTimerText = document.getElementById('sessionTimerText');
+      const sessionTimerBadge = document.getElementById('sessionTimerBadge');
 
-      // Simulate Successful Payment
-      document.getElementById('confirmPayBtn').addEventListener('click', async () => {
-        const btn = document.getElementById('confirmPayBtn');
-        btn.disabled = true;
-        document.getElementById('payBtnText').textContent = 'Authorizing Payment...';
+      // Populate Order Summary
+      summaryPnr.textContent = pnr || '---';
+      summaryTrainNo.textContent = trainNo;
+      summaryGatewayRef.textContent = gatewayRef;
+      summaryAmount.textContent = '₹' + formattedAmount;
+      payBtnText.textContent = 'Authorize ₹' + formattedAmount + ' & Confirm';
 
+      // 2. Cryptographic HMAC-SHA256 Helper (Web Crypto API)
+      async function generateHmacSha256(ref, bookingPnr, status, amount) {
         try {
-          const res = await fetch('/api/v1/payments/callback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({
-              pnr: pnr,
-              gatewayRef: gatewayRef,
-              status: 'SUCCESS',
-              amount: parseFloat(amount)
-            })
-          });
-
-          if (!res.ok) {
-            let errText = 'Payment authorization rejected by server';
-            try {
-              const errJson = await res.json();
-              if (errJson && errJson.message) errText = errJson.message;
-            } catch (_) {}
-            alert('Payment Error: ' + errText);
-            btn.disabled = false;
-            document.getElementById('payBtnText').textContent = 'Authorize ₹' + amount + ' (Retry)';
-            return;
-          }
-
-          // Redirect back to main application with confirmed PNR
-          window.location.href = '/?pnr=' + encodeURIComponent(pnr) + '&payment=success&ref=' + encodeURIComponent(gatewayRef);
-        } catch (err) {
-          alert('Network Error during payment: ' + err.message);
-          btn.disabled = false;
-          document.getElementById('payBtnText').textContent = 'Authorize ₹' + amount + ' (Retry)';
+          const secret = 'rrs_sandbox_hmac_secret_key_2026';
+          const amtStr = (typeof amount === 'number' ? amount.toFixed(2) : parseFloat(amount || 0).toFixed(2));
+          const message = (ref || '').trim() + '|'
+                        + (bookingPnr || '').trim() + '|'
+                        + (status || '').trim().toUpperCase() + '|'
+                        + amtStr;
+          const enc = new TextEncoder();
+          const keyData = enc.encode(secret);
+          const cryptoKey = await window.crypto.subtle.importKey(
+            'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+          );
+          const sigBuffer = await window.crypto.subtle.sign('HMAC', cryptoKey, enc.encode(message));
+          const hashBytes = Array.from(new Uint8Array(sigBuffer));
+          return hashBytes.map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch (e) {
+          console.warn('HMAC signing fallback:', e);
+          return '';
         }
-      });
+      }
 
-      // Cancel / Decline Payment (Release held seats)
-      document.getElementById('cancelPayBtn').addEventListener('click', async () => {
-        const cancelBtn = document.getElementById('cancelPayBtn');
-        cancelBtn.disabled = true;
-        cancelBtn.textContent = 'Releasing Seats...';
+      // 3. 5-Minute Countdown Session Timer
+      function updateTimerDisplay() {
+        const minutes = Math.floor(countdownSeconds / 60);
+        const seconds = countdownSeconds % 60;
+        sessionTimerText.textContent = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+
+        if (countdownSeconds <= 60) {
+          sessionTimerBadge.classList.add('warning');
+        } else {
+          sessionTimerBadge.classList.remove('warning');
+        }
+
+        if (countdownSeconds <= 0) {
+          clearInterval(countdownTimerInterval);
+          handleSessionExpiry();
+        } else {
+          countdownSeconds--;
+        }
+      }
+
+      async function handleSessionExpiry() {
+        // Automatically release held seats via FAILED/EXPIRED callback
+        confirmPayBtn.disabled = true;
+        cancelPayBtn.disabled = true;
+        sessionTimerText.textContent = '00:00 (EXPIRED)';
+
+        processingLockout.style.display = 'block';
+        document.getElementById('lockoutTitle').textContent = 'Hold Reservation Expired';
+        document.getElementById('lockoutSubtext').textContent = 'Your 5-minute checkout window has elapsed. Held seats are being automatically released.';
 
         try {
+          const signature = await generateHmacSha256(gatewayRef, pnr, 'EXPIRED', parsedAmount);
           await fetch('/api/v1/payments/callback', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({
               pnr: pnr,
               gatewayRef: gatewayRef,
+              status: 'EXPIRED',
+              amount: parsedAmount,
+              signature: signature
+            })
+          });
+        } catch (_) {}
+
+        setTimeout(function () {
+          window.location.href = '/?pnr=' + encodeURIComponent(pnr) + '&payment=expired';
+        }, 1500);
+      }
+
+      countdownTimerInterval = setInterval(updateTimerDisplay, 1000);
+      updateTimerDisplay();
+
+      // 4. Tab Navigation Logic
+      const tabButtons = document.querySelectorAll('.checkout-tab-btn');
+      const tabPanes = document.querySelectorAll('.checkout-tab-pane');
+
+      tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabButtons.forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-selected', 'false');
+          });
+          tabPanes.forEach(p => p.classList.remove('active'));
+
+          btn.classList.add('active');
+          btn.setAttribute('aria-selected', 'true');
+          const targetPaneId = btn.getAttribute('data-tab');
+          const targetPane = document.getElementById(targetPaneId);
+          if (targetPane) {
+            targetPane.classList.add('active');
+            activeTab = targetPaneId;
+          }
+        });
+      });
+
+      // 5. Interactive Card Mockup Logic
+      const cardNumberInput = document.getElementById('cardNumberInput');
+      const cardExpiryInput = document.getElementById('cardExpiryInput');
+      const cardHolderInput = document.getElementById('cardHolderInput');
+      const cardCvvInput = document.getElementById('cardCvvInput');
+      const previewCardNumber = document.getElementById('previewCardNumber');
+      const previewCardHolder = document.getElementById('previewCardHolder');
+      const previewCardExpiry = document.getElementById('previewCardExpiry');
+      const cardNetworkBadge = document.getElementById('cardNetworkBadge');
+
+      cardNumberInput.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '').substring(0, 16);
+        let formatted = value.match(/.{1,4}/g)?.join(' ') || '';
+        e.target.value = formatted;
+
+        // Brand detection
+        if (value.startsWith('4')) {
+          cardNetworkBadge.textContent = 'VISA';
+        } else if (/^(5[1-5]|2[2-7])/.test(value)) {
+          cardNetworkBadge.textContent = 'MASTERCARD';
+        } else if (/^(60|65|81|82)/.test(value)) {
+          cardNetworkBadge.textContent = 'RUPAY';
+        } else {
+          cardNetworkBadge.textContent = 'RUPAY';
+        }
+
+        previewCardNumber.textContent = formatted || '•••• •••• •••• ••••';
+      });
+
+      cardExpiryInput.addEventListener('input', (e) => {
+        let val = e.target.value.replace(/\D/g, '').substring(0, 4);
+        if (val.length >= 2) {
+          val = val.substring(0, 2) + '/' + val.substring(2);
+        }
+        e.target.value = val;
+        previewCardExpiry.textContent = val || 'MM/YY';
+      });
+
+      cardHolderInput.addEventListener('input', (e) => {
+        let name = e.target.value.toUpperCase();
+        previewCardHolder.textContent = name || 'TRAVELLER NAME';
+      });
+
+      // 6. Net Banking Selection
+      const bankTiles = document.querySelectorAll('.bank-tile');
+      const allBanksDropdown = document.getElementById('allBanksDropdown');
+
+      bankTiles.forEach(tile => {
+        tile.addEventListener('click', () => {
+          bankTiles.forEach(t => t.classList.remove('selected'));
+          tile.classList.add('selected');
+          const radio = tile.querySelector('input[type="radio"]');
+          if (radio) {
+            radio.checked = true;
+            selectedBank = radio.value;
+          }
+          if (allBanksDropdown) allBanksDropdown.value = '';
+        });
+      });
+
+      if (allBanksDropdown) {
+        allBanksDropdown.addEventListener('change', () => {
+          if (allBanksDropdown.value) {
+            bankTiles.forEach(t => t.classList.remove('selected'));
+            selectedBank = allBanksDropdown.value;
+          }
+        });
+      }
+
+      // 7. UPI Dynamic Simulation Controls
+      const btnSimulateUpiApp = document.getElementById('btnSimulateUpiApp');
+      const btnVerifyUpiVpa = document.getElementById('btnVerifyUpiVpa');
+      const upiVpaInput = document.getElementById('upiVpaInput');
+      const upiValidationMsg = document.getElementById('upiValidationMsg');
+
+      btnVerifyUpiVpa.addEventListener('click', () => {
+        const vpa = upiVpaInput.value.trim();
+        if (/^[\w.-]+@[\w.-]+$/.test(vpa)) {
+          upiValidationMsg.style.display = 'block';
+          upiValidationMsg.style.color = 'var(--color-success)';
+          upiValidationMsg.textContent = 'Valid Virtual Payment Address verified with NPCI directory.';
+        } else {
+          upiValidationMsg.style.display = 'block';
+          upiValidationMsg.style.color = 'var(--color-danger)';
+          upiValidationMsg.textContent = 'Please enter a valid UPI ID (e.g. name@bank or phone@upi).';
+        }
+      });
+
+      btnSimulateUpiApp.addEventListener('click', () => {
+        triggerPaymentAuthorization('UPI_APP_PUSH');
+      });
+
+      // 8. Payment Submission & HMAC Webhook Dispatch
+      confirmPayBtn.addEventListener('click', () => {
+        let method = 'UPI';
+        if (activeTab === 'paneCard') {
+          method = 'CARD';
+          const numDigits = cardNumberInput.value.replace(/\D/g, '');
+          if (numDigits.length < 15) {
+            alert('Please enter a valid 16-digit card number.');
+            cardNumberInput.focus();
+            return;
+          }
+          if (!/^\d{2}\/\d{2}$/.test(cardExpiryInput.value)) {
+            alert('Please enter a valid expiry date in MM/YY format.');
+            cardExpiryInput.focus();
+            return;
+          }
+          if ((cardCvvInput.value || '').length < 3) {
+            alert('Please enter a valid 3-digit CVV.');
+            cardCvvInput.focus();
+            return;
+          }
+        } else if (activeTab === 'paneNetBanking') {
+          method = 'NET_BANKING_' + (selectedBank || 'HDFC');
+        }
+
+        triggerPaymentAuthorization(method);
+      });
+
+      async function triggerPaymentAuthorization(methodName) {
+        clearInterval(countdownTimerInterval);
+        confirmPayBtn.disabled = true;
+        cancelPayBtn.disabled = true;
+        processingLockout.style.display = 'block';
+        document.getElementById('lockoutTitle').textContent = 'Authorizing via ' + methodName + '…';
+
+        try {
+          // Compute HMAC-SHA256 signature
+          const signature = await generateHmacSha256(gatewayRef, pnr, 'SUCCESS', parsedAmount);
+
+          const response = await fetch('/api/v1/payments/callback', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              pnr: pnr,
+              gatewayRef: gatewayRef,
+              status: 'SUCCESS',
+              amount: parsedAmount,
+              paymentMethod: methodName,
+              signature: signature
+            })
+          });
+
+          if (!response.ok) {
+            let errorText = 'Payment authorization rejected by server';
+            try {
+              const errData = await response.json();
+              if (errData && errData.message) errorText = errData.message;
+            } catch (_) {}
+            alert('Payment Gateway Error: ' + errorText);
+            processingLockout.style.display = 'none';
+            confirmPayBtn.disabled = false;
+            cancelPayBtn.disabled = false;
+            return;
+          }
+
+          const result = await response.json();
+          document.getElementById('lockoutTitle').textContent = 'Payment Verified Successfully!';
+          document.getElementById('lockoutSubtext').textContent = 'Booking confirmed. Redirecting to your confirmed reservation details…';
+
+          setTimeout(function () {
+            window.location.href = '/?pnr=' + encodeURIComponent(pnr) + '&payment=success&ref=' + encodeURIComponent(gatewayRef);
+          }, 1000);
+        } catch (err) {
+          alert('Network communication error: ' + err.message);
+          processingLockout.style.display = 'none';
+          confirmPayBtn.disabled = false;
+          cancelPayBtn.disabled = false;
+        }
+      }
+
+      // 9. Cancellation & Seat Release
+      cancelPayBtn.addEventListener('click', async () => {
+        clearInterval(countdownTimerInterval);
+        cancelPayBtn.disabled = true;
+        confirmPayBtn.disabled = true;
+        processingLockout.style.display = 'block';
+        document.getElementById('lockoutTitle').textContent = 'Releasing Held Seats…';
+        document.getElementById('lockoutSubtext').textContent = 'Aborting transaction and updating seat allocation ledger…';
+
+        try {
+          const signature = await generateHmacSha256(gatewayRef, pnr, 'FAILED', parsedAmount);
+          await fetch('/api/v1/payments/callback', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              pnr: pnr,
+              gatewayRef: gatewayRef,
               status: 'FAILED',
-              amount: parseFloat(amount)
+              amount: parsedAmount,
+              signature: signature
             })
           });
         } catch (_) {}
 
         window.location.href = '/?pnr=' + encodeURIComponent(pnr) + '&payment=cancelled';
       });
+
+      // 10. Theme Toggle
+      const themeToggleBtn = document.getElementById('themeToggleBtn');
+      if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', function () {
+          const current = document.documentElement.getAttribute('data-mode') || 'light';
+          const next = current === 'dark' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-mode', next);
+          try {
+            localStorage.setItem('rrs_theme', next);
+          } catch (_) {}
+        });
+      }
     })();
   </script>
 </body>

@@ -27,6 +27,9 @@ public class PaymentCallbackRequestDto {
 
     private String paymentMethod;
 
+    @SafeText(message = "Payment signature contains invalid characters")
+    private String signature;
+
     public PaymentCallbackRequestDto() {}
 
     public PaymentCallbackRequestDto(String gatewayRef, String pnr, String status) {
@@ -40,6 +43,14 @@ public class PaymentCallbackRequestDto {
         this.pnr = pnr;
         this.status = status;
         this.amount = amount;
+    }
+
+    public PaymentCallbackRequestDto(String gatewayRef, String pnr, String status, BigDecimal amount, String signature) {
+        this.gatewayRef = gatewayRef;
+        this.pnr = pnr;
+        this.status = status;
+        this.amount = amount;
+        this.signature = signature;
     }
 
     public String getGatewayRef() { return gatewayRef; }
@@ -56,5 +67,8 @@ public class PaymentCallbackRequestDto {
 
     public String getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+
+    public String getSignature() { return signature; }
+    public void setSignature(String signature) { this.signature = signature; }
 }
 

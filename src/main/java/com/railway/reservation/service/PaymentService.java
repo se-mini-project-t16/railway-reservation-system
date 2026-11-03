@@ -44,5 +44,10 @@ public interface PaymentService {
      * or null when the cancellation rules allow no refund.
      */
     String initiateRefund(Booking booking, BigDecimal amount);
+
+    /**
+     * Calculates the HMAC-SHA256 signature for payment webhook verification (RRS-SR-002, RRS-F-008-EXT).
+     */
+    String calculateHmacSha256(String gatewayRef, String pnr, String status, BigDecimal amount);
 }
 
