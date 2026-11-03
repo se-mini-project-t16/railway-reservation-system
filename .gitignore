@@ -36,3 +36,7 @@ logs/
 application-local.properties
 
 node_modules/
+
+### Local database ###
+data/
+.hallmark/

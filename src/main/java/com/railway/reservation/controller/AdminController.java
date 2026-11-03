@@ -1,121 +1,154 @@
 package com.railway.reservation.controller;
 
-import com.railway.reservation.dto.AdminDashboardStatsDto;
-import com.railway.reservation.dto.CoachSeatMatrixDto;
-import com.railway.reservation.dto.CreateTrainDto;
-import com.railway.reservation.dto.ReservationChartDto;
-import com.railway.reservation.dto.TrainResponseDto;
-import com.railway.reservation.dto.UpdateTrainDto;
-import com.railway.reservation.service.AdminService;
-import com.railway.reservation.validation.SafeTextRules;
+import com.railway.reservation.dto.AdminDtos.*;
+import com.railway.reservation.dto.BookingDtos.BookingView;
+import com.railway.reservation.dto.BookingDtos.CancelPreview;
+import com.railway.reservation.dto.BookingDtos.CancelRequest;
+import com.railway.reservation.dto.TrainDtos.StationDto;
+import com.railway.reservation.dto.TrainDtos.TrainDetail;
+import com.railway.reservation.model.CancellationRule;
+import com.railway.reservation.service.rail.AdminService;
+import com.railway.reservation.service.rail.BookingService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Map;
 
+/** Operations console API. Every route requires ROLE_ADMIN (also enforced in SecurityConfig). */
 @RestController
 @RequestMapping("/api/v1/admin")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
     private final AdminService adminService;
+    private final BookingService bookingService;
 
-    public AdminController(AdminService adminService) {
+    public AdminController(AdminService adminService, BookingService bookingService) {
         this.adminService = adminService;
+        this.bookingService = bookingService;
     }
 
-    @GetMapping("/stats")
-    public ResponseEntity<AdminDashboardStatsDto> getDashboardStats() {
-        return ResponseEntity.ok(adminService.getDashboardStats());
+    @GetMapping("/overview")
+    public Overview overview() {
+        return adminService.overview();
     }
 
     @GetMapping("/trains")
-    public ResponseEntity<List<TrainResponseDto>> getAllTrains() {
-        return ResponseEntity.ok(adminService.getAllTrains());
+    public List<TrainRow> trains() {
+        return adminService.trains();
+    }
+
+    @GetMapping("/trains/{number}")
+    public TrainDetail train(@PathVariable String number) {
+        return adminService.train(number);
     }
 
     @PostMapping("/trains")
-    public ResponseEntity<TrainResponseDto> createTrain(@Valid @RequestBody CreateTrainDto createTrainDto) {
-        TrainResponseDto created = adminService.createTrain(createTrainDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    public ResponseEntity<TrainDetail> create(@Valid @RequestBody TrainForm form) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(adminService.createTrain(form));
     }
 
-    @PutMapping("/trains/{id}")
-    public ResponseEntity<TrainResponseDto> updateTrain(
-            @PathVariable("id") Long id,
-            @Valid @RequestBody UpdateTrainDto updateTrainDto) {
-        TrainResponseDto updated = adminService.updateTrain(id, updateTrainDto);
-        return ResponseEntity.ok(updated);
+    @PutMapping("/trains/{number}")
+    public TrainDetail update(@PathVariable String number, @Valid @RequestBody TrainForm form) {
+        return adminService.updateTrain(number, form);
     }
 
-    @DeleteMapping("/trains/{id}")
-    public ResponseEntity<Void> deleteTrain(@PathVariable("id") Long id) {
-        adminService.deleteTrain(id);
+    @PatchMapping("/trains/{number}/status")
+    public ResponseEntity<Void> status(@PathVariable String number, @RequestBody Map<String, Boolean> body) {
+        adminService.setActive(number, Boolean.TRUE.equals(body.get("active")));
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/trains/{id}/seat-matrix")
-    public ResponseEntity<CoachSeatMatrixDto> getCoachSeatMatrix(
-            @PathVariable("id") Long id,
-            @RequestParam(name = "date", required = false) String dateStr,
-            @RequestParam(name = "className", required = false) String className) {
-
-        LocalDate journeyDate = parseDate(dateStr);
-        String safeClassName = (className != null && !className.isBlank()) ? className.trim() : null;
-        if (safeClassName != null) {
-            SafeTextRules.requireSafe("Class name ('className')", safeClassName);
-        }
-
-        CoachSeatMatrixDto matrix = adminService.getCoachSeatMatrix(id, journeyDate, safeClassName);
-        return ResponseEntity.ok(matrix);
+    @DeleteMapping("/trains/{number}")
+    public ResponseEntity<Void> delete(@PathVariable String number) {
+        adminService.deleteTrain(number);
+        return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/trains/{id}/chart")
-    public ResponseEntity<ReservationChartDto> getReservationChart(
-            @PathVariable("id") Long id,
-            @RequestParam(name = "date", required = false) String dateStr) {
-
-        LocalDate journeyDate = parseDate(dateStr);
-        ReservationChartDto chart = adminService.getReservationChart(id, journeyDate);
-        return ResponseEntity.ok(chart);
+    @GetMapping("/stations")
+    public List<StationDto> stations() {
+        return adminService.stations();
     }
 
-    @GetMapping("/trains/{id}/chart/csv")
-    public ResponseEntity<String> getReservationChartCsv(
-            @PathVariable("id") Long id,
-            @RequestParam(name = "date", required = false) String dateStr) {
+    @PostMapping("/stations")
+    public ResponseEntity<StationDto> createStation(@Valid @RequestBody StationForm form) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(adminService.createStation(form));
+    }
 
-        LocalDate journeyDate = parseDate(dateStr);
-        String csv = adminService.generateReservationChartCsv(id, journeyDate);
+    /** Bookings report filtered by PNR, email, train, journey date and status (RRS-F-016). */
+    @GetMapping("/bookings")
+    public PageOf<BookingRow> bookings(@RequestParam(required = false) String pnr,
+                                       @RequestParam(required = false) String email,
+                                       @RequestParam(required = false) String train,
+                                       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                                       @RequestParam(required = false) String status,
+                                       @RequestParam(defaultValue = "0") int page,
+                                       @RequestParam(defaultValue = "25") int size) {
+        return adminService.bookings(pnr, email, train, date, status, page, size);
+    }
 
-        String filename = "reservation-chart-train-" + id + "-" + (journeyDate != null ? journeyDate : LocalDate.now()) + ".csv";
+    @GetMapping("/bookings/{pnr}")
+    public BookingView booking(@PathVariable String pnr, Authentication auth) {
+        return bookingService.view(pnr, CurrentUser.id(auth), true);
+    }
+
+    @PostMapping("/bookings/{pnr}/cancel/preview")
+    public CancelPreview cancelPreview(@PathVariable String pnr, @Valid @RequestBody CancelRequest request, Authentication auth) {
+        return bookingService.previewCancel(pnr, CurrentUser.id(auth), true, request.passengerIds());
+    }
+
+    @PostMapping("/bookings/{pnr}/cancel")
+    public BookingView cancel(@PathVariable String pnr, @Valid @RequestBody CancelRequest request, Authentication auth) {
+        return bookingService.cancel(pnr, CurrentUser.id(auth), true, request.passengerIds());
+    }
+
+    @GetMapping("/chart")
+    public Chart chart(@RequestParam String train,
+                       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                       @RequestParam(name = "class", required = false) String classCode) {
+        return adminService.chart(train, date, classCode);
+    }
+
+    @GetMapping(value = "/chart.csv", produces = "text/csv")
+    public ResponseEntity<byte[]> chartCsv(@RequestParam String train,
+                                           @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                                           @RequestParam(name = "class", required = false) String classCode) {
+        String csv = adminService.chartCsv(train, date, classCode);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
-                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
-                .body(csv);
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"chart-" + train + "-" + date + "-" + classCode + ".csv\"")
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(csv.getBytes(StandardCharsets.UTF_8));
     }
 
-    private LocalDate parseDate(String dateStr) {
-        if (dateStr == null || dateStr.isBlank()) {
-            return LocalDate.now();
-        }
-        try {
-            return LocalDate.parse(dateStr.trim());
-        } catch (DateTimeParseException ex) {
-            throw new IllegalArgumentException("Invalid date format. Expected format: YYYY-MM-DD.");
-        }
+    @GetMapping("/users")
+    public PageOf<UserRow> users(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "25") int size) {
+        return adminService.users(page, size);
+    }
+
+    @PostMapping("/users/{id}/unlock")
+    public ResponseEntity<Void> unlock(@PathVariable Long id) {
+        adminService.unlockUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/rules")
+    public List<CancellationRule> rules() {
+        return adminService.rules();
+    }
+
+    @PutMapping("/rules")
+    public ResponseEntity<Void> updateRules(@RequestBody List<@Valid RuleForm> rules) {
+        adminService.updateRules(rules);
+        return ResponseEntity.noContent().build();
     }
 }

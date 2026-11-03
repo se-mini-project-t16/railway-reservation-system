@@ -4,24 +4,24 @@ import com.railway.reservation.model.Train;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-@Repository
 public interface TrainRepository extends JpaRepository<Train, Long> {
-    Optional<Train> findByTrainNo(String trainNo);
-    boolean existsByTrainNo(String trainNo);
-    List<Train> findBySourceStationIgnoreCaseAndDestinationStationIgnoreCase(String sourceStation, String destinationStation);
 
-    @Query("SELECT DISTINCT t FROM Train t WHERE " +
-           "(LOWER(t.sourceStation) IN :srcAliases OR LOWER(t.sourceStation) = LOWER(:src)) AND " +
-           "(LOWER(t.destinationStation) IN :dstAliases OR LOWER(t.destinationStation) = LOWER(:dst))")
-    List<Train> findBySourceAndDestinationAliases(
-            @Param("src") String src,
-            @Param("srcAliases") List<String> srcAliases,
-            @Param("dst") String dst,
-            @Param("dstAliases") List<String> dstAliases);
+    Optional<Train> findByNumber(String number);
+
+    boolean existsByNumber(String number);
+
+    List<Train> findAllByOrderByNumberAsc();
+
+    /** Active trains that call at one of the origin stations and, later on the route, at one of the destinations. */
+    @Query("select distinct t from Train t join t.stops a join t.stops b "
+            + "where t.active = true and a.station.id in :fromIds and b.station.id in :toIds and a.seq < b.seq")
+    List<Train> findServing(@Param("fromIds") Collection<Long> fromIds, @Param("toIds") Collection<Long> toIds);
+
+    @Query("select distinct t from Train t join t.stops s where t.active = true and s.station.id = :stationId")
+    List<Train> findCallingAt(@Param("stationId") Long stationId);
 }
-

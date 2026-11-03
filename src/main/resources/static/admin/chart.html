@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reservation chart | Operations console</title>
+  <meta name="description" content="Coach by coach: who holds each berth on a departure.">
+  <script src="/js/theme-init.js"></script>
+  <link rel="preload" href="/fonts/chivo-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script type="module" src="/js/admin/chart.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="admin-bar"></header>
+  <nav class="admin-tabs" aria-label="Console"></nav>
+  <main id="main" class="container page">
+    <div class="page-head"><div><h1>Reservation chart</h1><p>Berths by coach for one departure, with RAC and waiting lists.</p></div></div>
+    <form class="toolbar" id="cf" novalidate>
+      <div class="field"><label for="c-train">Train</label><div class="select-wrap"><select class="select" id="c-train" name="train"></select></div></div>
+      <div class="field"><label for="c-date">Departs origin on</label><input class="input" id="c-date" name="date" type="date"></div>
+      <div class="field"><label for="c-class">Class</label><div class="select-wrap"><select class="select" id="c-class" name="class"></select></div></div>
+      <button class="btn btn--primary" type="submit">Show chart</button>
+      <button class="btn" type="button" id="csv">Download CSV</button>
+    </form>
+    <div id="chart" aria-live="polite"></div>
+  </main>
+</body>
+</html>

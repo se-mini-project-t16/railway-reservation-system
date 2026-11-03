@@ -1,116 +1,82 @@
 package com.railway.reservation.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
+import jakarta.persistence.*;
+
 import java.time.LocalTime;
 
 /**
- * Embeddable value object representing an intermediate halt or terminus stop
- * along a scheduled train route (RRS-F-004-EXT).
+ * One halt on a train's route. Times are stored as minutes after midnight of
+ * the day the train leaves its origin, so a stop at 02:10 on the second day is
+ * 1570. That keeps overnight and multi-day journeys exact.
  */
-@Embeddable
+@Entity
+@Table(name = "train_stops", uniqueConstraints = @UniqueConstraint(columnNames = {"train_id", "seq"}))
 public class TrainStop {
 
-    @Column(name = "stop_order", nullable = false)
-    private int stopOrder;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Column(name = "station_code", nullable = false, length = 10)
-    private String stationCode;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "train_id")
+    private Train train;
 
-    @Column(name = "station_name", nullable = false, length = 120)
-    private String stationName;
+    @Column(nullable = false)
+    private int seq;
 
-    @Column(name = "arrival_time")
-    private LocalTime arrivalTime;
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "station_id")
+    private Station station;
 
-    @Column(name = "departure_time")
-    private LocalTime departureTime;
+    /** Minutes after origin-day midnight; null at the origin. */
+    @Column(name = "arrival_min")
+    private Integer arrivalMinute;
 
-    @Column(name = "halt_minutes", nullable = false)
-    private int haltMinutes;
-
-    @Column(name = "platform_no", nullable = false)
-    private int platformNo;
+    /** Minutes after origin-day midnight; null at the terminus. */
+    @Column(name = "departure_min")
+    private Integer departureMinute;
 
     @Column(name = "distance_km", nullable = false)
     private int distanceKm;
 
-    public TrainStop() {}
+    protected TrainStop() {}
 
-    public TrainStop(int stopOrder, String stationCode, String stationName,
-                     LocalTime arrivalTime, LocalTime departureTime,
-                     int haltMinutes, int platformNo, int distanceKm) {
-        this.stopOrder = stopOrder;
-        this.stationCode = stationCode;
-        this.stationName = stationName;
-        this.arrivalTime = arrivalTime;
-        this.departureTime = departureTime;
-        this.haltMinutes = haltMinutes;
-        this.platformNo = platformNo;
+    public TrainStop(int seq, Station station, Integer arrivalMinute, Integer departureMinute, int distanceKm) {
+        this.seq = seq;
+        this.station = station;
+        this.arrivalMinute = arrivalMinute;
+        this.departureMinute = departureMinute;
         this.distanceKm = distanceKm;
     }
 
-    public int getStopOrder() {
-        return stopOrder;
+    public static LocalTime clock(Integer minute) {
+        return minute == null ? null : LocalTime.of((minute / 60) % 24, minute % 60);
     }
 
-    public void setStopOrder(int stopOrder) {
-        this.stopOrder = stopOrder;
+    /** 1 for the day the train leaves its origin, 2 for the next day, and so on. */
+    public static Integer dayOf(Integer minute) {
+        return minute == null ? null : minute / 1440 + 1;
     }
 
-    public String getStationCode() {
-        return stationCode;
-    }
-
-    public void setStationCode(String stationCode) {
-        this.stationCode = stationCode;
-    }
-
-    public String getStationName() {
-        return stationName;
-    }
-
-    public void setStationName(String stationName) {
-        this.stationName = stationName;
-    }
-
-    public LocalTime getArrivalTime() {
-        return arrivalTime;
-    }
-
-    public void setArrivalTime(LocalTime arrivalTime) {
-        this.arrivalTime = arrivalTime;
-    }
-
-    public LocalTime getDepartureTime() {
-        return departureTime;
-    }
-
-    public void setDepartureTime(LocalTime departureTime) {
-        this.departureTime = departureTime;
-    }
+    public LocalTime getArrivalTime() { return clock(arrivalMinute); }
+    public LocalTime getDepartureTime() { return clock(departureMinute); }
+    public Integer getArrivalDay() { return dayOf(arrivalMinute); }
+    public Integer getDepartureDay() { return dayOf(departureMinute); }
 
     public int getHaltMinutes() {
-        return haltMinutes;
+        return arrivalMinute == null || departureMinute == null ? 0 : departureMinute - arrivalMinute;
     }
 
-    public void setHaltMinutes(int haltMinutes) {
-        this.haltMinutes = haltMinutes;
-    }
-
-    public int getPlatformNo() {
-        return platformNo;
-    }
-
-    public void setPlatformNo(int platformNo) {
-        this.platformNo = platformNo;
-    }
-
-    public int getDistanceKm() {
-        return distanceKm;
-    }
-
-    public void setDistanceKm(int distanceKm) {
-        this.distanceKm = distanceKm;
-    }
+    public Long getId() { return id; }
+    public Train getTrain() { return train; }
+    void setTrain(Train train) { this.train = train; }
+    public int getSeq() { return seq; }
+    public void setSeq(int seq) { this.seq = seq; }
+    public Station getStation() { return station; }
+    public Integer getArrivalMinute() { return arrivalMinute; }
+    public void setArrivalMinute(Integer arrivalMinute) { this.arrivalMinute = arrivalMinute; }
+    public Integer getDepartureMinute() { return departureMinute; }
+    public void setDepartureMinute(Integer departureMinute) { this.departureMinute = departureMinute; }
+    public int getDistanceKm() { return distanceKm; }
+    public void setDistanceKm(int distanceKm) { this.distanceKm = distanceKm; }
 }

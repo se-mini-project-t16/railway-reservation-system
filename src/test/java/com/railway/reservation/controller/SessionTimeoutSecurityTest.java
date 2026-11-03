@@ -2,8 +2,10 @@ package com.railway.reservation.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.railway.reservation.dto.CreateTrainDto;
-import com.railway.reservation.dto.TrainClassDto;
+import com.railway.reservation.repository.CancellationRuleRepository;
+import com.railway.reservation.repository.StationRepository;
+import com.railway.reservation.support.RailFixtures;
+import org.springframework.jdbc.core.JdbcTemplate;
 import com.railway.reservation.model.Role;
 import com.railway.reservation.model.User;
 import com.railway.reservation.repository.BookingRepository;
@@ -77,11 +79,19 @@ class SessionTimeoutSecurityTest {
     private User adminUser;
     private SecretKey key;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private CancellationRuleRepository ruleRepository;
+
+    @Autowired
+    private StationRepository stationRepository;
+
     @BeforeEach
     void setUp() {
-        bookingRepository.deleteAll();
-        trainRepository.deleteAll();
-        userRepository.deleteAll();
+        RailFixtures.reset(jdbcTemplate, ruleRepository);
+        RailFixtures.stations(stationRepository);
 
         adminUser = userRepository.save(new User(
                 "Admin User",
@@ -204,15 +214,7 @@ class SessionTimeoutSecurityTest {
         assertThat(renewed.getExpiration()).isAfter(original.getExpiration());
     }
 
-    private CreateTrainDto sampleCreateDto() {
-        return new CreateTrainDto(
-                "54321",
-                "Sample Express",
-                "Station A",
-                "Station B",
-                LocalTime.of(10, 0, 0),
-                LocalTime.of(14, 0, 0),
-                List.of(new TrainClassDto("SL", 100, new BigDecimal("250.00")))
-        );
+    private java.util.Map<String, Object> sampleCreateDto() {
+        return RailFixtures.trainForm("54321", "Sample Express");
     }
 }

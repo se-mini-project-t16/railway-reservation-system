@@ -1,15 +1,18 @@
 package com.railway.reservation.repository;
 
 import com.railway.reservation.model.TrainClass;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-import java.util.List;
 import java.util.Optional;
 
-@Repository
 public interface TrainClassRepository extends JpaRepository<TrainClass, Long> {
-    List<TrainClass> findByTrainId(Long trainId);
-    Optional<TrainClass> findByTrainIdAndClassNameIgnoreCase(Long trainId, String className);
-}
 
+    /** Serialises allocation for one class of one train so two bookings never take the same berth. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from TrainClass c where c.id = :id")
+    Optional<TrainClass> findByIdForUpdate(@Param("id") Long id);
+}

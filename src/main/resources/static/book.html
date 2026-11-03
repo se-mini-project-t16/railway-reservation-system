@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book | Railway Reservation System</title>
+  <meta name="description" content="Add travellers, review the fare and hold berths for payment.">
+  <script src="/js/theme-init.js"></script>
+  <link rel="preload" href="/fonts/chivo-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script type="module" src="/js/pages/book.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header"><div class="container"><a class="wordmark" href="/">Railway Reservation</a></div></header>
+  <main id="main" class="container page">
+    <ol class="steps" aria-label="Booking steps">
+      <li id="s-1" aria-current="step">Travellers</li>
+      <li id="s-2">Review</li>
+      <li id="s-3">Payment</li>
+    </ol>
+    <div id="book-root" aria-live="polite">
+      <div class="skeleton-row"></div>
+    </div>
+  </main>
+  <footer class="site-footer"></footer>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in | Railway Reservation System</title>
+  <meta name="description" content="Sign in or create an account to book train tickets.">
+  <script src="/js/theme-init.js"></script>
+  <link rel="preload" href="/fonts/chivo-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script type="module" src="/js/pages/signin.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header"><div class="container"><a class="wordmark" href="/">Railway Reservation</a></div></header>
+  <main id="main" class="container page">
+    <div class="auth">
+      <div class="tabs" role="tablist" aria-label="Account">
+        <button type="button" role="tab" id="tab-in" aria-selected="true" aria-controls="panel-in">Sign in</button>
+        <button type="button" role="tab" id="tab-up" aria-selected="false" aria-controls="panel-up" tabindex="-1">Create account</button>
+      </div>
+      <div id="auth-note"></div>
+      <section class="panel" role="tabpanel" id="panel-in" aria-labelledby="tab-in">
+        <h1 class="section-title">Sign in to book</h1>
+        <form id="signin" class="stack" novalidate>
+          <div class="field">
+            <label for="si-email">Email</label>
+            <input class="input input--lg" id="si-email" name="email" type="email" autocomplete="email" required aria-describedby="si-email-help">
+            <span class="help" id="si-email-help"></span>
+          </div>
+          <div class="field">
+            <label for="si-password">Password</label>
+            <input class="input input--lg" id="si-password" name="password" type="password" autocomplete="current-password" required aria-describedby="si-password-help">
+            <span class="help" id="si-password-help"></span>
+          </div>
+          <div id="si-error" role="alert"></div>
+          <button class="btn btn--primary btn--lg btn--block" type="submit">Sign in</button>
+          <p class="small muted">After five wrong passwords an account is locked for 15 minutes.</p>
+        </form>
+      </section>
+      <section class="panel" role="tabpanel" id="panel-up" aria-labelledby="tab-up" hidden>
+        <h1 class="section-title">Create an account</h1>
+        <form id="signup" class="stack" novalidate>
+          <div class="field">
+            <label for="su-name">Full name</label>
+            <input class="input input--lg" id="su-name" name="name" autocomplete="name" required maxlength="100" aria-describedby="su-name-help">
+            <span class="help" id="su-name-help"></span>
+          </div>
+          <div class="field">
+            <label for="su-email">Email</label>
+            <input class="input input--lg" id="su-email" name="email" type="email" autocomplete="email" required aria-describedby="su-email-help">
+            <span class="help" id="su-email-help"></span>
+          </div>
+          <div class="field">
+            <label for="su-phone">Mobile number</label>
+            <input class="input input--lg" id="su-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="10" required aria-describedby="su-phone-help">
+            <span class="help" id="su-phone-help" data-hint="10 digits, for journey alerts.">10 digits, for journey alerts.</span>
+          </div>
+          <div class="field">
+            <label for="su-password">Password</label>
+            <input class="input input--lg" id="su-password" name="password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="su-password-help">
+            <span class="help" id="su-password-help" data-hint="At least 8 characters.">At least 8 characters.</span>
+          </div>
+          <div id="su-error" role="alert"></div>
+          <button class="btn btn--primary btn--lg btn--block" type="submit">Create account</button>
+        </form>
+      </section>
+    </div>
+  </main>
+  <footer class="site-footer"></footer>
+</body>
+</html>

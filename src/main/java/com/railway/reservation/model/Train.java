@@ -1,10 +1,13 @@
 package com.railway.reservation.model;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import java.time.LocalTime;
+
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Entity
 @Table(name = "trains")
@@ -12,86 +15,95 @@ public class Train {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "train_id")
     private Long id;
 
-    @Column(name = "train_no", nullable = false, unique = true, length = 20)
-    private String trainNo;
+    @Column(nullable = false, unique = true, length = 6)
+    private String number;
 
-    @Column(nullable = false, length = 120)
+    @Column(nullable = false, length = 80)
     private String name;
 
-    @Column(name = "src_station", nullable = false, length = 80)
-    private String sourceStation;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private TrainType type;
 
-    @Column(name = "dst_station", nullable = false, length = 80)
-    private String destinationStation;
+    /** Seven characters, Monday first: '1' when the train leaves its origin that day. */
+    @Column(name = "running_days", nullable = false, length = 7)
+    private String runningDays = "1111111";
 
-    @Column(name = "departure_time", nullable = false)
-    private LocalTime departureTime;
+    @Column(nullable = false)
+    private boolean pantry;
 
-    @Column(name = "arrival_time", nullable = false)
-    private LocalTime arrivalTime;
+    @Column(nullable = false)
+    private boolean active = true;
 
-    @OneToMany(mappedBy = "train", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @JsonManagedReference
-    private List<TrainClass> classes = new ArrayList<>();
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "train_stops", joinColumns = @JoinColumn(name = "train_id"))
-    @OrderBy("stopOrder ASC")
+    @OneToMany(mappedBy = "train", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("seq ASC")
     private List<TrainStop> stops = new ArrayList<>();
 
-    public Train() {}
+    @OneToMany(mappedBy = "train", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TrainClass> classes = new ArrayList<>();
 
-    public Train(String trainNo, String name, String sourceStation, String destinationStation, LocalTime departureTime, LocalTime arrivalTime) {
-        this.trainNo = trainNo;
+    protected Train() {}
+
+    public Train(String number, String name, TrainType type, String runningDays, boolean pantry) {
+        this.number = number;
         this.name = name;
-        this.sourceStation = sourceStation;
-        this.destinationStation = destinationStation;
-        this.departureTime = departureTime;
-        this.arrivalTime = arrivalTime;
+        this.type = type;
+        this.runningDays = runningDays;
+        this.pantry = pantry;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getTrainNo() { return trainNo; }
-    public void setTrainNo(String trainNo) { this.trainNo = trainNo; }
-
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-
-    public String getSourceStation() { return sourceStation; }
-    public void setSourceStation(String sourceStation) { this.sourceStation = sourceStation; }
-
-    public String getDestinationStation() { return destinationStation; }
-    public void setDestinationStation(String destinationStation) { this.destinationStation = destinationStation; }
-
-    public LocalTime getDepartureTime() { return departureTime; }
-    public void setDepartureTime(LocalTime departureTime) { this.departureTime = departureTime; }
-
-    public LocalTime getArrivalTime() { return arrivalTime; }
-    public void setArrivalTime(LocalTime arrivalTime) { this.arrivalTime = arrivalTime; }
-
-    public List<TrainClass> getClasses() { return classes; }
-    public void setClasses(List<TrainClass> classes) { this.classes = classes; }
-
-    public void addClass(TrainClass trainClass) {
-        classes.add(trainClass);
-        trainClass.setTrain(this);
+    public boolean runsOn(LocalDate originDate) {
+        return runsOn(originDate.getDayOfWeek());
     }
 
-    public List<TrainStop> getStops() {
-        return stops;
+    public boolean runsOn(DayOfWeek day) {
+        return runningDays.charAt(day.getValue() - 1) == '1';
     }
 
-    public void setStops(List<TrainStop> stops) {
-        this.stops = stops;
+    /** Superfast surcharge applies to every train numbered in the 12xxx, 20xxx and 22xxx series. */
+    public boolean isSuperfast() {
+        return type != TrainType.MAIL_EXPRESS || number.startsWith("12") || number.startsWith("2");
     }
 
     public void addStop(TrainStop stop) {
-        this.stops.add(stop);
+        stop.setTrain(this);
+        stops.add(stop);
     }
-}
 
+    public void addClass(TrainClass trainClass) {
+        trainClass.setTrain(this);
+        classes.add(trainClass);
+    }
+
+    public List<TrainStop> orderedStops() {
+        return stops.stream().sorted(Comparator.comparingInt(TrainStop::getSeq)).toList();
+    }
+
+    public TrainStop origin() { return orderedStops().getFirst(); }
+    public TrainStop terminus() { return orderedStops().getLast(); }
+
+    public Optional<TrainStop> stopFor(String stationCode) {
+        return stops.stream().filter(s -> s.getStation().getCode().equalsIgnoreCase(stationCode)).findFirst();
+    }
+
+    public Optional<TrainClass> classOf(CoachClass coachClass) {
+        return classes.stream().filter(c -> c.getCoachClass() == coachClass).findFirst();
+    }
+
+    public Long getId() { return id; }
+    public String getNumber() { return number; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public TrainType getType() { return type; }
+    public void setType(TrainType type) { this.type = type; }
+    public String getRunningDays() { return runningDays; }
+    public void setRunningDays(String runningDays) { this.runningDays = runningDays; }
+    public boolean isPantry() { return pantry; }
+    public void setPantry(boolean pantry) { this.pantry = pantry; }
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
+    public List<TrainStop> getStops() { return stops; }
+    public List<TrainClass> getClasses() { return classes; }
+}

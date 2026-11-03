@@ -28,19 +28,19 @@
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/v1/trains/search" enabled="true">
           <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
             <collectionProp name="Arguments.arguments">
-              <elementProp name="src" elementType="HTTPArgument">
+              <elementProp name="from" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">Chennai</stringProp>
+                <stringProp name="Argument.value">MAS</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
                 <boolProp name="HTTPArgument.use_equals">true</boolProp>
-                <stringProp name="Argument.name">src</stringProp>
+                <stringProp name="Argument.name">from</stringProp>
               </elementProp>
-              <elementProp name="dst" elementType="HTTPArgument">
+              <elementProp name="to" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">Bengaluru</stringProp>
+                <stringProp name="Argument.value">SBC</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
                 <boolProp name="HTTPArgument.use_equals">true</boolProp>
-                <stringProp name="Argument.name">dst</stringProp>
+                <stringProp name="Argument.name">to</stringProp>
               </elementProp>
               <elementProp name="date" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>

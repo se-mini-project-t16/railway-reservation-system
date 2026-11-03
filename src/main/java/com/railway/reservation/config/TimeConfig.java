@@ -1,0 +1,19 @@
+package com.railway.reservation.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.time.Clock;
+import java.time.ZoneId;
+
+/** Every rule (booking window, Tatkal opening, chart time, refunds) runs on Indian Standard Time. */
+@Configuration
+public class TimeConfig {
+
+    public static final ZoneId IST = ZoneId.of("Asia/Kolkata");
+
+    @Bean
+    public Clock clock() {
+        return Clock.system(IST);
+    }
+}

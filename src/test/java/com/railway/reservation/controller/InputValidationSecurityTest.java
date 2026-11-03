@@ -48,7 +48,22 @@ class InputValidationSecurityTest {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private com.railway.reservation.repository.CancellationRuleRepository ruleRepository;
+
+    @Autowired
+    private com.railway.reservation.repository.StationRepository stationRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
+    @org.junit.jupiter.api.BeforeEach
+    void cleanNetwork() {
+        com.railway.reservation.support.RailFixtures.reset(jdbcTemplate, ruleRepository);
+        com.railway.reservation.support.RailFixtures.stations(stationRepository);
+    }
 
     @ParameterizedTest
     @ValueSource(strings = {
@@ -83,8 +98,8 @@ class InputValidationSecurityTest {
     @Test
     void searchRejectsSqlInjectionInSourceWith400() throws Exception {
         mockMvc.perform(get(SEARCH_URL)
-                        .param("src", "admin' OR '1'='1")
-                        .param("dst", "Delhi")
+                        .param("from", "admin' OR '1'='1")
+                        .param("to", "Delhi")
                         .param("date", futureDate()))
                 .andExpect(status().isBadRequest());
     }
@@ -92,8 +107,8 @@ class InputValidationSecurityTest {
     @Test
     void searchRejectsXssInDestinationWith400() throws Exception {
         mockMvc.perform(get(SEARCH_URL)
-                        .param("src", "Bengaluru")
-                        .param("dst", "<script>alert(1)</script>")
+                        .param("from", "Bengaluru")
+                        .param("to", "<script>alert(1)</script>")
                         .param("date", futureDate()))
                 .andExpect(status().isBadRequest());
     }
@@ -140,15 +155,16 @@ class InputValidationSecurityTest {
                 "password", "Passenger#123"));
     }
 
+    /** Builds a train form; the origin field carries the injected value, the rest of the route is valid. */
     private String trainJson(String trainNo, String name, String source, String destination) throws Exception {
+        String origin = "Bengaluru".equals(source) ? "AAA" : source;
         return objectMapper.writeValueAsString(Map.of(
-                "trainNo", trainNo,
-                "name", name,
-                "sourceStation", source,
-                "destinationStation", destination,
-                "departureTime", "19:20:00",
-                "arrivalTime", "06:30:00",
-                "classes", List.of(Map.of("className", "SL", "totalSeats", 72, "fare", 780.00))));
+                "number", trainNo, "name", name, "type", "SUPERFAST", "runningDays", "1111111",
+                "pantry", false, "active", true,
+                "classes", List.of(Map.of("code", "SL", "coaches", 2)),
+                "stops", List.of(
+                        Map.of("code", origin, "arrival", "", "departure", "19:20", "day", 1, "distanceKm", 0),
+                        Map.of("code", "DDD", "arrival", "06:30", "departure", "", "day", 2, "distanceKm", 600))));
     }
 
     private String futureDate() {

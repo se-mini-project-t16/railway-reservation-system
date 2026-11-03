@@ -196,24 +196,24 @@ public class SystemReliabilityAndLoggingTest {
         user.setId(888L);
         String token = jwtService.generateToken(user);
 
-        // Make an authenticated request that triggers a 404 ResourceNotFoundException
-        mockMvc.perform(get("/api/v1/bookings/NONEXISTENT999/refund-preview")
+        // An authenticated request for a PNR that does not exist is a 404 the handler must log
+        mockMvc.perform(get("/api/v1/bookings/2999999999")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound());
 
-        // Verify that an ERROR-level log event was captured by GlobalExceptionHandler
+        // Client errors are logged at WARN, server errors at ERROR; both carry user id and timestamp
         List<ILoggingEvent> events = listAppender.list;
         assertThat(events).isNotEmpty();
 
         boolean foundErrorWithUserId = events.stream().anyMatch(event ->
-                event.getLevel() == Level.ERROR &&
+                (event.getLevel() == Level.ERROR || event.getLevel() == Level.WARN) &&
                 event.getFormattedMessage().contains("userId=888") &&
                 event.getFormattedMessage().contains("RRS-NF-005") &&
                 event.getFormattedMessage().contains("timestamp=")
         );
 
         assertThat(foundErrorWithUserId)
-                .withFailMessage("Expected an ERROR log containing userId=888, timestamp, and RRS-NF-005 marker")
+                .withFailMessage("Expected an error log containing userId=888, timestamp, and RRS-NF-005 marker")
                 .isTrue();
     }
 
