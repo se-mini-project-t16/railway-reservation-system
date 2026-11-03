@@ -1,5 +1,5 @@
 /**
- * Railway Reservation System — Booking UI & UX Logic
+ * Railway Reservation System - Booking UI & UX Logic
  * Compliant with SRS RRS-NF-003, SAD Section 4.6, and TC-UX-01.
  * Strictly uses safe DOM APIs (textContent, createElement) to prevent XSS.
  */
@@ -2151,11 +2151,18 @@
 
         b.passengers.forEach((p) => {
           const pItem = document.createElement('span');
-          pItem.style.background = '#ffffff';
+          pItem.style.background = 'var(--color-paper-2)';
           pItem.style.border = '1px solid var(--border)';
           pItem.style.padding = '0.2rem 0.5rem';
           pItem.style.borderRadius = '4px';
-          pItem.textContent = `${p.name} (${p.age}, ${p.gender}) — Seat: ${p.seatNo || 'Unassigned'}`;
+          pItem.style.fontSize = '0.8rem';
+          if (p.status === 'CANCELLED') {
+            pItem.style.textDecoration = 'line-through';
+            pItem.style.opacity = '0.6';
+            pItem.textContent = `${p.name} (${p.age}, ${p.gender}) [CANCELLED]`;
+          } else {
+            pItem.textContent = `${p.name} (${p.age}, ${p.gender}) - Seat: ${p.seatNumber || p.seatNo || 'Assigned'}`;
+          }
           paxList.appendChild(pItem);
         });
         paxContainer.appendChild(paxList);
@@ -2216,7 +2223,7 @@
           const cancelBtn = document.createElement('button');
           cancelBtn.type = 'button';
           cancelBtn.className = 'btn btn-sm btn-danger';
-          cancelBtn.textContent = 'Cancel Booking';
+          cancelBtn.textContent = 'Cancel / Manage Seats';
           cancelBtn.addEventListener('click', async () => {
             await handleBookingCancellation(b.pnr);
           });
@@ -2238,6 +2245,45 @@
     });
   }
 
+  // --- Partial Passenger Cancellation & Live Tiered Refund Preview (RRS-F-012-EXT) ---
+  const cancellationModal = document.getElementById('cancellationModal');
+  const closeCancellationModalBtn = document.getElementById('closeCancellationModalBtn');
+  const closeCancellationModalBottomBtn = document.getElementById('closeCancellationModalBottomBtn');
+  const cancellationLoading = document.getElementById('cancellationLoading');
+  const cancellationDetails = document.getElementById('cancellationDetails');
+  const cancelPnrDisplay = document.getElementById('cancelPnrDisplay');
+  const cancelTrainDisplay = document.getElementById('cancelTrainDisplay');
+  const cancelDepartureDisplay = document.getElementById('cancelDepartureDisplay');
+  const cancelPassengerChecklist = document.getElementById('cancelPassengerChecklist');
+  const cancelSelectAllBtn = document.getElementById('cancelSelectAllBtn');
+  const cancelHoursBeforeDeparture = document.getElementById('cancelHoursBeforeDeparture');
+  const cancelSelectedCount = document.getElementById('cancelSelectedCount');
+  const cancelGrossFare = document.getElementById('cancelGrossFare');
+  const cancelRefundTier = document.getElementById('cancelRefundTier');
+  const cancelDeduction = document.getElementById('cancelDeduction');
+  const cancelNetRefund = document.getElementById('cancelNetRefund');
+  const confirmCancellationBtn = document.getElementById('confirmCancellationBtn');
+  const cancelBtnSpinner = document.getElementById('cancelBtnSpinner');
+
+  let activeCancellationBooking = null;
+
+  function closeCancellationModal() {
+    if (cancellationModal) {
+      cancellationModal.classList.remove('active');
+      cancellationModal.style.display = 'none';
+    }
+  }
+
+  if (closeCancellationModalBtn) closeCancellationModalBtn.addEventListener('click', closeCancellationModal);
+  if (closeCancellationModalBottomBtn) closeCancellationModalBottomBtn.addEventListener('click', closeCancellationModal);
+  if (cancellationModal) {
+    cancellationModal.addEventListener('click', (e) => {
+      if (e.target === cancellationModal) {
+        closeCancellationModal();
+      }
+    });
+  }
+
   async function handleBookingCancellation(pnr) {
     const token = getStoredToken();
     if (!token) {
@@ -2245,33 +2291,241 @@
       return;
     }
 
+    if (!cancellationModal) return;
+
+    cancellationModal.classList.add('active');
+    cancellationModal.style.display = 'flex';
+    cancellationLoading.style.display = 'block';
+    cancellationDetails.style.display = 'none';
+    confirmCancellationBtn.disabled = true;
+
     try {
-      // 1. Fetch refund preview
-      const previewRes = await authFetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/refund-preview`, token);
-      if (!previewRes.ok) {
-        const errJson = await previewRes.json().catch(() => ({}));
-        showFlash(errJson.message || 'Cannot preview refund for this booking.', 'danger');
-        return;
-      }
-      const quote = await previewRes.json();
-      const confirmMsg = `Are you sure you want to cancel booking ${pnr}?\n\nHours before departure: ${quote.hoursBeforeDeparture}\nRefund Percentage: ${quote.refundPercent}%\nRefund Amount: ₹${quote.refundAmount}\n\nSeats will be released immediately.`;
-      if (!window.confirm(confirmMsg)) {
+      const res = await authFetch(`/api/v1/bookings/${encodeURIComponent(pnr)}`, token);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        showFlash(errJson.message || 'Unable to retrieve reservation details for cancellation.', 'danger');
+        closeCancellationModal();
         return;
       }
 
-      // 2. Perform cancellation
-      const cancelRes = await authFetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/cancel`, token, { method: 'POST' });
-      if (cancelRes.ok) {
-        const cancelData = await cancelRes.json();
-        showFlash(`Booking ${pnr} cancelled successfully. Refund of ₹${cancelData.refundAmount} initiated (Ref: ${cancelData.refundRef}).`, 'success');
-        await loadBookingHistory();
-      } else {
-        const errJson = await cancelRes.json().catch(() => ({}));
-        showFlash(errJson.message || 'Failed to cancel booking.', 'danger');
+      const booking = await res.json();
+      activeCancellationBooking = booking;
+
+      cancelPnrDisplay.textContent = booking.pnr;
+      cancelTrainDisplay.textContent = `${booking.trainName || 'Train'} (#${booking.trainNo}) | Class: ${booking.className || 'SL'} (${booking.sourceStation} -> ${booking.destinationStation})`;
+      cancelDepartureDisplay.textContent = `${booking.journeyDate} at ${booking.departureTime || 'Scheduled'}`;
+
+      while (cancelPassengerChecklist.firstChild) {
+        cancelPassengerChecklist.removeChild(cancelPassengerChecklist.firstChild);
       }
+
+      const passengers = booking.passengers || [];
+      const activePassengers = passengers.filter(p => !p.status || p.status !== 'CANCELLED');
+
+      if (activePassengers.length === 0) {
+        showFlash('All passengers on this booking are already cancelled.', 'warning');
+        closeCancellationModal();
+        return;
+      }
+
+      passengers.forEach((p) => {
+        const item = document.createElement('div');
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
+        item.style.justifyContent = 'space-between';
+        item.style.padding = '0.625rem 0.875rem';
+        item.style.border = '1px solid var(--color-rule)';
+        item.style.borderRadius = '4px';
+
+        const isCancelled = (p.status === 'CANCELLED');
+        if (isCancelled) {
+          item.style.opacity = '0.55';
+          item.style.background = 'var(--color-paper-2)';
+          item.style.borderStyle = 'dashed';
+
+          const left = document.createElement('div');
+          left.style.display = 'flex';
+          left.style.alignItems = 'center';
+          left.style.gap = '0.5rem';
+
+          const nameSpan = document.createElement('span');
+          nameSpan.style.textDecoration = 'line-through';
+          nameSpan.style.fontWeight = '500';
+          nameSpan.textContent = `${p.name} (${p.age} yrs, ${p.gender})`;
+          left.appendChild(nameSpan);
+
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.style.background = 'var(--color-paper)';
+          badge.style.border = '1px solid var(--color-rule)';
+          badge.style.fontSize = '0.75rem';
+          badge.style.color = 'var(--color-muted)';
+          badge.textContent = `CANCELLED (Seat ${p.seatNumber || p.seatNo || '-'} Released)`;
+
+          item.appendChild(left);
+          item.appendChild(badge);
+        } else {
+          item.style.background = 'var(--color-paper)';
+
+          const left = document.createElement('label');
+          left.style.display = 'flex';
+          left.style.alignItems = 'center';
+          left.style.gap = '0.65rem';
+          left.style.cursor = 'pointer';
+          left.style.margin = '0';
+          left.style.userSelect = 'none';
+
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'passenger-cancel-checkbox';
+          cb.value = String(p.id);
+          cb.checked = true;
+          cb.style.width = '16px';
+          cb.style.height = '16px';
+          cb.style.cursor = 'pointer';
+          cb.addEventListener('change', updateCancellationPreview);
+
+          const nameSpan = document.createElement('span');
+          nameSpan.style.fontWeight = '600';
+          nameSpan.textContent = `${p.name} (${p.age} yrs, ${p.gender})`;
+
+          left.appendChild(cb);
+          left.appendChild(nameSpan);
+
+          const badge = document.createElement('span');
+          badge.className = 'badge';
+          badge.style.background = 'var(--color-paper-2)';
+          badge.style.border = '1px solid var(--color-rule)';
+          badge.style.fontFamily = 'var(--font-mono)';
+          badge.style.fontSize = '0.75rem';
+          badge.textContent = `Seat: ${p.seatNumber || p.seatNo || 'Assigned'}`;
+
+          item.appendChild(left);
+          item.appendChild(badge);
+        }
+
+        cancelPassengerChecklist.appendChild(item);
+      });
+
+      cancellationLoading.style.display = 'none';
+      cancellationDetails.style.display = 'block';
+
+      await updateCancellationPreview();
     } catch (err) {
-      showFlash('Error during cancellation: ' + err.message, 'danger');
+      showFlash('Failed to prepare cancellation: ' + err.message, 'danger');
+      closeCancellationModal();
     }
+  }
+
+  async function updateCancellationPreview() {
+    if (!activeCancellationBooking) return;
+    const token = getStoredToken();
+    if (!token) return;
+
+    const checkboxes = cancelPassengerChecklist.querySelectorAll('.passenger-cancel-checkbox:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value, 10)).filter(id => !isNaN(id));
+
+    if (selectedIds.length === 0) {
+      confirmCancellationBtn.disabled = true;
+      cancelSelectedCount.textContent = '0';
+      cancelGrossFare.textContent = '₹0.00';
+      cancelRefundTier.textContent = '--%';
+      cancelDeduction.textContent = '₹0.00';
+      cancelNetRefund.textContent = '₹0.00';
+      return;
+    }
+
+    try {
+      const pnr = activeCancellationBooking.pnr;
+      const previewRes = await authFetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/cancel-passengers/preview`, token, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passengerIds: selectedIds })
+      });
+
+      if (!previewRes.ok) {
+        const errJson = await previewRes.json().catch(() => ({}));
+        showFlash(errJson.message || 'Failed to calculate live refund preview.', 'danger');
+        confirmCancellationBtn.disabled = true;
+        return;
+      }
+
+      const quote = await previewRes.json();
+      confirmCancellationBtn.disabled = false;
+      cancelHoursBeforeDeparture.textContent = `${quote.hoursBeforeDeparture} hours before departure`;
+      cancelSelectedCount.textContent = String(quote.passengerIds.length);
+      cancelGrossFare.textContent = `₹${quote.grossFare.toFixed(2)}`;
+      cancelRefundTier.textContent = `${quote.refundPercent}%`;
+      cancelDeduction.textContent = `-₹${quote.deductionAmount.toFixed(2)}`;
+      cancelNetRefund.textContent = `₹${quote.refundAmount.toFixed(2)}`;
+    } catch (e) {
+      showFlash('Preview calculation error: ' + e.message, 'danger');
+    }
+  }
+
+  if (cancelSelectAllBtn) {
+    cancelSelectAllBtn.addEventListener('click', async () => {
+      const checkboxes = cancelPassengerChecklist.querySelectorAll('.passenger-cancel-checkbox');
+      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+      checkboxes.forEach(cb => { cb.checked = !allChecked; });
+      cancelSelectAllBtn.textContent = allChecked ? 'Select All Active' : 'Deselect All';
+      await updateCancellationPreview();
+    });
+  }
+
+  if (confirmCancellationBtn) {
+    confirmCancellationBtn.addEventListener('click', async () => {
+      if (!activeCancellationBooking) return;
+      const token = getStoredToken();
+      if (!token) {
+        openLoginModal('Sign in to confirm cancellation.');
+        return;
+      }
+
+      const checkboxes = cancelPassengerChecklist.querySelectorAll('.passenger-cancel-checkbox:checked');
+      const selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value, 10)).filter(id => !isNaN(id));
+
+      if (selectedIds.length === 0) {
+        showFlash('Please select at least one passenger to cancel.', 'warning');
+        return;
+      }
+
+      confirmCancellationBtn.disabled = true;
+      if (cancelBtnSpinner) cancelBtnSpinner.style.display = 'inline-block';
+
+      try {
+        const pnr = activeCancellationBooking.pnr;
+        const cancelRes = await authFetch(`/api/v1/bookings/${encodeURIComponent(pnr)}/cancel-passengers`, token, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ passengerIds: selectedIds })
+        });
+
+        if (cancelRes.ok) {
+          const res = await cancelRes.json();
+          closeCancellationModal();
+
+          const releasedSeatStr = (res.releasedSeats && res.releasedSeats.length > 0)
+            ? ` Released seat(s): ${res.releasedSeats.join(', ')}.`
+            : '';
+          const statusStr = (res.remainingActivePassengers > 0)
+            ? `${res.remainingActivePassengers} passenger(s) remain active on reservation.`
+            : 'Entire reservation transitioned to CANCELLED.';
+
+          showFlash(`Passenger cancellation processed successfully.${releasedSeatStr} Refund of ₹${res.refundAmount} initiated (Ref: ${res.refundRef}). ${statusStr}`, 'success');
+          await loadBookingHistory();
+        } else {
+          const errJson = await cancelRes.json().catch(() => ({}));
+          showFlash(errJson.message || 'Failed to process cancellation.', 'danger');
+          confirmCancellationBtn.disabled = false;
+        }
+      } catch (err) {
+        showFlash('Error executing cancellation: ' + err.message, 'danger');
+        confirmCancellationBtn.disabled = false;
+      } finally {
+        if (cancelBtnSpinner) cancelBtnSpinner.style.display = 'none';
+      }
+    });
   }
 
   function escapeHtml(str) {

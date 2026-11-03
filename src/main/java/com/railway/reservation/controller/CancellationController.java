@@ -1,8 +1,12 @@
 package com.railway.reservation.controller;
 
 import com.railway.reservation.dto.CancellationResponseDto;
+import com.railway.reservation.dto.PartialCancellationRequestDto;
+import com.railway.reservation.dto.PartialCancellationResponseDto;
+import com.railway.reservation.dto.PartialRefundPreviewDto;
 import com.railway.reservation.dto.RefundPreviewDto;
 import com.railway.reservation.service.CancellationService;
+import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -54,6 +58,43 @@ public class CancellationController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(cancellationService.cancelBooking(pnr, userId));
+    }
+
+    /**
+     * Previews tiered refund calculation for selectively chosen passengers within a multi-passenger booking (RRS-F-012-EXT, RRS-F-013).
+     */
+    @PostMapping("/{pnr}/cancel-passengers/preview")
+    public ResponseEntity<PartialRefundPreviewDto> previewPartialRefund(
+            @PathVariable String pnr,
+            @Valid @RequestBody PartialCancellationRequestDto request,
+            Authentication authentication) {
+        Long userId = resolveUserId(authentication);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(cancellationService.previewPartialRefund(pnr, request.getPassengerIds(), userId));
+    }
+
+    /**
+     * Selectively cancels chosen individual passengers from a multi-passenger booking,
+     * immediately releases their seats, initiates partial refund, and writes to audit logs (RRS-F-012-EXT, TC-CAN-01).
+     */
+    @PostMapping("/{pnr}/cancel-passengers")
+    public ResponseEntity<PartialCancellationResponseDto> cancelPassengers(
+            @PathVariable String pnr,
+            @Valid @RequestBody PartialCancellationRequestDto request,
+            Authentication authentication) {
+        Long userId = resolveUserId(authentication);
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(cancellationService.cancelPassengers(pnr, request.getPassengerIds(), userId));
     }
 
     private Long resolveUserId(Authentication authentication) {

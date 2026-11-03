@@ -277,4 +277,64 @@ class CancellationControllerTest {
         mockMvc.perform(get("/api/v1/bookings/PNRCAN0009/refund-preview"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @DisplayName("RRS-F-012-EXT: POST /api/v1/bookings/{pnr}/cancel-passengers/preview calculates tiered refund preview")
+    void testPreviewPartialRefund_Success() throws Exception {
+        Booking booking = saveConfirmedBooking("PNRCAN0010", journeyDate);
+        Long passengerId = booking.getPassengers().get(0).getId();
+
+        String reqJson = "{\"passengerIds\": [" + passengerId + "]}";
+
+        mockMvc.perform(post("/api/v1/bookings/PNRCAN0010/cancel-passengers/preview")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner))
+                        .contentType("application/json")
+                        .content(reqJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pnr").value("PNRCAN0010"))
+                .andExpect(jsonPath("$.grossFare").value(450.0))
+                .andExpect(jsonPath("$.refundPercent").value(90.0))
+                .andExpect(jsonPath("$.deductionPercent").value(10.0))
+                .andExpect(jsonPath("$.refundAmount").value(405.0))
+                .andExpect(jsonPath("$.deductionAmount").value(45.0));
+    }
+
+    @Test
+    @DisplayName("RRS-F-012-EXT: POST /api/v1/bookings/{pnr}/cancel-passengers selectively cancels passenger and immediately releases seat")
+    void testCancelPassengers_PartialAndImmediateSeatRelease() throws Exception {
+        Booking booking = saveConfirmedBooking("PNRCAN0011", journeyDate);
+        Long firstPassengerId = booking.getPassengers().get(0).getId();
+        Long secondPassengerId = booking.getPassengers().get(1).getId();
+
+        assertEquals(98, availableCcSeats());
+
+        // Cancel first passenger only
+        String reqJson1 = "{\"passengerIds\": [" + firstPassengerId + "]}";
+        mockMvc.perform(post("/api/v1/bookings/PNRCAN0011/cancel-passengers")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner))
+                        .contentType("application/json")
+                        .content(reqJson1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pnr").value("PNRCAN0011"))
+                .andExpect(jsonPath("$.bookingStatus").value("CONFIRMED"))
+                .andExpect(jsonPath("$.remainingActivePassengers").value(1))
+                .andExpect(jsonPath("$.refundAmount").value(405.0))
+                .andExpect(jsonPath("$.refundRef", startsWith("RFD-")));
+
+        // Seat is immediately released back into inventory: 98 -> 99
+        assertEquals(99, availableCcSeats());
+
+        // Cancel remaining passenger
+        String reqJson2 = "{\"passengerIds\": [" + secondPassengerId + "]}";
+        mockMvc.perform(post("/api/v1/bookings/PNRCAN0011/cancel-passengers")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(owner))
+                        .contentType("application/json")
+                        .content(reqJson2))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bookingStatus").value("CANCELLED"))
+                .andExpect(jsonPath("$.remainingActivePassengers").value(0));
+
+        // Both seats released back into inventory: 99 -> 100
+        assertEquals(100, availableCcSeats());
+    }
 }

@@ -46,7 +46,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT p.seatNo FROM Booking b JOIN b.passengers p " +
            "WHERE b.train.id = :trainId AND b.trainClass.id = :classId " +
-           "AND b.journeyDate = :journeyDate AND b.status IN (:activeStatuses)")
+           "AND b.journeyDate = :journeyDate AND b.status IN (:activeStatuses) " +
+           "AND (p.status IS NULL OR p.status != 'CANCELLED')")
     List<String> findActiveSeatNumbers(
         @Param("trainId") Long trainId,
         @Param("classId") Long classId,
@@ -54,9 +55,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         @Param("activeStatuses") List<BookingStatus> activeStatuses
     );
 
-    @Query("SELECT COALESCE(SUM(SIZE(b.passengers)), 0) FROM Booking b " +
+    @Query("SELECT COALESCE(COUNT(p), 0) FROM Booking b JOIN b.passengers p " +
            "WHERE b.train.id = :trainId AND b.trainClass.id = :classId " +
-           "AND b.journeyDate = :journeyDate AND b.status IN (:activeStatuses)")
+           "AND b.journeyDate = :journeyDate AND b.status IN (:activeStatuses) " +
+           "AND (p.status IS NULL OR p.status != 'CANCELLED')")
     int countBookedSeats(
         @Param("trainId") Long trainId,
         @Param("classId") Long classId,

@@ -31,6 +31,10 @@ public class PassengerDto {
 
     private Boolean seniorConcession = false;
 
+    private Long id;
+
+    private String status = "CONFIRMED";
+
     public PassengerDto() {}
 
     public PassengerDto(String name, int age, String gender) {
@@ -76,5 +80,11 @@ public class PassengerDto {
 
     public Boolean getSeniorConcession() { return seniorConcession; }
     public void setSeniorConcession(Boolean seniorConcession) { this.seniorConcession = seniorConcession; }
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getStatus() { return status != null ? status : "CONFIRMED"; }
+    public void setStatus(String status) { this.status = status; }
 }
 

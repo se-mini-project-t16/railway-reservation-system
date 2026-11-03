@@ -1,6 +1,8 @@
 package com.railway.reservation.service.impl;
 
 import com.railway.reservation.dto.CancellationResponseDto;
+import com.railway.reservation.dto.PartialCancellationResponseDto;
+import com.railway.reservation.dto.PartialRefundPreviewDto;
 import com.railway.reservation.dto.RefundPreviewDto;
 import com.railway.reservation.exception.CancellationNotAllowedException;
 import com.railway.reservation.exception.ResourceNotFoundException;
@@ -8,6 +10,8 @@ import com.railway.reservation.model.Booking;
 import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.CancellationAuditLog;
 import com.railway.reservation.model.CancellationRule;
+import com.railway.reservation.model.Passenger;
+import com.railway.reservation.model.TrainClass;
 import com.railway.reservation.repository.BookingRepository;
 import com.railway.reservation.repository.CancellationAuditLogRepository;
 import com.railway.reservation.repository.CancellationRuleRepository;
@@ -24,6 +28,9 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -66,6 +73,46 @@ public class CancellationServiceImpl implements CancellationService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PartialRefundPreviewDto previewPartialRefund(String pnr, List<Long> passengerIds, Long userId) {
+        if (passengerIds == null || passengerIds.isEmpty()) {
+            throw new IllegalArgumentException("At least one passenger ID must be selected for cancellation.");
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        Booking booking = findOwnedBooking(pnr, userId, bookingRepository::findByPnr);
+        requireCancellable(booking, now);
+
+        List<Passenger> selectedPassengers = resolvePassengers(booking, passengerIds);
+
+        BigDecimal grossFare = BigDecimal.ZERO;
+        List<String> passengerNames = new ArrayList<>();
+        for (Passenger p : selectedPassengers) {
+            grossFare = grossFare.add(calculatePassengerFare(booking, p));
+            passengerNames.add(p.getName());
+        }
+        grossFare = grossFare.setScale(2, RoundingMode.HALF_UP);
+
+        long hoursLeft = Duration.between(now, departureOf(booking)).toHours();
+        BigDecimal refundPercent = lookupRefundPercent(hoursLeft);
+        BigDecimal deductionPercent = HUNDRED.subtract(refundPercent);
+        BigDecimal refundAmount = grossFare.multiply(refundPercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+        BigDecimal deductionAmount = grossFare.subtract(refundAmount);
+
+        return new PartialRefundPreviewDto(
+                booking.getPnr(),
+                passengerIds,
+                passengerNames,
+                grossFare,
+                hoursLeft,
+                refundPercent,
+                deductionPercent,
+                refundAmount,
+                deductionAmount
+        );
+    }
+
+    @Override
     @Transactional
     public CancellationResponseDto cancelBooking(String pnr, Long userId) {
         LocalDateTime now = LocalDateTime.now(clock);
@@ -79,7 +126,12 @@ public class CancellationServiceImpl implements CancellationService {
         // 3. Refund from the cancellation_rules table, using the same quote as the preview (RRS-F-013)
         RefundQuote quote = quoteRefund(booking, now);
 
-        // 4. CANCELLED bookings are excluded from availability, which releases the seats (RRS-F-005)
+        // 4. Mark all passengers as CANCELLED and exclude booking from availability (RRS-F-005)
+        if (booking.getPassengers() != null) {
+            for (Passenger p : booking.getPassengers()) {
+                p.setStatus("CANCELLED");
+            }
+        }
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
 
@@ -94,6 +146,68 @@ public class CancellationServiceImpl implements CancellationService {
 
         return new CancellationResponseDto(booking.getPnr(), BookingStatus.CANCELLED,
                 quote.refundAmount(), quote.refundPercent(), refundRef, now);
+    }
+
+    @Override
+    @Transactional
+    public PartialCancellationResponseDto cancelPassengers(String pnr, List<Long> passengerIds, Long userId) {
+        if (passengerIds == null || passengerIds.isEmpty()) {
+            throw new IllegalArgumentException("At least one passenger ID must be selected for cancellation.");
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        // 1. Lock the booking row
+        Booking booking = findOwnedBooking(pnr, userId, bookingRepository::findByPnrForUpdate);
+
+        // 2. Only confirmed bookings prior to departure can be cancelled
+        requireCancellable(booking, now);
+
+        // 3. Resolve selected passengers
+        List<Passenger> selectedPassengers = resolvePassengers(booking, passengerIds);
+
+        BigDecimal grossFare = BigDecimal.ZERO;
+        List<String> passengerNames = new ArrayList<>();
+        for (Passenger p : selectedPassengers) {
+            grossFare = grossFare.add(calculatePassengerFare(booking, p));
+            passengerNames.add(p.getName());
+            p.setStatus("CANCELLED");
+        }
+        grossFare = grossFare.setScale(2, RoundingMode.HALF_UP);
+
+        long hoursLeft = Duration.between(now, departureOf(booking)).toHours();
+        BigDecimal refundPercent = lookupRefundPercent(hoursLeft);
+        BigDecimal refundAmount = grossFare.multiply(refundPercent).divide(HUNDRED, 2, RoundingMode.HALF_UP);
+
+        long remainingActive = booking.getPassengers().stream()
+                .filter(p -> !"CANCELLED".equalsIgnoreCase(p.getStatus()))
+                .count();
+
+        if (remainingActive == 0) {
+            booking.setStatus(BookingStatus.CANCELLED);
+        } else {
+            booking.setStatus(BookingStatus.CONFIRMED);
+        }
+        bookingRepository.save(booking);
+
+        String refundRef = paymentService.initiateRefund(booking, refundAmount);
+
+        auditLogRepository.save(new CancellationAuditLog(
+                booking.getId(), booking.getPnr(), userId, refundAmount, now));
+        logger.info("AUDIT: Partial cancellation processed. pnr={}, userId={}, cancelledPassengers={}, seatsReleased={}, remainingActive={}, refund={}, refundRef={} [RRS-F-012-EXT, TC-CAN-01]",
+                booking.getPnr(), userId, passengerNames, selectedPassengers.size(), remainingActive, refundAmount, refundRef);
+
+        return new PartialCancellationResponseDto(
+                booking.getPnr(),
+                booking.getStatus(),
+                passengerIds,
+                passengerNames,
+                (int) remainingActive,
+                refundAmount,
+                refundPercent,
+                refundRef,
+                now,
+                "Passenger(s) cancelled successfully. " + selectedPassengers.size() + " seat(s) released back to inventory."
+        );
     }
 
     private Booking findOwnedBooking(String pnr, Long userId, Function<String, Optional<Booking>> lookup) {
@@ -138,6 +252,61 @@ public class CancellationServiceImpl implements CancellationService {
                 .divide(HUNDRED, 2, RoundingMode.HALF_UP);
 
         return new RefundQuote(hoursLeft, percent, amount);
+    }
+
+    private BigDecimal lookupRefundPercent(long hoursLeft) {
+        return cancellationRuleRepository.findAllByOrderByHoursBeforeDesc().stream()
+                .filter(rule -> rule.getHoursBefore() <= hoursLeft)
+                .map(CancellationRule::getRefundPercent)
+                .findFirst()
+                .orElse(BigDecimal.ZERO);
+    }
+
+    private List<Passenger> resolvePassengers(Booking booking, List<Long> passengerIds) {
+        List<Passenger> passengers = booking.getPassengers();
+        if (passengers == null || passengers.isEmpty()) {
+            throw new ResourceNotFoundException("No passengers found for booking.");
+        }
+
+        List<Passenger> result = new ArrayList<>();
+        for (Long pid : passengerIds) {
+            Passenger found = passengers.stream()
+                    .filter(p -> Objects.equals(p.getId(), pid))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Passenger ID " + pid + " does not belong to booking " + booking.getPnr()));
+
+            if ("CANCELLED".equalsIgnoreCase(found.getStatus())) {
+                throw new CancellationNotAllowedException("Passenger " + found.getName() + " is already cancelled.");
+            }
+            result.add(found);
+        }
+        return result;
+    }
+
+    private BigDecimal calculatePassengerFare(Booking booking, Passenger passenger) {
+        TrainClass tc = booking.getTrainClass();
+        int totalPassengers = (booking.getPassengers() != null && !booking.getPassengers().isEmpty())
+                ? booking.getPassengers().size()
+                : 1;
+
+        BigDecimal standardSeatFare = tc != null && tc.getFare() != null
+                ? tc.getFare()
+                : booking.getTotalFare().divide(BigDecimal.valueOf(totalPassengers), 2, RoundingMode.HALF_UP);
+
+        if (Boolean.TRUE.equals(passenger.getSeniorConcession()) && passenger.getAge() >= 60) {
+            String className = tc != null && tc.getClassName() != null ? tc.getClassName().toUpperCase() : "";
+            boolean isAc = className.contains("AC") || className.contains("1A") || className.contains("2A")
+                    || className.contains("3A") || className.contains("CC") || className.contains("EC")
+                    || className.contains("EXECUTIVE");
+            BigDecimal resFee = isAc ? BigDecimal.valueOf(40.00) : BigDecimal.valueOf(20.00);
+            BigDecimal sfCharge = isAc ? BigDecimal.valueOf(30.00) : BigDecimal.valueOf(15.00);
+            BigDecimal baseFare = standardSeatFare.compareTo(resFee.add(sfCharge)) > 0
+                    ? standardSeatFare.subtract(resFee).subtract(sfCharge)
+                    : standardSeatFare;
+            BigDecimal discount = baseFare.multiply(BigDecimal.valueOf(0.40)).setScale(2, RoundingMode.HALF_UP);
+            return standardSeatFare.subtract(discount);
+        }
+        return standardSeatFare;
     }
 
     private LocalDateTime departureOf(Booking booking) {

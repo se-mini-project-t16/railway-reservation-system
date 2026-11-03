@@ -1,6 +1,8 @@
 package com.railway.reservation.service;
 
 import com.railway.reservation.dto.CancellationResponseDto;
+import com.railway.reservation.dto.PartialCancellationResponseDto;
+import com.railway.reservation.dto.PartialRefundPreviewDto;
 import com.railway.reservation.dto.RefundPreviewDto;
 import com.railway.reservation.exception.CancellationNotAllowedException;
 import com.railway.reservation.exception.ResourceNotFoundException;
@@ -76,8 +78,12 @@ class CancellationServiceTest {
                 DEPARTURE.toLocalDate(), BigDecimal.valueOf(2300.00));
         booking.setId(50L);
         booking.setStatus(BookingStatus.CONFIRMED);
-        booking.addPassenger(new Passenger("Alice Smith", 28, "Female", "AC3-1"));
-        booking.addPassenger(new Passenger("Bob Smith", 32, "Male", "AC3-2"));
+        Passenger p1 = new Passenger("Alice Smith", 28, "Female", "AC3-1");
+        p1.setId(101L);
+        booking.addPassenger(p1);
+        Passenger p2 = new Passenger("Bob Smith", 32, "Male", "AC3-2");
+        p2.setId(102L);
+        booking.addPassenger(p2);
     }
 
     // Same tiers as CancellationRuleInitializer, ordered as the repository returns them
@@ -277,5 +283,88 @@ class CancellationServiceTest {
         assertEquals(BookingStatus.CANCELLED, response.getStatus());
         assertEquals(0, BigDecimal.ZERO.compareTo(response.getRefund()));
         assertNull(response.getRefundRef());
+    }
+
+    @Test
+    @DisplayName("RRS-F-012-EXT: previewPartialRefund calculates tiered deduction for chosen passenger")
+    void testPreviewPartialRefund_Success() {
+        fixNow(DEPARTURE.minusDays(2)); // 48h before -> 90%
+        when(bookingRepository.findByPnr("PNRCAN0001")).thenReturn(Optional.of(booking));
+        when(cancellationRuleRepository.findAllByOrderByHoursBeforeDesc()).thenReturn(DEFAULT_RULES);
+
+        PartialRefundPreviewDto preview = cancellationService.previewPartialRefund("PNRCAN0001", List.of(101L), 1L);
+
+        assertNotNull(preview);
+        assertEquals("PNRCAN0001", preview.getPnr());
+        assertEquals(List.of(101L), preview.getSelectedPassengerIds());
+        assertEquals(List.of("Alice Smith"), preview.getSelectedPassengerNames());
+        assertEquals(new BigDecimal("1150.00"), preview.getGrossFare());
+        assertEquals(new BigDecimal("90.00"), preview.getRefundPercent());
+        assertEquals(new BigDecimal("10.00"), preview.getDeductionPercent());
+        assertEquals(new BigDecimal("1035.00"), preview.getRefundAmount());
+        assertEquals(new BigDecimal("115.00"), preview.getDeductionAmount());
+    }
+
+    @Test
+    @DisplayName("RRS-F-012-EXT: cancelPassengers cancels chosen passenger and keeps remaining confirmed")
+    void testCancelPassengers_Partial_RemainingConfirmed() {
+        fixNow(DEPARTURE.minusDays(2)); // 48h before -> 90%
+        when(bookingRepository.findByPnrForUpdate("PNRCAN0001")).thenReturn(Optional.of(booking));
+        when(cancellationRuleRepository.findAllByOrderByHoursBeforeDesc()).thenReturn(DEFAULT_RULES);
+        when(paymentService.initiateRefund(eq(booking), any(BigDecimal.class))).thenReturn("RFD-PARTIAL1");
+
+        PartialCancellationResponseDto response = cancellationService.cancelPassengers("PNRCAN0001", List.of(101L), 1L);
+
+        assertNotNull(response);
+        assertEquals("PNRCAN0001", response.getPnr());
+        assertEquals(BookingStatus.CONFIRMED, response.getBookingStatus());
+        assertEquals(1, response.getRemainingActivePassengers());
+        assertEquals(new BigDecimal("1035.00"), response.getRefundAmount());
+        assertEquals("RFD-PARTIAL1", response.getRefundRef());
+
+        assertEquals("CANCELLED", booking.getPassengers().get(0).getStatus());
+        assertEquals("CONFIRMED", booking.getPassengers().get(1).getStatus());
+        assertEquals(BookingStatus.CONFIRMED, booking.getStatus());
+
+        verify(auditLogRepository).save(any(CancellationAuditLog.class));
+        verify(paymentService).initiateRefund(booking, new BigDecimal("1035.00"));
+    }
+
+    @Test
+    @DisplayName("RRS-F-012-EXT: cancelPassengers cancels all passengers and transitions booking to CANCELLED")
+    void testCancelPassengers_All_TransitionsToCancelled() {
+        fixNow(DEPARTURE.minusDays(2));
+        when(bookingRepository.findByPnrForUpdate("PNRCAN0001")).thenReturn(Optional.of(booking));
+        when(cancellationRuleRepository.findAllByOrderByHoursBeforeDesc()).thenReturn(DEFAULT_RULES);
+        when(paymentService.initiateRefund(eq(booking), any(BigDecimal.class))).thenReturn("RFD-ALL1");
+
+        PartialCancellationResponseDto response = cancellationService.cancelPassengers("PNRCAN0001", List.of(101L, 102L), 1L);
+
+        assertNotNull(response);
+        assertEquals(BookingStatus.CANCELLED, response.getBookingStatus());
+        assertEquals(0, response.getRemainingActivePassengers());
+        assertEquals(new BigDecimal("2070.00"), response.getRefundAmount());
+        assertEquals(BookingStatus.CANCELLED, booking.getStatus());
+    }
+
+    @Test
+    @DisplayName("RRS-F-012-EXT: cancelPassengers rejects already cancelled passenger")
+    void testCancelPassengers_AlreadyCancelled_ThrowsException() {
+        fixNow(DEPARTURE.minusDays(2));
+        booking.getPassengers().get(0).setStatus("CANCELLED");
+        when(bookingRepository.findByPnrForUpdate("PNRCAN0001")).thenReturn(Optional.of(booking));
+
+        assertThrows(CancellationNotAllowedException.class, () ->
+                cancellationService.cancelPassengers("PNRCAN0001", List.of(101L), 1L));
+    }
+
+    @Test
+    @DisplayName("RRS-F-012-EXT: cancelPassengers rejects passenger ID not belonging to booking")
+    void testCancelPassengers_UnknownPassengerId_ThrowsException() {
+        fixNow(DEPARTURE.minusDays(2));
+        when(bookingRepository.findByPnrForUpdate("PNRCAN0001")).thenReturn(Optional.of(booking));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                cancellationService.cancelPassengers("PNRCAN0001", List.of(999L), 1L));
     }
 }
