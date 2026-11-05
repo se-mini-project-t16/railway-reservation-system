@@ -6,8 +6,8 @@
 - Audit Task: GitHub Issue #58
 - Requirement: RRS-NF-006 (Accessibility and Usability)
 - Auditor: Sujeet V Bire (PES1UG24CS716, @sujeet0329)
-- Date: 4 November 2026
-- Branch: dev/sujeet
+- Date: 4 November 2026 (Updated: 6 November 2026)
+- Branch: dev/sujeet-accessibility-audit
 - Environment: Local development server (http://localhost:8080)
 
 ## 2. Audit Scope
@@ -18,7 +18,7 @@ The scope covers:
 - Keyboard operability and focus management
 - Visual focus indication
 - Native HTML modal dialogs
-- Color contrast ratios in light and dark modes
+- Color contrast conformance in light and dark themes
 - Form control labels and helper text
 - Automated WCAG 2.1 Level AA conformance checks via axe-core
 - Performance and accessibility metrics via Google Lighthouse
@@ -27,8 +27,9 @@ We tested both light mode and dark mode for every page.
 
 ## 3. Browser and Tools Used
 
-- Browser: Google Chrome 156.0.7107.0 (Official Build, 64-bit) on Windows 11
-- Automated Engine: axe-core 4.14.0 injected through Playwright 1.58.0
+- Environment: Automated and interactive browser testing on Windows 11 (64-bit)
+- Browser: Google Chrome 156.0.7107.0 (Official Build, 64-bit)
+- Automated Engine: axe-core 4.14.0 injected via Playwright 1.58.0 in headless Chrome automation
 - Audit Suite: Google Lighthouse 12.4.0 CLI executed with clean incognito profiles
 - Navigation Devices: Standard desktop keyboard (Tab, Shift+Tab, Enter, Space, Escape, Arrow keys)
 
@@ -59,25 +60,26 @@ Administrative pages (authenticated as admin@railway.gov.in):
 
 ## 5. Light Theme Findings
 
-The light theme applies `data-mode="light"` to the root document element.
+The application defines its color system using OKLCH tokens in `css/tokens.css`, anchoring background paper surfaces to `--color-paper: oklch(95.5% 0.006 250)` and text to `--color-ink: oklch(16% 0.014 262)`.
 
 We observed:
-- Main background color `#ffffff` paired with ink color `#1a1a1a` provides a contrast ratio of 16.1:1.
-- Muted secondary copy `#595959` on white provides a contrast ratio of 7.0:1, exceeding the 4.5:1 WCAG AA baseline.
-- Primary buttons styled with `#0052cc` background and white text produce a contrast ratio of 7.8:1.
-- Danger buttons styled with `#d32f2f` background and white text produce a contrast ratio of 5.3:1.
-- Form controls display defined border outlines against card backgrounds.
+- On initial page load with no saved setting, light mode is active by default and follows the operating system preference without setting an explicit attribute on the root element.
+- When the user clicks the theme toggle button in the header, the application explicitly sets `data-mode="light"` on the root element and stores the choice in browser local storage.
+- Secondary copy uses `--color-muted: oklch(47% 0.016 260)`, and borders use `--color-rule: oklch(80% 0.011 250)`.
+- Interactive action buttons use `--color-accent: oklch(51% 0.22 264)` with `--color-accent-ink: oklch(99.5% 0.003 250)`.
+- Form controls display defined border outlines against panel backgrounds.
+- axe-core reported zero color-contrast violations across all audited pages in light mode.
 
 ## 6. Dark Theme Findings
 
-The dark theme applies `data-mode="dark"` via the theme toggle button in the page header.
+The dark theme activates when the system prefers dark mode, or explicitly when the user selects dark mode via the theme toggle button, which sets `data-mode="dark"` on the root document element.
 
 We observed:
-- Main background `#121212` with text `#f2f2f2` provides a contrast ratio of 15.6:1.
-- Card panels styled with surface color `#1e1e1e` provide clear separation from the background.
-- Muted text `#a0a0a0` against `#121212` maintains a contrast ratio of 7.4:1.
-- Focus outlines use a bright accent stroke that remains visible against dark container backgrounds.
-- Neither axe-core nor Lighthouse flagged any contrast regressions when switching from light to dark mode.
+- Main background paper surfaces shift to `--color-paper: oklch(15% 0.012 262)` with text shifting to `--color-ink: oklch(95% 0.006 250)`.
+- Card panels styled with surface token `--color-paper-2: oklch(19% 0.014 262)` provide clear visual separation from page backgrounds.
+- Muted text adapts to `--color-muted: oklch(70% 0.014 255)`, maintaining text legibility.
+- Focus outlines use `--color-focus: oklch(70% 0.17 264)`, providing a bright accent stroke that remains visible against dark container backgrounds.
+- axe-core reported zero color-contrast violations across all audited pages in dark mode.
 
 ## 7. Keyboard Navigation Results
 
@@ -97,7 +99,7 @@ We inspected focus indicators across all interactive elements.
 Key findings:
 - Global CSS sets `:focus-visible` styles with a 2px outline and subtle shadow.
 - Action buttons, navigation links, and inputs display a visible outline upon receiving keyboard focus.
-- In light mode, focus indicators display as a blue outline (`#0052cc`).
+- In light mode, focus indicators display as a crisp accent outline using `--color-focus`.
 - In dark mode, focus rings adapt to a lighter tone with sufficient separation from dark card surfaces.
 - We checked 15 focus positions on each page. No focus outline was hidden or set to none without replacement.
 
@@ -118,18 +120,14 @@ Key findings:
 
 ## 10. Colour Contrast Findings
 
-We measured contrast ratios using Chrome DevTools and axe-core rules across light and dark themes.
+We evaluated color contrast compliance across light and dark themes using automated axe-core rules and browser inspection.
 
-Measured values:
-- Standard body text (`#1a1a1a` on `#ffffff`): 16.1:1 (Pass, threshold 4.5:1)
-- Dark mode body text (`#f2f2f2` on `#121212`): 15.6:1 (Pass, threshold 4.5:1)
-- Secondary muted copy (`#595959` on `#ffffff`): 7.0:1 (Pass, threshold 4.5:1)
-- Dark mode muted copy (`#a0a0a0` on `#121212`): 7.4:1 (Pass, threshold 4.5:1)
-- Brand action button (`#0052cc` background, `#ffffff` text): 7.8:1 (Pass, threshold 4.5:1)
-- Danger button (`#d32f2f` background, `#ffffff` text): 5.3:1 (Pass, threshold 4.5:1)
-- Station badge text (`#333333` on `#f0f0f0`): 10.2:1 (Pass, threshold 4.5:1)
-
-axe-core reported 0 color contrast violations across all 34 page runs.
+Measured results:
+- The design system implements OKLCH color variables configured in `tokens.css`.
+- Standard body text, headings, tabular data, and form labels meet the 4.5:1 minimum threshold for standard text.
+- Large titles and section headers meet the 3.0:1 threshold for large text.
+- Accent buttons, station code badges, and status chips retain legible foreground-to-background separation.
+- axe-core reported zero color-contrast violations across the audited pages in both light and dark themes.
 
 ## 11. Form Label Findings
 
@@ -156,12 +154,16 @@ The 4-point deduction on the Search Results page was caused by the `aria-prohibi
 
 We executed automated axe-core scans across all 17 pages in both themes.
 
-Results:
-- Total passes recorded: Between 32 and 47 accessibility rules passed per page.
-- 14 pages passed with 0 violations in both light and dark themes.
-- Search Results (`/trains.html`): 1 violation (`aria-prohibited-attr`, serious).
-- Train Details (`/train.html`): 1 violation (`aria-prohibited-attr`, serious).
-- Admin Chart (`/admin/chart.html`): 1 violation (`heading-order`, moderate).
+Results summary:
+- Total passes recorded: Between 32 and 47 accessibility checks passed per page.
+- 14 pages passed with zero WCAG accessibility violations in both light and dark themes.
+- Two pages contain WCAG Level AA violations:
+  - Search Results (`/trains.html`): 1 violation (`aria-prohibited-attr`, serious).
+  - Train Details (`/train.html`): 1 violation (`aria-prohibited-attr`, serious).
+  - Admin Chart (`/admin/chart.html`): 1 violation (`heading-order`, moderate).
+- Two pages contain best-practice advisory notices (not WCAG failures):
+  - Home (`/`): 1 best-practice notice (`landmark-complementary-is-top-level`, moderate) on `<aside class="hero-board">`.
+  - Admin Overview (`/admin/`): 1 best-practice notice (`empty-table-header`, minor) on an empty `<th></th>` in the upcoming departures table.
 
 ## 14. Screenshots and Captions
 
@@ -181,28 +183,27 @@ Caption: Lighthouse accessibility audit on the Admin Overview page showing a sco
 
 ## 15. Actual Accessibility Issues Discovered
 
-During testing, we discovered two genuine accessibility issues.
+During testing, we discovered two genuine accessibility issues and two best-practice observations.
 
 ### Issue 1: Prohibited ARIA attribute on train operating days badge
 
-- Locations:
-  - `src/main/resources/static/js/pages/trains.js` (line 62)
-  - `src/main/resources/static/js/pages/train.js` (line 44)
-- Impact: Serious
+- Location:
+  - `src/main/resources/static/js/core/ui.js` (line 106, inside `daysStrip(mask)`)
+- Impact: Serious (WCAG Level AA violation)
 - Automated Rule: `aria-prohibited-attr` (axe-core and Lighthouse)
 - Observed markup:
-  `<span class="days" aria-label="Runs Except Wed">Except Wed</span>`
+  `<span class="days" aria-label="Runs Except Wed">...</span>`
 - Problem explanation:
-  Under the W3C ARIA in HTML specification, an HTML `<span>` element without an explicit role attribute has the implicit role of `generic`. Elements with role `generic` prohibit naming attributes like `aria-label` and `aria-labelledby` because assistive software does not expose names on generic inline wrappers.
+  The shared `daysStrip` helper in `ui.js:106` constructs the operating days badge displayed on both Search Results (`trains.html`) and Train Details (`train.html`). Under the W3C ARIA in HTML specification, an HTML `<span>` element without an explicit role attribute has the implicit role of `generic`. Elements with role `generic` prohibit naming attributes like `aria-label` and `aria-labelledby` because assistive software does not expose names on generic inline wrappers.
 - Recommended remediation:
-  Either add `role="text"` or `role="img"` to the `<span>`, or remove `aria-label` since the inner text already states the operating days.
+  Either add `role="text"` or `role="img"` to the wrapping `<span>`, or remove `aria-label` and supply an accessible text child element.
 - Note: Following team instructions, we made no changes to JavaScript or CSS files in this pull request. We documented this finding for Shakthi to review.
 
 ### Issue 2: Skipped heading level in administrative chart view
 
 - Location:
   - `src/main/resources/static/js/admin/chart.js`
-- Impact: Moderate
+- Impact: Moderate (WCAG Level AA violation)
 - Automated Rule: `heading-order` (axe-core)
 - Observed markup:
   The page title renders as an `<h1>`, but coach sections render directly as `<h3>A1</h3>` without an intermediate `<h2>`.
@@ -211,33 +212,55 @@ During testing, we discovered two genuine accessibility issues.
 - Recommended remediation:
   Change `<h3>` tags in coach blocks to `<h2>`, or insert an `<h2>Coach Allocations</h2>` container heading.
 
+### Best-Practice Finding 1: Complementary landmark placement on Home page
+
+- Location:
+  - `src/main/resources/static/index.html` (line 73)
+- Impact: Moderate (axe-core best-practice advisory, not a WCAG AA failure)
+- Automated Rule: `landmark-complementary-is-top-level`
+- Observed markup:
+  `<aside class="hero-board band--ink" aria-labelledby="board-title">`
+- Explanation:
+  The departure board aside is nested inside the hero `<section>` element instead of sitting at the top level of the document body or main landmark. While functional, placing complementary landmarks at the root of content aids screen reader region jumping.
+
+### Best-Practice Finding 2: Empty table header cell in Admin Overview
+
+- Location:
+  - `src/main/resources/static/js/admin/overview.js` (line 27)
+- Impact: Minor (axe-core best-practice advisory, not a WCAG AA failure)
+- Automated Rule: `empty-table-header`
+- Observed markup:
+  `h('th', {}, '')` rendered in the table header of upcoming departures.
+- Explanation:
+  The header cell above the action link column contains no text or accessible name. Adding a visually hidden label or descriptive title resolves this advisory.
+
 ## 16. Untested Items and Limitations
 
 - Screen reader speech testing:
   - Result: Not tested
-  - Reason: The test runner operates in a headless Windows execution environment without an active audio speech synthesizer such as NVDA or Orca. We verified accessibility tree attributes, focus stops, and ARIA roles instead of audio readout.
+  - Reason: The automated tests executed using headless Chrome on Windows 11 without an active audio speech synthesizer service such as NVDA or Orca. We verified accessibility tree attributes, focus stops, and ARIA roles instead of audio readout.
 - Mobile touch gestures:
   - Result: Not tested
   - Reason: Testing was scoped to desktop keyboard interaction and standard browser viewports (1280x800).
 
 ## 17. Final Audit Summary
 
-We evaluated 17 pages across light and dark themes. The interface demonstrates strong keyboard accessibility, clear visual focus indicators, and compliant contrast ratios. Two specific issues were identified (`aria-prohibited-attr` on day badges and `heading-order` on admin charts) and recorded for future refinement.
+We evaluated 17 pages across light and dark themes. The interface demonstrates strong keyboard accessibility, clear visual focus indicators, and compliant contrast ratios. Two WCAG Level AA issues were identified (`aria-prohibited-attr` on day badges and `heading-order` on admin charts), alongside two best-practice observations.
 
 | Page | Theme | Check | Result | Observation |
 |---|---|---|---|---|
 | Home | Light | Keyboard navigation | Pass | Tab moves through station inputs, date picker, search button |
-| Home | Light | Focus visibility | Pass | Blue 2px outline visible on all active controls |
-| Home | Light | Colour contrast | Pass | Text ratio 16.1:1, button ratio 7.8:1 |
+| Home | Light | Focus visibility | Pass | Distinct 2px outline visible on all active controls |
+| Home | Light | Colour contrast | Pass | axe-core reported 0 contrast violations; text legible |
 | Home | Light | Form labels | Pass | Explicit labels on from, to, and date fields |
 | Home | Light | Lighthouse audit | Pass | Score 100 / 100 |
 | Home | Dark | Keyboard navigation | Pass | Autocomplete dropdown navigable with arrow keys |
 | Home | Dark | Focus visibility | Pass | High contrast focus outline visible against dark cards |
-| Home | Dark | Colour contrast | Pass | Text ratio 15.6:1, muted copy 7.4:1 |
+| Home | Dark | Colour contrast | Pass | axe-core reported 0 contrast violations across dark surfaces |
 | Home | Dark | Screen reader | Not tested | Headless environment without NVDA |
 | Search Results | Light | Keyboard navigation | Pass | Focus reaches each train card and book button |
 | Search Results | Light | Focus visibility | Pass | Focus ring visible on fare selection cards |
-| Search Results | Light | Colour contrast | Pass | Card background and text exceed 4.5:1 |
+| Search Results | Light | Colour contrast | Pass | axe-core reported 0 contrast violations on cards and fare options |
 | Search Results | Light | axe-core audit | Fail | aria-prohibited-attr on span.days |
 | Search Results | Light | Lighthouse audit | Pass | Score 96 / 100 |
 | Search Results | Dark | Keyboard navigation | Pass | Tab steps between train cards in visual order |
@@ -250,7 +273,7 @@ We evaluated 17 pages across light and dark themes. The interface demonstrates s
 | Train Catalog | Light | Keyboard navigation | Pass | Filter inputs and train list links navigable |
 | Train Catalog | Dark | Focus visibility | Pass | Filter buttons retain visible outline |
 | Station Board | Light | Keyboard navigation | Pass | Station code input accepts keyboard entry |
-| Station Board | Dark | Colour contrast | Pass | Platform numbers and departure times legible |
+| Station Board | Dark | Colour contrast | Pass | Station details, train numbers, destinations, and scheduled departure times legible |
 | PNR Status | Light | Keyboard navigation | Pass | 10-digit PNR input and search button reachable |
 | PNR Status | Light | Form labels | Pass | Input explicitly labelled with PNR field text |
 | PNR Status | Dark | Focus visibility | Pass | Input border shifts on focus |
@@ -259,7 +282,7 @@ We evaluated 17 pages across light and dark themes. The interface demonstrates s
 | Sign In | Dark | Colour contrast | Pass | Form fields clearly defined on dark surface |
 | Ticket View | Light | Keyboard navigation | Pass | Print, download PDF, and cancel buttons reachable |
 | Ticket View | Light | Dialog modal | Pass | Cancel dialog opens with showModal, Escape closes it |
-| Ticket View | Dark | Focus visibility | Pass | Focus moves into cancel dialog and traps correctly |
+| Ticket View | Dark | Focus visibility | Pass | Cancel, print, and download buttons display visible focus outlines against dark surfaces |
 | My Bookings | Light | Keyboard navigation | Pass | List of past trips navigable by Tab |
 | My Bookings | Dark | Colour contrast | Pass | Status badges maintain readable contrast |
 | Account Profile | Light | Keyboard navigation | Pass | Traveller management table reachable |
@@ -281,5 +304,4 @@ We evaluated 17 pages across light and dark themes. The interface demonstrates s
 | Admin Rules | Light | Keyboard navigation | Pass | Refund rule inputs and save buttons reachable |
 | Admin Rules | Dark | Form labels | Pass | Time boundary and percentage fields labelled |
 | Admin Stations | Light | Keyboard navigation | Pass | Add station form and station table navigable |
-| Admin Stations | Dark | Focus visibility | Pass | Station code and zone inputs display focus ring |
-
+| Admin Stations | Dark | Focus visibility | Pass | Station code, name, city, and state form inputs display clear focus ring |
