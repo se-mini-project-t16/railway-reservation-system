@@ -8,7 +8,7 @@ This folder holds the test plan, the list of automated test cases and the tracea
 
 - Test plan document: [`test-plan-railway-reservation-system.pdf`](./test-plan-railway-reservation-system.pdf) | [`test-plan-railway-reservation-system.docx`](./test-plan-railway-reservation-system.docx)
 - Search performance benchmark (issue #17): [`issue17-search-benchmark.md`](../performance/issue17-search-benchmark.md)
-- Script that rebuilds this page and the docx tables: [`tools/update_test_plan.py`](./tools/update_test_plan.py)
+- Part 3 test reports (unit test, system validation, code coverage, branch coverage): [`docs/reports/`](../reports/)
 
 ## Latest run
 
@@ -45,7 +45,7 @@ Parameterised tests count once per input row, which is why `SafeTextRulesTest` s
 
 ## Traceability matrix
 
-The SRS has 26 requirements. In this run 17 were covered by automated tests, 7 were partly covered and 2 had no test. The last row, RRS-NF-006, is the accessibility check we added in Sprint 3; it is not in SRS v1.0, so it is not part of these counts. Where the rebuilt app behaves differently from the SRS acceptance criteria we wrote that in the Notes column instead of counting it as a pass.
+The SRS has 26 requirements. 19 are covered (17 by automated tests and 2 by the load test re-run after the rebuild), 5 are partly covered and 2 have no test. The last row, RRS-NF-006, is the accessibility check we added in Sprint 3; it is not in SRS v1.0, so it is not part of these counts. Where the rebuilt app behaves differently from the SRS acceptance criteria we wrote that in the Notes column instead of counting it as a pass.
 
 | Requirement | Description | Covering tests | Tests run | Status | Notes |
 |---|---|---|---:|---|---|
@@ -65,10 +65,10 @@ The SRS has 26 requirements. In this run 17 were covered by automated tests, 7 w
 | RRS-F-014 | Booking history | TC-BK-03 / TC-HIS-01 | 1 | Partly covered | The paid booking appears in history, but newest-first ordering is not checked (the test has one booking). |
 | RRS-F-015 | Admin add, update, delete trains, routes, fares | TC-ADM-01, TC-ADM-03 | 2 | Partly covered | Adding a train and blocking delete when it has bookings are tested; editing an existing train (PUT /api/v1/admin/trains/{number}) has no test. |
 | RRS-F-016 | Admin bookings report by date and train | TC-ADM-04 | 1 | Covered | Report filtered by train 12901 and date, plus the chart and its CSV. |
-| RRS-NF-001 | Search within 3 s for 95% of requests | TC-PERF-01, JMeter run on 29 Oct 2026 (docs/performance/issue17-search-benchmark.md) | - | Partly covered | p95 was 200 ms and 290 ms over two runs of 100 requests, but that was before the rebuild in PR #68 and has not been repeated since. |
+| RRS-NF-001 | Search within 3 s for 95% of requests | TC-PERF-01, load test on 06 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.3); earlier JMeter run on 29 Oct 2026 (docs/performance/issue17-search-benchmark.md) | - | Covered | Re-run after the rebuild: 100 searches sent together, three rounds, p95 833 ms and slowest 892 ms, well inside 3 s. The 29 Oct JMeter run (p95 200 ms and 290 ms) was on the old two-train version. |
 | RRS-NF-002 | 99% availability during demo | TC-OPS-01 | 3 | Partly covered | The health endpoint and a burst of parallel health checks are tested; real uptime over the demo period is not measured. |
 | RRS-NF-003 | New user books within 5 minutes | None | - | Not covered | No automated test. The user test with 3 classmates (TC-UX-01) has no record in the repository. |
-| RRS-NF-004 | 100 concurrent users | TC-OPS-01; TC-PERF-02, JMeter run on 29 Oct 2026 with 100 threads, 0 errors | 1 | Partly covered | Same caveat as RRS-NF-001: the JMeter run predates PR #68. |
+| RRS-NF-004 | 100 concurrent users | TC-OPS-01; TC-PERF-02, load test on 06 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.3) | 1 | Covered | 300 of 300 searches succeeded at 100 concurrent users after the rebuild, with no errors. The 29 Oct JMeter run with 100 threads also had 0 errors but predates PR #68. |
 | RRS-NF-005 | Log errors with timestamp and user id | TC-OPS-02 | 5 | Covered | ERROR level logs with user id and timestamp, daily rotation in logs/, and no stack traces in responses. |
 | RRS-SR-001 | BCrypt password hashing | PasswordProtectionSecurityTest, UserRegistrationControllerTest | 5 | Covered | Hash format and salt, and the password never appears in responses or logs. |
 | RRS-SR-002 | HTTPS (TLS 1.2+) | None | - | Not covered | The app runs on plain HTTP at localhost:8080 and has no TLS settings in application.properties. |
@@ -83,10 +83,8 @@ The SRS has 26 requirements. In this run 17 were covered by automated tests, 7 w
 - **RRS-F-010** (partly covered): The test checks the PDF is refused before payment and is a real PDF after it, but does not read the PNR or fare inside the file.
 - **RRS-F-014** (partly covered): The paid booking appears in history, but newest-first ordering is not checked (the test has one booking).
 - **RRS-F-015** (partly covered): Adding a train and blocking delete when it has bookings are tested; editing an existing train (PUT /api/v1/admin/trains/{number}) has no test.
-- **RRS-NF-001** (partly covered): p95 was 200 ms and 290 ms over two runs of 100 requests, but that was before the rebuild in PR #68 and has not been repeated since.
 - **RRS-NF-002** (partly covered): The health endpoint and a burst of parallel health checks are tested; real uptime over the demo period is not measured.
 - **RRS-NF-003** (not covered): No automated test. The user test with 3 classmates (TC-UX-01) has no record in the repository.
-- **RRS-NF-004** (partly covered): Same caveat as RRS-NF-001: the JMeter run predates PR #68.
 - **RRS-SR-002** (not covered): The app runs on plain HTTP at localhost:8080 and has no TLS settings in application.properties.
 - **RRS-NF-006 (added in Sprint 3, not in SRS v1.0)** (partly covered): accessibility-audit.md had 4 axe-core Fail rows: aria-prohibited-attr on span.days (Search Results light and dark, Train Details light; WCAG 2.0 Level A, criterion 4.1.2) and heading-order skipping h1 to h3 (Admin Chart light; best practice). Both were fixed in commit 9274510 and the axe re-run on 15 of the 17 pages reported zero violations. There is no automated test.
 
@@ -281,16 +279,3 @@ Every JUnit test that ran, grouped by class. The ID and description come from th
 | No ID | `rejectsMalformedJsonWithBadRequest` | 1 | Pass | RRS-F-001 |
 | No ID | `rejectsMissingAndInvalidFieldsWithBadRequest` | 1 | Pass | RRS-F-001 |
 | No ID | `rejectsPasswordLongerThanBcryptUtf8Limit` | 1 | Pass | RRS-F-001 |
-
-## Updating this page
-
-```bash
-git checkout dev/likhith
-git fetch origin
-git merge origin/main
-export APP_JWT_SECRET=$(openssl rand -base64 32)
-./mvnw clean test
-python3 docs/test-plan/tools/update_test_plan.py
-```
-
-The script rewrites this README and the tables in the docx. Export the PDF again from Word afterwards. New tests are picked up by their ID prefix (for example `TC-CAN-*`); a test with a new prefix or a new requirement needs a line in `REQUIREMENTS` inside the script.
