@@ -51,6 +51,19 @@ public class SystemUptimeService {
         }
     }
 
+    /** "H2 (in-memory)" in tests, "H2 (file)" for the default local database, else the product name. */
+    public String databaseLabel() {
+        try (Connection conn = dataSource.getConnection()) {
+            String url = conn.getMetaData().getURL();
+            String product = conn.getMetaData().getDatabaseProductName();
+            if (url != null && url.startsWith("jdbc:h2:mem:")) return "H2 (in-memory)";
+            if (url != null && url.startsWith("jdbc:h2:file:")) return "H2 (file)";
+            return product;
+        } catch (Exception e) {
+            return "unknown";
+        }
+    }
+
     public boolean isDatabaseHealthy() {
         try (Connection conn = dataSource.getConnection()) {
             return conn != null && conn.isValid(2);
@@ -70,7 +83,7 @@ public class SystemUptimeService {
 
         Map<String, Object> dbComponent = new HashMap<>();
         dbComponent.put("status", dbHealthy ? "UP" : "DOWN");
-        dbComponent.put("type", "H2 (in-memory)");
+        dbComponent.put("type", databaseLabel());
 
         Map<String, Object> memoryComponent = new HashMap<>();
         memoryComponent.put("status", "UP");
@@ -86,7 +99,7 @@ public class SystemUptimeService {
         health.put("status", dbHealthy ? "UP" : "DOWN");
         health.put("service", "railway-reservation-system");
         health.put("timestamp", LocalDateTime.now());
-        health.put("database", "H2 (in-memory)");
+        health.put("database", dbComponent.get("type"));
         health.put("uptimeSeconds", uptime);
         health.put("uptimeFormatted", getUptimeFormatted());
         health.put("startedAt", LocalDateTime.ofInstant(startTime, ZoneId.systemDefault()).toString());
