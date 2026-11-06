@@ -124,8 +124,11 @@ REQUIREMENTS = [
      "A passenger gets 403 and a guest 401 on admin routes; passengers cannot open each other's bookings."),
     ("RRS-SR-005", "Session timeout after 15 minutes", ["TC-SEC-05"], "Covered", None,
      "The API side (401 Session Expired, token renewal) is tested; the redirect to the login page in the browser is not."),
-    (NF_006, "Accessibility (keyboard, focus, contrast, labels)", [], "Covered", None,
-     "Checked by hand with Lighthouse, axe and keyboard only, in light and dark themes; there is no automated test."),
+    (NF_006, "Accessibility (keyboard, focus, contrast, labels)", [], "Partly covered", None,
+     "accessibility-audit.md had 4 axe-core Fail rows: aria-prohibited-attr on span.days (Search Results light "
+     "and dark, Train Details light; WCAG 2.0 Level A, criterion 4.1.2) and heading-order skipping h1 to h3 "
+     "(Admin Chart light; best practice). Both were fixed in commit 9274510 and the axe re-run on 15 of the "
+     "17 pages reported zero violations. There is no automated test."),
 ]
 
 # Work that is in flight. While the class (or file) is missing, the matrix says "pending".
@@ -571,6 +574,15 @@ EXPECTED = {
                  "traveller is CNF and the booking status still reads RAC 1.",
     "TC-CAN-04": "With berths and RAC full the next traveller is WL; at 04:30 (chart at 04:00) the job cancels "
                  "1 booking: status CANCELLED, refund of fare minus Rs 60.",
+    "TC-CAN-05": "Confirmed Sleeper, fare Rs 1000: refund Rs 880 at 48 h 01 m and 48 h 00 m, Rs 750 at 47 h 59 m "
+                 "and 12 h 00 m, Rs 500 at 11 h 59 m and 4 h 00 m, Rs 0 at 3 h 59 m.",
+    "TC-CAN-06": "Confirmed 3A, fare Rs 1000, 50 h left: refund Rs 811 (flat Rs 180 plus 5% GST is Rs 189).",
+    "TC-CAN-07": "Confirmed Sleeper, fare Rs 300, 24 h left: 25% is only Rs 75, so the flat Rs 120 applies and "
+                 "the refund is Rs 180.",
+    "TC-CAN-08": "RAC Sleeper traveller, fare Rs 1000, 2 h left: refund Rs 940 (only Rs 60 clerkage is kept).",
+    "TC-CAN-09": "Waitlisted Sleeper traveller, fare Rs 1000, 2 h left: refund Rs 940 (only Rs 60 clerkage is kept).",
+    "TC-CAN-10": "Confirmed Tatkal Sleeper, fare Rs 1000, 3 days left: refund Rs 0.",
+    "TC-CAN-11": "Confirmed Sleeper, fare Rs 1000, cancelled 15 minutes after departure: refund Rs 0.",
     "TC-DEM-01": "Two runs for the same departure give the same pre-sold berths and the same external waiting list.",
     "TC-DEM-02": "More berths are pre-sold for tomorrow's departure than for one seven weeks away.",
     "TC-DEM-03": "Simulated Tatkal sales start at or after the first Tatkal berth and stay within coach capacity.",
@@ -633,6 +645,13 @@ EXPECTED = {
     "TC-SRC-05": "AAB to DDD finds nothing; with nearby=true it finds trains from the other station in that city.",
     "TC-SRC-06": "Train 12901 has 4 stops; the SL availability calendar has 6 days; AAA's board has 2 departures; "
                  "train 99999 gives 404.",
+    "TC-SRC-07": "AAA to DDD gives 200 with 2 trains; DDD to AAA gives 200 with no results and from.code DDD.",
+    "TC-SRC-08": "BBB to CCC gives 200 with only 12901; CCC to BBB gives 200 with no results.",
+    "TC-SRC-09": "aaa to AAA and Alpha Central to AAA both give 400 SAME_STATION.",
+    "TC-SRC-10": "AAA to DDD gives 200 for today (Monday 9 Nov 2026) and today plus 60 days; yesterday gives 400 "
+                 "DATE_IN_PAST and today plus 61 days gives 400 DATE_TOO_FAR.",
+    "TC-SRC-11": "No from gives 400 BAD_REQUEST \"Missing from.\"; no date gives 400 BAD_REQUEST \"Missing date.\"; "
+                 "a blank from gives 400 STATION_REQUIRED.",
     "TC-TQ-01": "A Tatkal SL booking at 09:00 the day before gives 409 TATKAL_NOT_OPEN; at 11:00 it gives 201 with "
                 "quota TQ and a Tatkal charge; 5 travellers gives 400 TOO_MANY_TRAVELLERS.",
     "InputValidationSecurityTest": "4 malicious registration names give 400; O'Brien and hyphenated names give 201; "

@@ -12,7 +12,7 @@ This folder holds the test plan, the list of automated test cases and the tracea
 
 ## Latest run
 
-We ran `./mvnw clean test` on 06 November 2026 at 22:56 on `dev/likhith` (merged with `main` after PR #68). Maven reported:
+We ran `./mvnw clean test` on 06 November 2026 at 23:14 on `dev/likhith` (merged with `main` after PR #68). Maven reported:
 
 ```text
 Tests run: 146, Failures: 0, Errors: 0, Skipped: 0
@@ -75,7 +75,7 @@ The SRS has 26 requirements. In this run 17 were covered by automated tests, 7 w
 | RRS-SR-003 | Server-side input validation (SQL injection, XSS) | TC-OPS-03, InputValidationSecurityTest, QueryParameterizationTest, SafeTextRulesTest, UserLoginControllerTest | 47 | Covered | Payloads on real endpoints, the SafeText rules on their own, bound query parameters and the CSP header. |
 | RRS-SR-004 | Role based access control | TC-ADM-02, TC-SEC-06, TC-SEC-07 | 3 | Covered | A passenger gets 403 and a guest 401 on admin routes; passengers cannot open each other's bookings. |
 | RRS-SR-005 | Session timeout after 15 minutes | TC-SEC-05 | 5 | Covered | The API side (401 Session Expired, token renewal) is tested; the redirect to the login page in the browser is not. |
-| RRS-NF-006 (added in Sprint 3, not in SRS v1.0) | Accessibility (keyboard, focus, contrast, labels) | `docs/test-plan/accessibility-audit.md` | - | Covered | Checked by hand with Lighthouse, axe and keyboard only, in light and dark themes; there is no automated test. |
+| RRS-NF-006 (added in Sprint 3, not in SRS v1.0) | Accessibility (keyboard, focus, contrast, labels) | `docs/test-plan/accessibility-audit.md` | - | Partly covered | accessibility-audit.md had 4 axe-core Fail rows: aria-prohibited-attr on span.days (Search Results light and dark, Train Details light; WCAG 2.0 Level A, criterion 4.1.2) and heading-order skipping h1 to h3 (Admin Chart light; best practice). Both were fixed in commit 9274510 and the axe re-run on 15 of the 17 pages reported zero violations. There is no automated test. |
 
 ### Gaps
 
@@ -88,6 +88,7 @@ The SRS has 26 requirements. In this run 17 were covered by automated tests, 7 w
 - **RRS-NF-003** (not covered): No automated test. The user test with 3 classmates (TC-UX-01) has no record in the repository.
 - **RRS-NF-004** (partly covered): Same caveat as RRS-NF-001: the JMeter run predates PR #68.
 - **RRS-SR-002** (not covered): The app runs on plain HTTP at localhost:8080 and has no TLS settings in application.properties.
+- **RRS-NF-006 (added in Sprint 3, not in SRS v1.0)** (partly covered): accessibility-audit.md had 4 axe-core Fail rows: aria-prohibited-attr on span.days (Search Results light and dark, Train Details light; WCAG 2.0 Level A, criterion 4.1.2) and heading-order skipping h1 to h3 (Admin Chart light; best practice). Both were fixed in commit 9274510 and the axe re-run on 15 of the 17 pages reported zero violations. There is no automated test.
 
 ### Tests with no SRS requirement
 
