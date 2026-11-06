@@ -12,13 +12,13 @@ This folder holds the test plan, the list of automated test cases and the tracea
 
 ## Latest run
 
-We ran `./mvnw clean test` on 05 November 2026 at 00:07 on `dev/likhith` (merged with `main` after PR #68). Maven reported:
+We ran `./mvnw clean test` on 06 November 2026 at 22:56 on `dev/likhith` (merged with `main` after PR #68). Maven reported:
 
 ```text
-Tests run: 128, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 146, Failures: 0, Errors: 0, Skipped: 0
 ```
 
-All 128 tests passed. The number is lower than the 256 this page used to list because the app was rebuilt in PR #68 and the old test classes (`BookingControllerTest`, `PaymentServiceTest`, `AdminServiceTest` and others) were replaced by the classes below.
+All 146 tests passed. The number is lower than the 256 this page used to list because the app was rebuilt in PR #68 and the old test classes (`BookingControllerTest`, `PaymentServiceTest`, `AdminServiceTest` and others) were replaced by the classes below.
 
 ## Tests per class
 
@@ -26,18 +26,20 @@ All 128 tests passed. The number is lower than the 256 this page used to list be
 |---|---|---:|---:|---|
 | `validation` | `SafeTextRulesTest` | 32 | 0 | RRS-SR-003 |
 | `controller` | `RailJourneyIntegrationTest` | 28 | 0 | RRS-F-004, RRS-F-005, RRS-F-006, RRS-F-007, RRS-F-008, RRS-F-009, RRS-F-010, RRS-F-011, RRS-F-012, RRS-F-013, RRS-F-014, RRS-F-015, RRS-F-016, RRS-SR-003, RRS-SR-004 |
+| `service` | `CancellationRefundTest` | 13 | 0 | RRS-F-013 |
 | `controller` | `InputValidationSecurityTest` | 11 | 0 | RRS-SR-003 |
 | `service` | `SeatLedgerTest` | 11 | 0 | RRS-F-005, RRS-F-006 |
 | `controller` | `UserLoginControllerTest` | 9 | 0 | RRS-F-001, RRS-F-002, RRS-F-003, RRS-SR-003 |
 | `service` | `FareCalculatorTest` | 8 | 0 | RRS-F-006 |
 | `controller` | `SystemReliabilityAndLoggingTest` | 8 | 0 | RRS-NF-002, RRS-NF-004, RRS-NF-005 |
+| `controller` | `SearchBoundaryTest` | 5 | 0 | RRS-F-004 |
 | `controller` | `SessionTimeoutSecurityTest` | 5 | 0 | RRS-SR-005 |
 | `controller` | `UserRegistrationControllerTest` | 5 | 0 | RRS-F-001, RRS-SR-001 |
 | `service` | `DemandSimulatorTest` | 4 | 0 | RRS-F-005 |
 | `controller` | `PasswordProtectionSecurityTest` | 4 | 0 | RRS-SR-001 |
 | `security` | `QueryParameterizationTest` | 2 | 0 | RRS-SR-003 |
 | `(root)` | `RailwayReservationApplicationTests` | 1 | 0 | App start-up |
-| | **Total** | **128** | **0** | |
+| | **Total** | **146** | **0** | |
 
 Parameterised tests count once per input row, which is why `SafeTextRulesTest` shows 32 tests from 4 methods.
 
@@ -50,7 +52,7 @@ The SRS has 26 requirements. In this run 17 were covered by automated tests, 7 w
 | RRS-F-001 | User registration | UserLoginControllerTest, UserRegistrationControllerTest | 6 | Covered | Sign up, field rules, duplicate email (any case) and BCrypt storage. |
 | RRS-F-002 | User login | UserLoginControllerTest | 9 | Covered | Correct login returns a signed JWT; wrong password and unknown email get the same 401. |
 | RRS-F-003 | Account lock after 5 failed logins | UserLoginControllerTest | 4 | Covered | The lock is tested, but the API answers "Invalid credentials." instead of the lock message in the SRS, so the response does not reveal that the account exists. |
-| RRS-F-004 | Train search by source, destination and date | TC-SRC-01 to 06; TC-SRC-07 onwards (search swap and date edges): pending (issue #57, Kishan) | 6 | Covered | Includes intermediate stops, running days, nearby stations and bad input (SAME_STATION, past date, more than 60 days). |
+| RRS-F-004 | Train search by source, destination and date | TC-SRC-01 to 11 | 11 | Covered | Includes intermediate stops, running days, nearby stations and bad input (SAME_STATION, past date, more than 60 days). |
 | RRS-F-005 | Seat availability | TC-DEM-01 to 04, TC-SEAT-01, TC-SEAT-05, TC-SEAT-06, TC-SEAT-11, TC-SRC-01, TC-SRC-06 | 10 | Covered | Availability per class, the availability calendar, and berths freed at an intermediate station. |
 | RRS-F-006 | Book ticket with PNR | TC-BK-01, TC-FARE-01 to 08, TC-SEAT-01 to 11, TC-TQ-01 | 21 | Covered | Berth allocation, RAC and waiting list, Tatkal window, server-side fares and a 10-digit PNR. |
 | RRS-F-007 | Passenger details for each seat | TC-BK-02 | 1 | Covered | Missing or invalid name, age or gender is rejected field by field. |
@@ -59,7 +61,7 @@ The SRS has 26 requirements. In this run 17 were covered by automated tests, 7 w
 | RRS-F-010 | E-ticket after payment | TC-BK-03 / TC-HIS-01 | 1 | Partly covered | The test checks the PDF is refused before payment and is a real PDF after it, but does not read the PNR or fare inside the file. |
 | RRS-F-011 | PNR status check | TC-PNR-01 | 1 | Covered | A paid PNR shows each traveller's status but no names; unpaid and unknown PNRs return not found. |
 | RRS-F-012 | Cancel ticket | TC-CAN-01, TC-CAN-03, TC-CAN-04, TC-SEC-07 | 4 | Covered | Partial cancellation, RAC promotion and automatic refund of waitlisted tickets after charting. |
-| RRS-F-013 | Refund as per cancellation rules | TC-ADM-05, TC-CAN-02; TC-CAN-05 onwards (refund tier edges): pending (PR #69, Sujeet) | 2 | Covered | Refund tiers and the preview shown before confirming. |
+| RRS-F-013 | Refund as per cancellation rules | TC-ADM-05, TC-CAN-02, TC-CAN-05, TC-CAN-06, TC-CAN-07, TC-CAN-08, TC-CAN-09, TC-CAN-10, TC-CAN-11 | 15 | Covered | Refund tiers and the preview shown before confirming. |
 | RRS-F-014 | Booking history | TC-BK-03 / TC-HIS-01 | 1 | Partly covered | The paid booking appears in history, but newest-first ordering is not checked (the test has one booking). |
 | RRS-F-015 | Admin add, update, delete trains, routes, fares | TC-ADM-01, TC-ADM-03 | 2 | Partly covered | Adding a train and blocking delete when it has bookings are tested; editing an existing train (PUT /api/v1/admin/trains/{number}) has no test. |
 | RRS-F-016 | Admin bookings report by date and train | TC-ADM-04 | 1 | Covered | Report filtered by train 12901 and date, plus the chart and its CSV. |
@@ -73,7 +75,7 @@ The SRS has 26 requirements. In this run 17 were covered by automated tests, 7 w
 | RRS-SR-003 | Server-side input validation (SQL injection, XSS) | TC-OPS-03, InputValidationSecurityTest, QueryParameterizationTest, SafeTextRulesTest, UserLoginControllerTest | 47 | Covered | Payloads on real endpoints, the SafeText rules on their own, bound query parameters and the CSP header. |
 | RRS-SR-004 | Role based access control | TC-ADM-02, TC-SEC-06, TC-SEC-07 | 3 | Covered | A passenger gets 403 and a guest 401 on admin routes; passengers cannot open each other's bookings. |
 | RRS-SR-005 | Session timeout after 15 minutes | TC-SEC-05 | 5 | Covered | The API side (401 Session Expired, token renewal) is tested; the redirect to the login page in the browser is not. |
-| RRS-NF-006 (added in Sprint 3, not in SRS v1.0) | Accessibility (keyboard, focus, contrast, labels) | accessibility audit (docs/test-plan/accessibility-audit.md): pending (PR #70, Sujeet) | - | Pending | Sujeet's manual audit (Lighthouse, axe, keyboard only, light and dark themes) is in PR #70 and not merged yet; there is no automated test. |
+| RRS-NF-006 (added in Sprint 3, not in SRS v1.0) | Accessibility (keyboard, focus, contrast, labels) | `docs/test-plan/accessibility-audit.md` | - | Covered | Checked by hand with Lighthouse, axe and keyboard only, in light and dark themes; there is no automated test. |
 
 ### Gaps
 
@@ -86,23 +88,26 @@ The SRS has 26 requirements. In this run 17 were covered by automated tests, 7 w
 - **RRS-NF-003** (not covered): No automated test. The user test with 3 classmates (TC-UX-01) has no record in the repository.
 - **RRS-NF-004** (partly covered): Same caveat as RRS-NF-001: the JMeter run predates PR #68.
 - **RRS-SR-002** (not covered): The app runs on plain HTTP at localhost:8080 and has no TLS settings in application.properties.
-- **RRS-NF-006 (added in Sprint 3, not in SRS v1.0)** (pending): Sujeet's manual audit (Lighthouse, axe, keyboard only, light and dark themes) is in PR #70 and not merged yet; there is no automated test.
 
 ### Tests with no SRS requirement
 
 These tests check behaviour the rebuilt app added beyond the SRS v1.0 list: TC-ACC-01.
 
-### Work not merged yet
-
-- TC-SRC-07 onwards (search swap and date edges), issue #57, Kishan. Maps to RRS-F-004.
-- TC-CAN-05 onwards (refund tier edges), PR #69, Sujeet. Maps to RRS-F-013.
-- accessibility audit (docs/test-plan/accessibility-audit.md), PR #70, Sujeet. Maps to RRS-NF-006 (added in Sprint 3, not in SRS v1.0).
-
-After these merge, run the steps under *Updating this page* again.
-
 ## Test cases
 
 Every JUnit test that ran, grouped by class. The ID and description come from the `@DisplayName` on each test. Classes written before we used per-test IDs show the method name instead.
+
+### `CancellationRefundTest`
+
+| ID | Test | Runs | Result | Requirements |
+|---|---|---:|---|---|
+| TC-CAN-05 | Confirmed Sleeper Rs 1000 ticket refund boundaries across 48h, 12h, and 4h tiers | 7 | Pass | RRS-F-013 |
+| TC-CAN-06 | 3A cancellation includes 5% GST on the flat cancellation charge beyond 48 hours | 1 | Pass | RRS-F-013 |
+| TC-CAN-07 | Flat charge takes precedence when percentage deduction is lower | 1 | Pass | RRS-F-013 |
+| TC-CAN-08 | RAC traveller cancellation retains only Rs 60 clerkage charge | 1 | Pass | RRS-F-013 |
+| TC-CAN-09 | Waitlisted traveller cancellation retains only Rs 60 clerkage charge | 1 | Pass | RRS-F-013 |
+| TC-CAN-10 | Confirmed Tatkal tickets receive zero refund regardless of time remaining | 1 | Pass | RRS-F-013 |
+| TC-CAN-11 | Train already departed receives zero refund | 1 | Pass | RRS-F-013 |
 
 ### `DemandSimulatorTest`
 
@@ -202,6 +207,16 @@ Every JUnit test that ran, grouped by class. The ID and description come from th
 | No ID | `rejectsMaliciousInput` | 16 | Pass | RRS-SR-003 |
 | No ID | `requireSafeThrowsWithoutEchoingThePayload` | 1 | Pass | RRS-SR-003 |
 | No ID | `treatsNullAsSafeSoNotBlankCanReportMissingValues` | 1 | Pass | RRS-SR-003 |
+
+### `SearchBoundaryTest`
+
+| ID | Test | Runs | Result | Requirements |
+|---|---|---:|---|---|
+| TC-SRC-07 | Swapping the stations returns trains only in their scheduled direction | 1 | Pass | RRS-F-004 |
+| TC-SRC-08 | Swapping an intermediate journey returns no reverse train | 1 | Pass | RRS-F-004 |
+| TC-SRC-09 | Station codes and full names resolve before same-station validation | 1 | Pass | RRS-F-004 |
+| TC-SRC-10 | Today and day 60 are allowed; yesterday and day 61 are rejected | 1 | Pass | RRS-F-004 |
+| TC-SRC-11 | Missing and blank station or date inputs return clear errors | 1 | Pass | RRS-F-004 |
 
 ### `SeatLedgerTest`
 
