@@ -103,7 +103,7 @@ export function runningDays(mask) {
 }
 
 export function daysStrip(mask) {
-  const wrap = h('span', { class: 'days', 'aria-label': `Runs ${runningDays(mask)}` });
+  const wrap = h('span', { class: 'days' }, h('small', { class: 'visually-hidden' }, `Runs ${runningDays(mask)}`));
   ['M', 'T', 'W', 'T', 'F', 'S', 'S'].forEach((d, i) => {
     wrap.append(h('span', { class: mask[i] === '1' ? 'on' : null, 'aria-hidden': 'true' }, d));
   });

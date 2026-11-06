@@ -97,7 +97,7 @@ Key findings:
 We inspected focus indicators across all interactive elements.
 
 Key findings:
-- Global CSS sets `:focus-visible` styles with a 2px outline and subtle shadow.
+- Global CSS sets `:focus-visible` styles with a 2px solid outline in the focus colour, offset 2px from the element.
 - Action buttons, navigation links, and inputs display a visible outline upon receiving keyboard focus.
 - In light mode, focus indicators display as a crisp accent outline using `--color-focus`.
 - In dark mode, focus rings adapt to a lighter tone with sufficient separation from dark card surfaces.
@@ -156,12 +156,12 @@ We executed automated axe-core scans across all 17 pages in both themes.
 
 Results summary:
 - Total passes recorded: Between 32 and 47 accessibility checks passed per page.
-- 14 pages passed with zero WCAG accessibility violations in both light and dark themes.
-- Two pages contain WCAG Level AA violations:
-  - Search Results (`/trains.html`): 1 violation (`aria-prohibited-attr`, serious).
-  - Train Details (`/train.html`): 1 violation (`aria-prohibited-attr`, serious).
-  - Admin Chart (`/admin/chart.html`): 1 violation (`heading-order`, moderate).
-- Two pages contain best-practice advisory notices (not WCAG failures):
+- 15 pages had no WCAG violations in either theme, and 12 of them had no findings at all.
+- Two pages had a WCAG violation (rule tagged WCAG 2.0 Level A, success criterion 4.1.2):
+  - Search Results (`/trains.html`): `aria-prohibited-attr`, serious.
+  - Train Details (`/train.html`): `aria-prohibited-attr`, serious.
+- Three pages had best-practice notices (axe tags these `best-practice`, not WCAG):
+  - Admin Chart (`/admin/chart.html`): 1 notice (`heading-order`, moderate).
   - Home (`/`): 1 best-practice notice (`landmark-complementary-is-top-level`, moderate) on `<aside class="hero-board">`.
   - Admin Overview (`/admin/`): 1 best-practice notice (`empty-table-header`, minor) on an empty `<th></th>` in the upcoming departures table.
 
@@ -183,7 +183,7 @@ Caption: Lighthouse accessibility audit on the Admin Overview page showing a sco
 
 ## 15. Actual Accessibility Issues Discovered
 
-During testing, we discovered two genuine accessibility issues and two best-practice observations.
+During testing, we found one WCAG issue (appearing on two pages) and three best-practice observations. The heading order problem is listed as Issue 2 because it is the one most likely to affect a screen reader user, but axe classes it as best practice.
 
 ### Issue 1: Prohibited ARIA attribute on train operating days badge
 
@@ -203,7 +203,7 @@ During testing, we discovered two genuine accessibility issues and two best-prac
 
 - Location:
   - `src/main/resources/static/js/admin/chart.js`
-- Impact: Moderate (WCAG Level AA violation)
+- Impact: Moderate (axe-core best-practice rule, not a WCAG failure)
 - Automated Rule: `heading-order` (axe-core)
 - Observed markup:
   The page title renders as an `<h1>`, but coach sections render directly as `<h3>A1</h3>` without an intermediate `<h2>`.
@@ -245,7 +245,7 @@ During testing, we discovered two genuine accessibility issues and two best-prac
 
 ## 17. Final Audit Summary
 
-We evaluated 17 pages across light and dark themes. The interface demonstrates strong keyboard accessibility, clear visual focus indicators, and compliant contrast ratios. Two WCAG Level AA issues were identified (`aria-prohibited-attr` on day badges and `heading-order` on admin charts), alongside two best-practice observations.
+We evaluated 17 pages across light and dark themes. The interface demonstrates strong keyboard accessibility, clear visual focus indicators, and compliant contrast ratios. One WCAG issue was identified (`aria-prohibited-attr` on the day badges), alongside three best-practice observations (`heading-order` on the admin chart, the nested landmark on Home and the empty header cell on Admin Overview).
 
 | Page | Theme | Check | Result | Observation |
 |---|---|---|---|---|
@@ -305,3 +305,14 @@ We evaluated 17 pages across light and dark themes. The interface demonstrates s
 | Admin Rules | Dark | Form labels | Pass | Time boundary and percentage fields labelled |
 | Admin Stations | Light | Keyboard navigation | Pass | Add station form and station table navigable |
 | Admin Stations | Dark | Focus visibility | Pass | Station code, name, city, and state form inputs display clear focus ring |
+
+## 18. Follow-up: Issues Fixed
+
+All four findings were fixed after this audit in a separate change:
+
+- Day badges (`js/core/ui.js`): the `aria-label` was removed from the `<span>`. The text "Runs Except Wed" (and similar) is now a visually hidden child element, so screen readers read it and the letter boxes stay hidden from them as before.
+- Admin chart (`js/admin/chart.js`): the coach sections now sit inside a section with a visually hidden `<h2>Berths by coach</h2>`, so headings go h1, h2, h3 in order.
+- Home (`index.html`): the departure board is now a `<section>` instead of an `<aside>`, so it is no longer a complementary landmark nested inside another section.
+- Admin Overview (`js/admin/overview.js`): the last header cell now holds the visually hidden text "Chart".
+
+We re-ran axe-core 4.10.2 on 15 pages in both themes (30 runs) on 6 November 2026 with the WCAG 2.0 A, 2.0 AA, 2.1 AA and best-practice rule sets. Every run reported zero violations. The pages looked the same before and after the change.

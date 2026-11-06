@@ -24,7 +24,7 @@ async function load() {
           : h('p', { class: 'muted' }, 'No tickets booked this week yet.')),
       h('section', { 'aria-labelledby': 'up' }, h('h2', { id: 'up', class: 'section-title' }, 'Departing in the next 48 hours'),
         o.upcoming.length ? h('table', { class: 'table' },
-          h('thead', {}, h('tr', {}, h('th', {}, 'Train'), h('th', {}, 'Leaves origin'), h('th', { class: 'num' }, 'Travellers'), h('th', {}, ''))),
+          h('thead', {}, h('tr', {}, h('th', {}, 'Train'), h('th', {}, 'Leaves origin'), h('th', { class: 'num' }, 'Travellers'), h('th', {}, h('span', { class: 'visually-hidden' }, 'Chart')))),
           h('tbody', {}, o.upcoming.map((u) => h('tr', {},
             h('td', {}, h('span', { class: 'strong' }, u.trainNumber), h('div', { class: 'small muted' }, u.trainName)),
             h('td', {}, `${fmtDate(u.startDate)} ${u.departure} ${u.originCode}`, h('div', { class: 'small muted' }, u.chartPrepared ? 'Chart prepared' : 'Chart pending')),

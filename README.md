@@ -49,6 +49,7 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 
 ### Sprint 3: Product rebuild [2nd Nov – 6th Nov]
 - Rebuilt the reservation engine and the whole interface. See the capabilities below.
+- Search and refund boundary tests, an accessibility audit with its fixes, and the four Part 3 test reports. 146 automated tests, 80.0% line coverage and 63.2% branch coverage.
 
 ## System Capabilities
 
@@ -96,7 +97,8 @@ For testing payments: card `4111 1111 1111 1111` (any future expiry, any CVV) su
 ### Running Automated Tests
 
 ```bash
-./mvnw clean test
+./mvnw clean test                       # tests, plus JaCoCo coverage in target/site/jacoco
+./mvnw surefire-report:report-only      # HTML test report in target/reports/surefire.html
 ```
 
 ## Documentation
@@ -117,7 +119,11 @@ Outlines the unit, integration, system, performance, and security testing strate
 
 Empirical load test report validating `RRS-NF-001` and `RRS-NF-004` (100 concurrent virtual users, sub-300ms p95 latency, 0% error rate). Detailed reproduction instructions in [`perf/README.md`](perf/README.md).
 
-### [5. Sprint 01 Demonstration Video](docs/demo/)
+### [5. Part 3 Test Reports](docs/reports/)
+
+Unit test report, system validation report, code coverage report and branch coverage report, each as a Word document and a PDF, built from the latest test run.
+
+### [6. Sprint 01 Demonstration Video](docs/demo/)
 
 Complete end-to-end silent video demonstration (1 min 15 sec) illustrating the application startup, train search, real-time seat availability check, demo account auto-fill, ticket booking with PNR allocation, printable ERS slip, and PNR status lookup.
 

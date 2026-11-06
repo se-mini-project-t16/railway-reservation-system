@@ -73,7 +73,7 @@ async function load() {
         h('span', {}, h('i', { class: 'is-part', 'aria-hidden': 'true' }), 'Booked here, part of the route'),
         h('span', {}, h('i', { class: 'is-other', 'aria-hidden': 'true' }), 'Sold through other channels (simulated demand)')),
       detailSlot,
-      ...coaches,
+      h('section', { 'aria-labelledby': 'coaches-title' }, h('h2', { id: 'coaches-title', class: 'visually-hidden' }, 'Berths by coach'), ...coaches),
       h('div', { class: 'admin-grid' }, queueTable('RAC', c.rac), queueTable('Waiting list', c.waitlist)));
   } catch (err) {
     out.replaceChildren(notice('error', 'The chart could not load.', err.message, h('button', { type: 'button', class: 'btn', onclick: load }, 'Try again')));

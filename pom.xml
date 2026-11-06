@@ -19,6 +19,10 @@
 
     <properties>
         <java.version>25</java.version>
+        <jacoco.version>0.8.14</jacoco.version>
+        <surefire-report.version>3.5.4</surefire-report.version>
+        <!-- Filled in by the JaCoCo agent; empty when coverage is skipped -->
+        <argLine></argLine>
         <jjwt.version>0.13.0</jjwt.version>
     </properties>
 
@@ -114,7 +118,44 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>-XX:+EnableDynamicAgentLoading</argLine>
+                    <argLine>@{argLine} -XX:+EnableDynamicAgentLoading</argLine>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <!-- Line and branch coverage as HTML, XML and CSV in target/site/jacoco -->
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                        <configuration>
+                            <formats>
+                                <format>HTML</format>
+                                <format>XML</format>
+                                <format>CSV</format>
+                            </formats>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!-- HTML unit test report: ./mvnw surefire-report:report-only -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-report-plugin</artifactId>
+                <version>${surefire-report.version}</version>
+                <configuration>
+                    <linkXRef>false</linkXRef>
                 </configuration>
             </plugin>
             <plugin>
