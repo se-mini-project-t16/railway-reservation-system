@@ -23,8 +23,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Razorpay over its REST API (Orders, Payments, Refunds). Keys come from the secrets file outside the
- * repository; with no keys the gateway reports itself disabled and the pay page says payments are
+ * Razorpay over its REST API (Orders, Payments, Refunds). Keys come from the git-ignored secrets file
+ * (railway-secrets.properties); with no keys the gateway reports itself disabled and the pay page says payments are
  * unavailable. Test keys ({@code rzp_test_}) use Razorpay's test mode, where no real money moves.
  */
 @Component
