@@ -215,7 +215,7 @@ dl.facts dd { margin: var(--space-3xs) 0 0; font-weight: 800; }
 .board td { padding: var(--space-md) var(--space-md) var(--space-md) 0; border-bottom: var(--rule-hair) solid var(--color-plate-rule); vertical-align: baseline; }
 .board .time { font-size: var(--text-2xl); font-weight: 800; color: var(--color-accent-2); line-height: 1; }
 .board .train-no { display: block; font-size: var(--text-sm); color: var(--color-plate-muted); }
-.board .dest { font-size: var(--text-lg); font-weight: 800; }
+.board .dest { font-size: var(--text-lg); font-weight: 800; overflow-wrap: anywhere; }
 .board a { color: var(--color-plate-ink); text-decoration: none; }
 .board a:hover { color: var(--color-accent-2); text-decoration: underline; }
 .board .tag { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--space-xs); background: var(--color-accent-2); color: var(--color-amber-ink); font-size: var(--text-xs); font-weight: 800; }
@@ -225,8 +225,10 @@ dl.facts dd { margin: var(--space-3xs) 0 0; font-weight: 800; }
 .cells button:hover { background: var(--color-plate-rule); }
 .cells button[aria-pressed="true"] { background: var(--color-plate-ink); color: var(--color-plate); }
 .cells button:focus-visible { outline-color: var(--color-accent-2); position: relative; z-index: var(--z-raised); }
+.board .to-sm { display: none; }
 @media (max-width: 40rem) {
   .board .hide-sm { display: none; }
+  .board .to-sm { display: block; margin-top: var(--space-2xs); overflow-wrap: anywhere; font-weight: 800; color: var(--color-plate-ink); }
   .board .time { font-size: var(--text-xl); }
   .board .dest { font-size: var(--text-md); }
 }
@@ -417,7 +419,12 @@ dl.facts dd { margin: var(--space-3xs) 0 0; font-weight: 800; }
 .alt-signin { display: grid; gap: var(--space-sm); margin-top: var(--space-lg); }
 .alt-signin__or { display: flex; align-items: center; gap: var(--space-sm); color: var(--color-muted); font-size: var(--text-sm); }
 .alt-signin__or::before, .alt-signin__or::after { content: ""; flex: 1; border-top: 1px solid var(--color-rule); }
-.google-btn { min-height: 44px; }
+.google-btn { min-height: 44px; visibility: hidden; }
+.google-btn.is-ready { visibility: visible; }
+/* Google's frame is a light document: matching its colour scheme keeps it transparent on a dark page */
+.google-btn iframe { color-scheme: light; }
+/* Google's placeholder logo, if its own styles are late, never grows past the button's size */
+.google-btn svg { width: 18px; height: 18px; }
 .input--code { font-size: var(--text-xl); letter-spacing: 0.4em; font-variant-numeric: tabular-nums; }
 
 /* ------------------------------------------------------------------ admin */

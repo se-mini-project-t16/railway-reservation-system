@@ -99,7 +99,7 @@ public class PaymentService {
             throw ApiException.badRequest("PAYMENT_UNVERIFIED", "We could not verify this payment. If you were charged, "
                     + "your ticket is booked or the money refunded automatically within a few minutes.");
         }
-        GatewayPayment p = gw(() -> gateway.fetchPayment(c.paymentId()));
+        GatewayPayment p = lookup(c.paymentId());
         if (!c.orderId().equals(p.orderId())) throw mismatch();
         return settle(b, p);
     }
@@ -109,7 +109,7 @@ public class PaymentService {
     public BookingView reportFailure(String pnr, Long userId, String paymentId) {
         Booking b = bookingService.lockOwned(pnr, userId, false);
         if (b.payment(paymentId) == null && b.getPaymentOrderId() != null && gateway.enabled()) {
-            GatewayPayment p = gw(() -> gateway.fetchPayment(paymentId));
+            GatewayPayment p = lookup(paymentId);
             if (!b.getPaymentOrderId().equals(p.orderId())) throw mismatch();
             settle(b, p);
         }
@@ -259,14 +259,27 @@ public class PaymentService {
         return ApiException.badRequest("PAYMENT_MISMATCH", "This payment does not belong to this booking.");
     }
 
+    /** Fetches a payment the browser named; one Razorpay has never heard of cannot belong to this booking. */
+    private GatewayPayment lookup(String paymentId) {
+        try {
+            return gateway.fetchPayment(paymentId);
+        } catch (GatewayException e) {
+            throw e.rejected() ? mismatch() : unreachable();
+        }
+    }
+
     /** Runs a Razorpay call, turning a provider failure into a message the passenger can act on. */
     private static <T> T gw(Supplier<T> call) {
         try {
             return call.get();
         } catch (GatewayException e) {
-            throw new ApiException(HttpStatus.BAD_GATEWAY, "PAYMENT_GATEWAY_ERROR",
-                    "We could not reach Razorpay just now. Try again in a moment.");
+            throw unreachable();
         }
+    }
+
+    private static ApiException unreachable() {
+        return new ApiException(HttpStatus.BAD_GATEWAY, "PAYMENT_GATEWAY_ERROR",
+                "We could not reach Razorpay just now. Try again in a moment.");
     }
 
     static long paise(BigDecimal rupees) {

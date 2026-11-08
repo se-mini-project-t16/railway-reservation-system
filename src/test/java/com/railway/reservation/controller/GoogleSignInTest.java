@@ -156,6 +156,6 @@ class GoogleSignInTest {
                 .contains("script-src 'self' https://accounts.google.com/gsi/client")
                 .contains("frame-src https://accounts.google.com/gsi/");
         assertThat(mvc.perform(get("/index.html")).andReturn().getResponse().getHeader("Content-Security-Policy"))
-                .doesNotContain("google").contains("script-src 'self';");
+                .doesNotContain("google").doesNotContain("unsafe-inline").contains("script-src 'self';");
     }
 }
