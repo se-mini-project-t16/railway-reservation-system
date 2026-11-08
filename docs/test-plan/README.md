@@ -8,89 +8,91 @@ This folder holds the test plan, the list of automated test cases and the tracea
 
 - Test plan document: [`test-plan-railway-reservation-system.pdf`](./test-plan-railway-reservation-system.pdf) | [`test-plan-railway-reservation-system.docx`](./test-plan-railway-reservation-system.docx)
 - Search performance benchmark (issue #17): [`issue17-search-benchmark.md`](../performance/issue17-search-benchmark.md)
-- Part 3 test reports (unit test, system validation, code coverage, branch coverage): [`docs/reports/`](../reports/)
 
 ## Latest run
 
-We ran `./mvnw clean test` on 06 November 2026 at 23:14 on `dev/likhith` (merged with `main` after PR #68). Maven reported:
+We ran `./mvnw clean test` on 08 November 2026 at 15:56 on `dev/shakthi`, which matched `main` after PR #88 plus these document updates. Maven reported:
 
 ```text
-Tests run: 146, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 195, Failures: 0, Errors: 0, Skipped: 0
 ```
 
-All 146 tests passed. The number is lower than the 256 this page used to list because the app was rebuilt in PR #68 and the old test classes (`BookingControllerTest`, `PaymentServiceTest`, `AdminServiceTest` and others) were replaced by the classes below.
+All 195 tests passed. The suite had 256 tests before the rebuild in PR #68 and 146 right after it, when the old classes (`BookingControllerTest`, `PaymentServiceTest`, `AdminServiceTest` and others) were replaced. The Sprint 3 spill-over (PR #74 to PR #88) added the tests for Google sign-in, email codes, Razorpay, booking emails and password reset.
 
 ## Tests per class
 
 | Package | Test class | Tests | Failed | Requirements |
 |---|---|---:|---:|---|
+| `controller` | `RailJourneyIntegrationTest` | 40 | 0 | RRS-F-004, RRS-F-005, RRS-F-006, RRS-F-007, RRS-F-008, RRS-F-009, RRS-F-010, RRS-F-011, RRS-F-012, RRS-F-013, RRS-F-014, RRS-F-015, RRS-F-016, RRS-SR-003, RRS-SR-004, RRS-SR-006 |
 | `validation` | `SafeTextRulesTest` | 32 | 0 | RRS-SR-003 |
-| `controller` | `RailJourneyIntegrationTest` | 28 | 0 | RRS-F-004, RRS-F-005, RRS-F-006, RRS-F-007, RRS-F-008, RRS-F-009, RRS-F-010, RRS-F-011, RRS-F-012, RRS-F-013, RRS-F-014, RRS-F-015, RRS-F-016, RRS-SR-003, RRS-SR-004 |
 | `service` | `CancellationRefundTest` | 13 | 0 | RRS-F-013 |
 | `controller` | `InputValidationSecurityTest` | 11 | 0 | RRS-SR-003 |
 | `service` | `SeatLedgerTest` | 11 | 0 | RRS-F-005, RRS-F-006 |
+| `controller` | `GoogleSignInTest` | 10 | 0 | RRS-F-002, RRS-F-003, RRS-SR-002 |
+| `controller` | `EmailVerificationTest` | 9 | 0 | RRS-F-001 |
 | `controller` | `UserLoginControllerTest` | 9 | 0 | RRS-F-001, RRS-F-002, RRS-F-003, RRS-SR-003 |
 | `service` | `FareCalculatorTest` | 8 | 0 | RRS-F-006 |
 | `controller` | `SystemReliabilityAndLoggingTest` | 8 | 0 | RRS-NF-002, RRS-NF-004, RRS-NF-005 |
+| `controller` | `PasswordResetTest` | 7 | 0 | RRS-F-002, RRS-F-003 |
+| `service/payment` | `RazorpayGatewayTest` | 5 | 0 | RRS-F-008, RRS-F-009 |
 | `controller` | `SearchBoundaryTest` | 5 | 0 | RRS-F-004 |
 | `controller` | `SessionTimeoutSecurityTest` | 5 | 0 | RRS-SR-005 |
 | `controller` | `UserRegistrationControllerTest` | 5 | 0 | RRS-F-001, RRS-SR-001 |
 | `service` | `DemandSimulatorTest` | 4 | 0 | RRS-F-005 |
 | `controller` | `PasswordProtectionSecurityTest` | 4 | 0 | RRS-SR-001 |
+| `service/google` | `GoogleIdTokenVerifierTest` | 3 | 0 | RRS-F-002 |
 | `security` | `QueryParameterizationTest` | 2 | 0 | RRS-SR-003 |
+| `service/payment` | `RazorpaySignatureTest` | 2 | 0 | RRS-F-008, RRS-F-009 |
 | `(root)` | `RailwayReservationApplicationTests` | 1 | 0 | App start-up |
-| | **Total** | **146** | **0** | |
+| `config` | `SchemaUpgradesTest` | 1 | 0 | RRS-F-008, RRS-F-009 |
+| | **Total** | **195** | **0** | |
 
 Parameterised tests count once per input row, which is why `SafeTextRulesTest` shows 32 tests from 4 methods.
 
 ## Traceability matrix
 
-The SRS has 26 requirements. 19 are covered (17 by automated tests and 2 by the load test re-run after the rebuild), 5 are partly covered and 2 have no test. The last row, RRS-NF-006, is the accessibility check we added in Sprint 3; it is not in SRS v1.0, so it is not part of these counts. Where the rebuilt app behaves differently from the SRS acceptance criteria we wrote that in the Notes column instead of counting it as a pass.
+The SRS has 28 requirements. In this run 25 were covered by automated tests, 2 were partly covered and 1 had no test. Where the rebuilt app behaves differently from the SRS acceptance criteria we wrote that in the Notes column instead of counting it as a pass.
 
 | Requirement | Description | Covering tests | Tests run | Status | Notes |
 |---|---|---|---:|---|---|
-| RRS-F-001 | User registration | UserLoginControllerTest, UserRegistrationControllerTest | 6 | Covered | Sign up, field rules, duplicate email (any case) and BCrypt storage. |
-| RRS-F-002 | User login | UserLoginControllerTest | 9 | Covered | Correct login returns a signed JWT; wrong password and unknown email get the same 401. |
-| RRS-F-003 | Account lock after 5 failed logins | UserLoginControllerTest | 4 | Covered | The lock is tested, but the API answers "Invalid credentials." instead of the lock message in the SRS, so the response does not reveal that the account exists. |
+| RRS-F-001 | User registration with email verification | TC-REG-01 to 09, UserLoginControllerTest, UserRegistrationControllerTest | 15 | Covered | The account is created only after the 6-digit code emailed to the address is entered; field rules, duplicate email (any case) and BCrypt storage are also tested. |
+| RRS-F-002 | User login (password, linked Google account, password reset) | TC-GGL-01 to 12, TC-PWD-01 to 07, UserLoginControllerTest | 28 | Covered | Email and password give a signed JWT; a Google account linked from the account page can sign in but never creates an account; a forgotten password is reset with an emailed code. |
+| RRS-F-003 | Account lock after 5 failed logins | TC-GGL-07, TC-PWD-06, UserLoginControllerTest | 6 | Covered | The lock applies to Google sign-in too, and a password reset lifts it. The API answers "Invalid credentials." instead of the lock message in the SRS, so the response does not reveal that the account exists. |
 | RRS-F-004 | Train search by source, destination and date | TC-SRC-01 to 11 | 11 | Covered | Includes intermediate stops, running days, nearby stations and bad input (SAME_STATION, past date, more than 60 days). |
 | RRS-F-005 | Seat availability | TC-DEM-01 to 04, TC-SEAT-01, TC-SEAT-05, TC-SEAT-06, TC-SEAT-11, TC-SRC-01, TC-SRC-06 | 10 | Covered | Availability per class, the availability calendar, and berths freed at an intermediate station. |
 | RRS-F-006 | Book ticket with PNR | TC-BK-01, TC-FARE-01 to 08, TC-SEAT-01 to 11, TC-TQ-01 | 21 | Covered | Berth allocation, RAC and waiting list, Tatkal window, server-side fares and a 10-digit PNR. |
 | RRS-F-007 | Passenger details for each seat | TC-BK-02 | 1 | Covered | Missing or invalid name, age or gender is rejected field by field. |
-| RRS-F-008 | Payment gateway after booking | TC-PAY-01, TC-PAY-02 | 2 | Partly covered | The app uses its own simulated gateway with test cards and UPI IDs, so there is no redirect to an external page to test. |
-| RRS-F-009 | Confirm only after successful payment | TC-PAY-01 to 04, TC-BK-03 / TC-HIS-01 | 5 | Covered | A declined card keeps the hold for a retry instead of marking the booking FAILED; berths come back when the 10 minute hold expires or is released. |
-| RRS-F-010 | E-ticket after payment | TC-BK-03 / TC-HIS-01 | 1 | Partly covered | The test checks the PDF is refused before payment and is a real PDF after it, but does not read the PNR or fare inside the file. |
+| RRS-F-008 | Payment through the payment gateway | TC-PAY-01 to 17; Manual run on 08 Nov 2026: bookings paid through Razorpay's own test Checkout in a browser | 17 | Covered | Razorpay runs in test mode. The server creates one order per booking, checks Checkout's signature and fetches the payment from Razorpay before booking. TC-PAY-12 to 16 run the real Razorpay client against a local server that answers like Razorpay's API. |
+| RRS-F-009 | Confirm only after successful payment | TC-PAY-01 to 17, TC-BK-03 / TC-HIS-01 | 18 | Covered | A booking is confirmed only after Razorpay confirms the payment. A declined payment keeps the hold for a retry instead of marking the booking FAILED, and money that arrives after a hold ended is refunded in full. |
+| RRS-F-010 | E-ticket after payment | TC-MAIL-01, TC-MAIL-04, TC-BK-03 / TC-HIS-01 | 3 | Covered | The PDF is refused before payment. After payment it is emailed as an attachment, and its text carries the PNR, train, travellers and payment ID. |
 | RRS-F-011 | PNR status check | TC-PNR-01 | 1 | Covered | A paid PNR shows each traveller's status but no names; unpaid and unknown PNRs return not found. |
-| RRS-F-012 | Cancel ticket | TC-CAN-01, TC-CAN-03, TC-CAN-04, TC-SEC-07 | 4 | Covered | Partial cancellation, RAC promotion and automatic refund of waitlisted tickets after charting. |
+| RRS-F-012 | Cancel ticket | TC-CAN-01, TC-CAN-03, TC-CAN-04, TC-CAN-12, TC-MAIL-02, TC-SEC-07 | 6 | Covered | Partial cancellation, RAC promotion, automatic cancellation of waitlisted tickets after charting, refunds through Razorpay (nothing is cancelled if the refund cannot start) and the cancellation email. |
 | RRS-F-013 | Refund as per cancellation rules | TC-ADM-05, TC-CAN-02, TC-CAN-05, TC-CAN-06, TC-CAN-07, TC-CAN-08, TC-CAN-09, TC-CAN-10, TC-CAN-11 | 15 | Covered | Refund tiers and the preview shown before confirming. |
-| RRS-F-014 | Booking history | TC-BK-03 / TC-HIS-01 | 1 | Partly covered | The paid booking appears in history, but newest-first ordering is not checked (the test has one booking). |
-| RRS-F-015 | Admin add, update, delete trains, routes, fares | TC-ADM-01, TC-ADM-03 | 2 | Partly covered | Adding a train and blocking delete when it has bookings are tested; editing an existing train (PUT /api/v1/admin/trains/{number}) has no test. |
+| RRS-F-014 | Booking history | TC-HIS-02, TC-BK-03 / TC-HIS-01 | 2 | Covered | History lists the newest journey first. The Upcoming tab lists the soonest trip first, which is the order a traveller needs; this is listed in the deviations document. |
+| RRS-F-015 | Admin add, update, delete trains, routes, fares | TC-ADM-01, TC-ADM-03, TC-ADM-06 | 3 | Covered | Creating, editing (name and running days), stopping a train and refusing to delete one with bookings. |
 | RRS-F-016 | Admin bookings report by date and train | TC-ADM-04 | 1 | Covered | Report filtered by train 12901 and date, plus the chart and its CSV. |
 | RRS-NF-001 | Search within 3 s for 95% of requests | TC-PERF-01, load test on 06 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.3); earlier JMeter run on 29 Oct 2026 (docs/performance/issue17-search-benchmark.md) | - | Covered | Re-run after the rebuild: 100 searches sent together, three rounds, p95 833 ms and slowest 892 ms, well inside 3 s. The 29 Oct JMeter run (p95 200 ms and 290 ms) was on the old two-train version. |
 | RRS-NF-002 | 99% availability during demo | TC-OPS-01 | 3 | Partly covered | The health endpoint and a burst of parallel health checks are tested; real uptime over the demo period is not measured. |
-| RRS-NF-003 | New user books within 5 minutes | None | - | Not covered | No automated test. The user test with 3 classmates (TC-UX-01) has no record in the repository. |
+| RRS-NF-003 | New user books within 5 minutes | None | - | Not covered | To be measured in the usability test with classmates on the live site (TC-UX-01). |
 | RRS-NF-004 | 100 concurrent users | TC-OPS-01; TC-PERF-02, load test on 06 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.3) | 1 | Covered | 300 of 300 searches succeeded at 100 concurrent users after the rebuild, with no errors. The 29 Oct JMeter run with 100 threads also had 0 errors but predates PR #68. |
 | RRS-NF-005 | Log errors with timestamp and user id | TC-OPS-02 | 5 | Covered | ERROR level logs with user id and timestamp, daily rotation in logs/, and no stack traces in responses. |
-| RRS-SR-001 | BCrypt password hashing | PasswordProtectionSecurityTest, UserRegistrationControllerTest | 5 | Covered | Hash format and salt, and the password never appears in responses or logs. |
-| RRS-SR-002 | HTTPS (TLS 1.2+) | None | - | Not covered | The app runs on plain HTTP at localhost:8080 and has no TLS settings in application.properties. |
-| RRS-SR-003 | Server-side input validation (SQL injection, XSS) | TC-OPS-03, InputValidationSecurityTest, QueryParameterizationTest, SafeTextRulesTest, UserLoginControllerTest | 47 | Covered | Payloads on real endpoints, the SafeText rules on their own, bound query parameters and the CSP header. |
+| RRS-SR-001 | BCrypt password hashing | PasswordProtectionSecurityTest, UserRegistrationControllerTest | 5 | Covered | Hash format and salt, and the password never appears in responses or logs. Email and reset codes are stored as BCrypt hashes too. |
+| RRS-SR-002 | HTTPS (TLS 1.2+) | TC-SEC-08; Manual check on 08 Nov 2026: https://railway-reservation.srspace.dev negotiates TLS 1.3 | 1 | Partly covered | The public address is served over TLS 1.3 through the Cloudflare tunnel and the app sends HSTS on HTTPS requests. The app itself listens on plain HTTP behind the tunnel, so a local run on localhost is HTTP. |
+| RRS-SR-003 | Server-side input validation (SQL injection, XSS) | TC-OPS-03, TC-PAY-05, InputValidationSecurityTest, QueryParameterizationTest, SafeTextRulesTest, UserLoginControllerTest | 48 | Covered | Payloads on real endpoints, the SafeText rules on their own, bound query parameters, the CSP header, and forged or malformed payment callbacks. |
 | RRS-SR-004 | Role based access control | TC-ADM-02, TC-SEC-06, TC-SEC-07 | 3 | Covered | A passenger gets 403 and a guest 401 on admin routes; passengers cannot open each other's bookings. |
 | RRS-SR-005 | Session timeout after 15 minutes | TC-SEC-05 | 5 | Covered | The API side (401 Session Expired, token renewal) is tested; the redirect to the login page in the browser is not. |
-| RRS-NF-006 (added in Sprint 3, not in SRS v1.0) | Accessibility (keyboard, focus, contrast, labels) | `docs/test-plan/accessibility-audit.md` | - | Partly covered | accessibility-audit.md had 4 axe-core Fail rows: aria-prohibited-attr on span.days (Search Results light and dark, Train Details light; WCAG 2.0 Level A, criterion 4.1.2) and heading-order skipping h1 to h3 (Admin Chart light; best practice). Both were fixed in commit 9274510 and the axe re-run on 15 of the 17 pages reported zero violations. There is no automated test. |
+| RRS-SR-006 | Guests can search; booking needs sign-in | TC-SEC-06, TC-SRC-01 | 2 | Covered | Guests search trains and check PNRs; booking, paying, history and tickets answer 401 until they sign in. |
+| RRS-NF-006 | Accessibility (keyboard, focus, contrast, labels) | accessibility-audit.md; axe-core sweep on 08 Nov 2026 | - | Covered | The audit's 4 axe findings were fixed in commit 9274510. On 08 Nov 2026 axe-core (WCAG 2.1 A and AA) found 0 violations on all 22 pages as guest, passenger and admin at 1280 and 375 px wide, after two more fixes (board contrast on phones, keyboard access to scrolling tables). There is no automated test in the suite. |
 
 ### Gaps
 
-- **RRS-F-008** (partly covered): The app uses its own simulated gateway with test cards and UPI IDs, so there is no redirect to an external page to test.
-- **RRS-F-010** (partly covered): The test checks the PDF is refused before payment and is a real PDF after it, but does not read the PNR or fare inside the file.
-- **RRS-F-014** (partly covered): The paid booking appears in history, but newest-first ordering is not checked (the test has one booking).
-- **RRS-F-015** (partly covered): Adding a train and blocking delete when it has bookings are tested; editing an existing train (PUT /api/v1/admin/trains/{number}) has no test.
 - **RRS-NF-002** (partly covered): The health endpoint and a burst of parallel health checks are tested; real uptime over the demo period is not measured.
-- **RRS-NF-003** (not covered): No automated test. The user test with 3 classmates (TC-UX-01) has no record in the repository.
-- **RRS-SR-002** (not covered): The app runs on plain HTTP at localhost:8080 and has no TLS settings in application.properties.
-- **RRS-NF-006 (added in Sprint 3, not in SRS v1.0)** (partly covered): accessibility-audit.md had 4 axe-core Fail rows: aria-prohibited-attr on span.days (Search Results light and dark, Train Details light; WCAG 2.0 Level A, criterion 4.1.2) and heading-order skipping h1 to h3 (Admin Chart light; best practice). Both were fixed in commit 9274510 and the axe re-run on 15 of the 17 pages reported zero violations. There is no automated test.
+- **RRS-NF-003** (not covered): To be measured in the usability test with classmates on the live site (TC-UX-01).
+- **RRS-SR-002** (partly covered): The public address is served over TLS 1.3 through the Cloudflare tunnel and the app sends HSTS on HTTPS requests. The app itself listens on plain HTTP behind the tunnel, so a local run on localhost is HTTP.
 
 ### Tests with no SRS requirement
 
-These tests check behaviour the rebuilt app added beyond the SRS v1.0 list: TC-ACC-01.
+These tests check behaviour beyond the SRS v2.0 list: TC-ACC-01, TC-MAIL-03.
 
 ## Test cases
 
@@ -117,6 +119,20 @@ Every JUnit test that ran, grouped by class. The ID and description come from th
 | TC-DEM-03 | Simulated Tatkal sales stay inside the Tatkal berths | 1 | Pass | RRS-F-005 |
 | TC-DEM-04 | Switched off, nothing is pre-sold | 1 | Pass | RRS-F-005 |
 
+### `EmailVerificationTest`
+
+| ID | Test | Runs | Result | Requirements |
+|---|---|---:|---|---|
+| TC-REG-01 | Sign-up emails a 6-digit code and creates nothing until it is confirmed | 1 | Pass | RRS-F-001 |
+| TC-REG-02 | The right code creates the account and signs the passenger in | 1 | Pass | RRS-F-001 |
+| TC-REG-03 | Wrong codes count down, and the fifth wrong code uses the code up | 1 | Pass | RRS-F-001 |
+| TC-REG-04 | A code expires after 10 minutes | 1 | Pass | RRS-F-001 |
+| TC-REG-05 | A new code can be sent after a minute, and only the newest code works | 1 | Pass | RRS-F-001 |
+| TC-REG-06 | At most five codes an hour go to one address | 1 | Pass | RRS-F-001 |
+| TC-REG-07 | When the email cannot be sent, the passenger is told and nothing is kept | 1 | Pass | RRS-F-001 |
+| TC-REG-08 | Confirming an email nobody signed up with is refused | 1 | Pass | RRS-F-001 |
+| TC-REG-09 | Sign-ups left unconfirmed for a day are forgotten | 1 | Pass | RRS-F-001 |
+
 ### `FareCalculatorTest`
 
 | ID | Test | Runs | Result | Requirements |
@@ -129,6 +145,29 @@ Every JUnit test that ran, grouped by class. The ID and description come from th
 | TC-FARE-06 | Tatkal charge is a percentage of base fare, held between the class minimum and maximum | 1 | Pass | RRS-F-006 |
 | TC-FARE-07 | Premium trains include catering and a higher base rate | 1 | Pass | RRS-F-006 |
 | TC-FARE-08 | A booking's total is the per-traveller fare times the travellers | 1 | Pass | RRS-F-006 |
+
+### `GoogleIdTokenVerifierTest`
+
+| ID | Test | Runs | Result | Requirements |
+|---|---|---:|---|---|
+| TC-GGL-10 | A current token from Google for this client is accepted | 1 | Pass | RRS-F-002 |
+| TC-GGL-11 | Tokens for another app, from another issuer, or expired are refused | 1 | Pass | RRS-F-002 |
+| TC-GGL-12 | Without a client ID, Google sign-in is off and refuses every credential | 1 | Pass | RRS-F-002 |
+
+### `GoogleSignInTest`
+
+| ID | Test | Runs | Result | Requirements |
+|---|---|---:|---|---|
+| TC-GGL-01 | The sign-in page is told the Google client ID | 1 | Pass | RRS-F-002 |
+| TC-GGL-02 | An unlinked Google account cannot sign in and no account is created | 1 | Pass | RRS-F-002 |
+| TC-GGL-03 | After linking from the account page, Google signs in to that same account | 1 | Pass | RRS-F-002 |
+| TC-GGL-04 | Linking needs a signed-in user | 1 | Pass | RRS-F-002 |
+| TC-GGL-05 | One Google account can be linked to only one account here | 1 | Pass | RRS-F-002 |
+| TC-GGL-06 | A forged or malformed Google credential is rejected | 1 | Pass | RRS-F-002 |
+| TC-GGL-07 | A locked account stays locked for Google sign-in too | 1 | Pass | RRS-F-002, RRS-F-003 |
+| TC-GGL-08 | After unlinking, the Google account no longer signs in | 1 | Pass | RRS-F-002 |
+| TC-GGL-09 | Only the sign-in and account pages may load Google's script | 1 | Pass | RRS-F-002 |
+| TC-SEC-08 | Requests that arrive over HTTPS are told to stay on HTTPS; plain local HTTP is not | 1 | Pass | RRS-SR-002 |
 
 ### `InputValidationSecurityTest` (TC-SEC-03 input validation security [RRS-SR-003])
 
@@ -152,6 +191,18 @@ Every JUnit test that ran, grouped by class. The ID and description come from th
 | (TC-SEC-01) | `passwordsAreNeverWrittenToLogs` | 1 | Pass | RRS-SR-001 |
 | (TC-SEC-01) | `sameRawPasswordProducesDifferentHashesBecauseOfSalt` | 1 | Pass | RRS-SR-001 |
 
+### `PasswordResetTest`
+
+| ID | Test | Runs | Result | Requirements |
+|---|---|---:|---|---|
+| TC-PWD-01 | A reset code goes only to registered addresses, and the answer never reveals which | 1 | Pass | RRS-F-002 |
+| TC-PWD-02 | The right code sets the new password, signs the passenger in and emails a notice | 1 | Pass | RRS-F-002 |
+| TC-PWD-03 | Wrong codes are refused the same way, and five of them use the code up | 1 | Pass | RRS-F-002 |
+| TC-PWD-04 | A reset code expires after 10 minutes | 1 | Pass | RRS-F-002 |
+| TC-PWD-05 | A new code can be sent after a minute, at most five an hour, and only the newest works | 1 | Pass | RRS-F-002 |
+| TC-PWD-06 | Resetting the password lifts a lockout from wrong passwords | 1 | Pass | RRS-F-002, RRS-F-003 |
+| TC-PWD-07 | The new password follows the sign-up rules; reset codes left unused for a day are removed | 1 | Pass | RRS-F-002 |
+
 ### `QueryParameterizationTest` (Parameterized queries only [RRS-SR-003])
 
 | ID | Test | Runs | Result | Requirements |
@@ -169,6 +220,7 @@ Every JUnit test that ran, grouped by class. The ID and description come from th
 | TC-ADM-03 | A train with tickets keeps its route, cannot be deleted, and can be stopped from taking bookings | 1 | Pass | RRS-F-015 |
 | TC-ADM-04 | The bookings report filters by train and date, and the chart places the traveller in a berth | 1 | Pass | RRS-F-016 |
 | TC-ADM-05 | Changing the rule table changes the next refund | 1 | Pass | RRS-F-013 |
+| TC-ADM-06 | An admin edits a train and the change shows in the timetable and search | 1 | Pass | RRS-F-015 |
 | TC-BK-01 | Booking holds confirmed berths, prices them on the server and gives a 10-digit PNR owned by the caller | 1 | Pass | RRS-F-006 |
 | TC-BK-02 | Missing or invalid traveller details are rejected field by field | 1 | Pass | RRS-F-007 |
 | TC-BK-03 / TC-HIS-01 | The paid ticket downloads as PDF and appears in the owner's history | 1 | Pass | RRS-F-009, RRS-F-010, RRS-F-014 |
@@ -176,15 +228,26 @@ Every JUnit test that ran, grouped by class. The ID and description come from th
 | TC-CAN-02 | Refunds follow the rule table: flat charge beyond 48 h, 25% from 12 h, 50% from 4 h, nothing under 4 h | 1 | Pass | RRS-F-013 |
 | TC-CAN-03 | A cancellation hands its berth to the first RAC traveller | 1 | Pass | RRS-F-012 |
 | TC-CAN-04 | A fully waitlisted ticket is cancelled and refunded automatically once the chart is prepared | 1 | Pass | RRS-F-012 |
+| TC-CAN-12 | If Razorpay cannot start the refund, nothing is cancelled | 1 | Pass | RRS-F-012 |
+| TC-HIS-02 | History lists the newest journey first; upcoming trips list the soonest first | 1 | Pass | RRS-F-014 |
+| TC-MAIL-01 | A paid booking emails the e-ticket as a PDF to the passenger | 1 | Pass | RRS-F-010 |
+| TC-MAIL-02 | Cancelling travellers emails the refund amount and the Razorpay refund id | 1 | Pass | RRS-F-012 |
+| TC-MAIL-03 | A mail server failure never undoes a booking; a declined payment sends no ticket | 1 | Pass | - |
+| TC-MAIL-04 | A payment found later (closed tab) still emails the ticket | 1 | Pass | RRS-F-010 |
 | TC-OPS-03 | Unknown API paths are 401 to guests and 404 JSON when signed in, unknown pages are the 404 page, and pages carry a CSP | 1 | Pass | RRS-SR-003 |
-| TC-PAY-01 | Paying books the ticket; paying again returns the same receipt without charging twice | 1 | Pass | RRS-F-008, RRS-F-009 |
-| TC-PAY-02 | A declined card keeps the hold for a retry; an invalid card is refused; card numbers are masked | 1 | Pass | RRS-F-008, RRS-F-009 |
-| TC-PAY-03 | An unpaid hold expires after 10 minutes, its berths return, and it can no longer be paid | 1 | Pass | RRS-F-009 |
-| TC-PAY-04 | Releasing a hold frees the berths at once | 1 | Pass | RRS-F-009 |
+| TC-PAY-01 | A verified Razorpay payment books the ticket; reporting it again does not record it twice | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-02 | A declined payment is recorded and keeps the hold, so the passenger can pay again | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-03 | An unpaid hold expires after 10 minutes, its berths return, and it can no longer be paid | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-04 | Releasing a hold frees the berths at once | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-05 | A forged signature, or a payment from another booking's order, books nothing | 1 | Pass | RRS-F-008, RRS-F-009, RRS-SR-003 |
+| TC-PAY-06 | Paid but the tab was closed: the payment is found and books the ticket instead of the hold expiring | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-07 | Money that arrives after the hold was released is refunded in full automatically | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-08 | If Razorpay cannot be asked, a lapsed hold waits up to 30 minutes before its berths are released | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-09 | An authorised payment is captured before the ticket is booked; without keys, payment is unavailable | 1 | Pass | RRS-F-008, RRS-F-009 |
 | TC-PNR-01 | Public PNR status shows statuses but never names; unpaid and unknown PNRs are not found | 1 | Pass | RRS-F-011 |
-| TC-SEC-06 | A guest cannot book, pay, list bookings or open a ticket | 1 | Pass | RRS-SR-004 |
+| TC-SEC-06 | A guest cannot book, pay, list bookings or open a ticket | 1 | Pass | RRS-SR-004, RRS-SR-006 |
 | TC-SEC-07 | Another passenger cannot see, pay, cancel or download someone else's booking | 1 | Pass | RRS-F-012, RRS-SR-004 |
-| TC-SRC-01 | Guests can search; results carry times, classes, fares and availability | 1 | Pass | RRS-F-004, RRS-F-005 |
+| TC-SRC-01 | Guests can search; results carry times, classes, fares and availability | 1 | Pass | RRS-F-004, RRS-F-005, RRS-SR-006 |
 | TC-SRC-02 | Search finds a train between two intermediate stops, with that stretch's distance | 1 | Pass | RRS-F-004 |
 | TC-SRC-03 | Trains are listed only on the days they run | 1 | Pass | RRS-F-004 |
 | TC-SRC-04 | Same station, a past date, a date past 60 days and an unknown station are rejected | 1 | Pass | RRS-F-004 |
@@ -198,6 +261,23 @@ Every JUnit test that ran, grouped by class. The ID and description come from th
 |---|---|---:|---|---|
 | No ID | `contextLoads` | 1 | Pass | - |
 
+### `RazorpayGatewayTest`
+
+| ID | Test | Runs | Result | Requirements |
+|---|---|---:|---|---|
+| TC-PAY-12 | Orders are created in paise with the key as Basic auth, and read back | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-13 | Payments are read with masked card details; an order's attempts are listed | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-14 | Refunds and captures are sent for the exact amount | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-15 | Razorpay errors and bad ids become a gateway failure; no keys means payment is off | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-16 | Every payment method is described without exposing full numbers | 1 | Pass | RRS-F-008, RRS-F-009 |
+
+### `RazorpaySignatureTest`
+
+| ID | Test | Runs | Result | Requirements |
+|---|---|---:|---|---|
+| TC-PAY-10 | The payment signature is HMAC-SHA256 of order id \| payment id with the key secret | 1 | Pass | RRS-F-008, RRS-F-009 |
+| TC-PAY-11 | Any change to the order, payment, secret or signature fails the check | 1 | Pass | RRS-F-008, RRS-F-009 |
+
 ### `SafeTextRulesTest` (SafeTextRules: SQL injection and XSS rejection [RRS-SR-003])
 
 | ID | Test | Runs | Result | Requirements |
@@ -206,6 +286,12 @@ Every JUnit test that ran, grouped by class. The ID and description come from th
 | No ID | `rejectsMaliciousInput` | 16 | Pass | RRS-SR-003 |
 | No ID | `requireSafeThrowsWithoutEchoingThePayload` | 1 | Pass | RRS-SR-003 |
 | No ID | `treatsNullAsSafeSoNotBlankCanReportMissingValues` | 1 | Pass | RRS-SR-003 |
+
+### `SchemaUpgradesTest`
+
+| ID | Test | Runs | Result | Requirements |
+|---|---|---:|---|---|
+| TC-PAY-17 | Old ENUM payment columns are widened on start, and a second start changes nothing | 1 | Pass | RRS-F-008, RRS-F-009 |
 
 ### `SearchBoundaryTest`
 

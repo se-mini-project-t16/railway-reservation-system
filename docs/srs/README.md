@@ -1,6 +1,6 @@
 # Software Requirements Specification (SRS)
 
-**Project:** Railway Reservation System (`v1.0`)
+**Project:** Railway Reservation System (`v2.0`, updated for the final product; changes from v1.0 are in [`docs/deviations`](../deviations/))
 
 Defines the functional requirements, non-functional requirements, security requirements, UML use-case diagrams, and Requirements Traceability Matrix (RTM) for the Railway Reservation System.
 

@@ -14,14 +14,15 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 ## Technology Stack
 
 - **Backend:** Java 25, Spring Boot 4.1.1 (Spring Web MVC, Spring Data JPA with Hibernate, Bean Validation, scheduling)
-- **Security:** Spring Security with stateless JWT (sliding renewal, 15-minute inactivity timeout), BCrypt password hashing, account lockout, server-side ownership checks on every booking, a strict Content Security Policy
+- **Security:** Spring Security with stateless JWT (sliding renewal, 15-minute inactivity timeout), BCrypt password hashing, account lockout, server-side ownership checks on every booking, a strict Content Security Policy per page, HSTS over HTTPS, keys kept in a git-ignored file
+- **Integrations:** Razorpay Checkout and API (test mode) for payments and refunds, Gmail SMTP for email, Google Identity Services for sign-in with a linked account
 - **Frontend:** semantic HTML, hand-written CSS on a token system (Hallmark "Wayfind" theme, light and dark), vanilla JavaScript ES modules. No build step and no CDN: the font is self-hosted.
 - **Documents:** Apache PDFBox (e-ticket PDF), CSV export of reservation charts
 - **Database:** H2 (file database by default, in-memory for tests); MySQL driver included
 - **Observability:** SLF4J/Logback with correlation IDs and user IDs on every log line, daily rotated log files, a health endpoint
-- **Build and tests:** Maven wrapper, JUnit 5, Spring MockMvc; Apache JMeter for load tests
+- **Build and tests:** Maven wrapper, JUnit 5, Spring MockMvc, JaCoCo coverage; Apache JMeter for load tests
 
-> **Platform note:** the submitted SRS, SAD and test plan named Java 17 and Spring Boot 3.3.4. The implementation was moved to Java 25 and Spring Boot 4.1.1 before development finished; every specified requirement is still traceable.
+> **Design changes:** the SRS and SAD were updated to v2.0 and the test plan to v3.0 to match the final product. Every change from the submitted v1.0 documents, with the reason, is listed in [`docs/deviations`](docs/deviations/).
 
 ## Development Sprints & Milestones
 
@@ -38,11 +39,11 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 - **Booking History (`RRS-F-014`):** Chronological booking history list for authenticated passengers with status filtering (`ALL`, `CONFIRMED`, `CANCELLED`), passenger details expansion, and ticket retrieval.
 - **Ticket Cancellation & Automated Refunds (`RRS-F-012`, `RRS-F-013`):** Pre-departure ticket cancellation with instant refund calculation preview based on configurable tiered rules (hours before departure), immediate seat inventory release, and cancellation audit record logging (`TC-CAN-01`, `TC-CAN-02`).
 - **Filtered Admin Bookings Report (`RRS-F-016`):** Filtered administrative report by train number and journey date with passenger rosters and aggregate financial metrics (total bookings, failed payments, cancellations, total refunds) (`TC-ADM-02`).
-- **Downloadable PDF E-Tickets (`RRS-F-010`):** Secure iText 7 downloadable PDF e-ticket with embedded 10-character PNR, passenger manifest, coach/seat allocation, and journey metadata.
-- **Payment Gateway Simulation & Asynchronous Webhooks (`RRS-F-008`, `RRS-F-009`):** Online payment initiation, simulated payment gateway redirect, asynchronous payment callback processing with SHA-256 HMAC signature verification, and automated rollback with seat release upon payment failure.
+- **Downloadable PDF E-Tickets (`RRS-F-010`):** Secure iText 7 (Apache PDFBox since the Sprint 3 rebuild) downloadable PDF e-ticket with embedded 10-character PNR, passenger manifest, coach/seat allocation, and journey metadata.
+- **Payment Gateway Simulation & Asynchronous Webhooks (`RRS-F-008`, `RRS-F-009`):** Online payment initiation, simulated payment gateway redirect, asynchronous payment callback processing with SHA-256 HMAC signature verification, and automated rollback with seat release upon payment failure. (Replaced by Razorpay test mode in the Sprint 3 spill-over.)
 - **PNR Status Inquiry Lookup (`RRS-F-011`):** Real-time public PNR lookup endpoint and navigation modal.
 - **RBAC & 15-Minute Session Inactivity Timeout (`RRS-SR-004`, `RRS-SR-005`):** Strict role-based access control protecting all `/api/v1/admin/**` endpoints (`ROLE_ADMIN`), sliding window JWT token renewal on user activity, and client-side inactivity warning with auto re-login prompt (`TC-SEC-04`, `TC-SEC-05`).
-- **System Health Diagnostics & 99% Availability (`RRS-NF-002`):** Spring Boot Actuator `/actuator/health` integration with custom `DatabaseHealthIndicator` providing database connectivity verification, latency, and thread pool metrics.
+- **System Health Diagnostics & 99% Availability (`RRS-NF-002`):** Spring Boot Actuator `/actuator/health` integration (an own `/api/v1/health` endpoint since the Sprint 3 rebuild) with custom `DatabaseHealthIndicator` providing database connectivity verification, latency, and thread pool metrics.
 - **Structured Error Logging & Observability (`RRS-NF-005`):** MDC-based request correlation IDs (`corr`) and authenticated user ID tracking across all log statements with centralized JSON exception responses.
 - **Search Performance Benchmark (`RRS-NF-001`, `RRS-NF-004`):** 100 concurrent virtual user JMeter load test achieving 200–290 ms p95 latency (sub-3s target) and 0% errors.
 - **Sprint 2 Test Suite:** Expanded from 127 to **256 automated regression tests** (100% pass rate).
@@ -50,6 +51,7 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 ### Sprint 3: Product rebuild [2nd Nov – 6th Nov]
 - Rebuilt the reservation engine and the whole interface. See the capabilities below.
 - Search and refund boundary tests, an accessibility audit with its fixes, and the four Part 3 test reports. 146 automated tests, 80.0% line coverage and 63.2% branch coverage.
+- **Spill-over (7th and 8th Nov, issues #80 to #86):** sign-in with a linked Google account, email verification at sign-up, Razorpay payments and refunds in place of the simulated gateway, e-ticket and cancellation emails, password reset, a full-site check with its fixes, and updated SRS, SAD, test plan and a deviations document. 195 automated tests, 83.0% line coverage and 65.7% branch coverage.
 
 ## System Capabilities
 
@@ -65,6 +67,8 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 - **Cancellation** of some or all travellers, with a refund preview from the rule table before confirming, and the Razorpay refund reference on the ticket. Freed berths go to RAC, and RAC places go to the waiting list automatically.
 - **Train schedule** pages (route, halts, day numbers, coach composition), **station boards**, a refund rules page, and an account page with profile, password change and saved travellers.
 - **Email verification at sign-up:** a 6-digit code is emailed and the account is created only once it is entered. Codes expire after 10 minutes, allow five wrong tries, and can be re-sent once a minute (five an hour). The mobile number is a contact number and is not verified.
+- **Forgot password:** a 6-digit code is emailed to the account's address and sets a new password; the answer is the same whether or not the email has an account, and a notice is emailed when the password changes.
+- **Emails:** the e-ticket PDF after payment, and a notice with the refund amount and Razorpay refund id after a cancellation.
 - **Sign in with Google** for passengers who have linked a Google account from their account page. Google only signs in to an existing account; it never creates one, and a locked account stays locked.
 
 ### Operations console (`/admin/`)
@@ -118,15 +122,15 @@ Paying in Razorpay test mode: in the payment window choose **Netbanking**, pick 
 
 ### [1. Software Requirements Specification (SRS)](docs/srs/)
 
-Defines 16 functional requirements (`RRS-F-001` to `RRS-F-016`), 5 non-functional requirements (`RRS-NF-001` to `RRS-NF-005`), and 5 security requirements (`RRS-SR-001` to `RRS-SR-005`), along with UML use-case diagrams for the overall system and booking subsystem, and a Requirements Traceability Matrix (RTM).
+Version 2.0. Defines 16 functional requirements (`RRS-F-001` to `RRS-F-016`), 6 non-functional requirements (`RRS-NF-001` to `RRS-NF-006`), and 6 security requirements (`RRS-SR-001` to `RRS-SR-006`), along with UML use-case diagrams for the overall system and booking subsystem, and a Requirements Traceability Matrix (RTM).
 
 ### [2. Software Architecture and Design Specification (SAD)](docs/sad/)
 
-Models the 3-tier layered architecture, component responsibilities, STRIDE threat model, database schema, REST API endpoints (`/api/v1`), UML component diagram, and UML sequence diagrams for ticket booking and cancellation flows.
+Version 2.0. Models the 3-tier layered architecture, the Razorpay, Gmail and Google integrations, component responsibilities, STRIDE threat model, database schema, REST API endpoints (`/api/v1`), UML component diagram, and UML sequence diagrams for ticket booking and cancellation flows.
 
 ### [3. Software Test Plan (STP)](docs/test-plan/)
 
-Outlines the unit, integration, system, performance, and security testing strategy, test schedule, environment setup, and test cases mapped to the SRS requirements. Includes a breakdown of all 256 automated regression tests.
+Outlines the unit, integration, system, performance, and security testing strategy, test schedule, environment setup, and test cases mapped to the SRS requirements. Version 3.0 lists all 195 automated tests and maps every one of the 28 requirements to them.
 
 ### [4. Performance Benchmark](docs/performance/issue17-search-benchmark.md)
 
@@ -136,7 +140,11 @@ Empirical load test report validating `RRS-NF-001` and `RRS-NF-004` (100 concurr
 
 Unit test report, system validation report, code coverage report and branch coverage report, each as a Word document and a PDF, built from the latest test run.
 
-### [6. Sprint 01 Demonstration Video](docs/demo/)
+### [6. Deviations from the Submitted Design](docs/deviations/)
+
+Every place where the final product differs from the submitted SRS, SAD and test plan v1.0, and why, as a Word document and a PDF.
+
+### [7. Sprint 01 Demonstration Video](docs/demo/)
 
 Complete end-to-end silent video demonstration (1 min 15 sec) illustrating the application startup, train search, real-time seat availability check, demo account auto-fill, ticket booking with PNR allocation, printable ERS slip, and PNR status lookup.
 

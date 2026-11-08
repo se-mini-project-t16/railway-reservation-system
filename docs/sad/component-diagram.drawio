@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2026-09-25T10:00:00.000Z" agent="student" version="24.0.0">
+<mxfile host="app.diagrams.net" modified="2026-11-08T12:00:00.000Z" agent="student" version="24.0.0">
   <diagram id="main" name="Page-1">
     <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
       <root>
@@ -30,18 +30,16 @@
         <mxCell id="c_admin" value="Admin Service" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
           <mxGeometry x="240" y="320" width="160" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="c_notif" value="Notification Service" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+        <mxCell id="c_notif" value="Notification Service&#xa;(email)" style="shape=component;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
           <mxGeometry x="420" y="320" width="160" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="c_db" value="MySQL Database" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+        <mxCell id="c_db" value="Database&#xa;(H2 file, MySQL supported)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
           <mxGeometry x="240" y="460" width="200" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="ext_pg" value="&lt;&lt;external&gt;&gt;
-Payment Gateway" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+        <mxCell id="ext_pg" value="«external»&#xa;Razorpay&#xa;(test mode)" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
           <mxGeometry x="640" y="460" width="200" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="ext_mail" value="&lt;&lt;external&gt;&gt;
-Email / SMS Gateway" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+        <mxCell id="ext_mail" value="«external»&#xa;Gmail SMTP" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
           <mxGeometry x="640" y="320" width="180" height="60" as="geometry" />
         </mxCell>
         <mxCell id="e0" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_web" target="c_api">
@@ -97,6 +95,14 @@ Email / SMS Gateway" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=
         </mxCell>
         <mxCell id="e17" value="" style="endArrow=open;html=1;strokeColor=#000000;" edge="1" parent="1" source="c_booking" target="c_notif">
           <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+              <mxCell id="ext_google" value="«external»&#xa;Google Identity&#xa;Services" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="860" y="200" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;strokeColor=#000000;" edge="1" parent="1" source="c_auth" target="ext_google">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="140" y="168" /><mxPoint x="950" y="168" /></Array>
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>
