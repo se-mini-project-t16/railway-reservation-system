@@ -4,6 +4,7 @@ import com.railway.reservation.model.Booking;
 import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.SeatStatus;
 import com.railway.reservation.repository.BookingRepository;
+import com.railway.reservation.service.PasswordResetService;
 import com.railway.reservation.service.UserRegistrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,7 @@ import java.util.EnumSet;
  * Background work a reservation system does on its own: releasing unpaid
  * holds when they lapse, cancelling fully waitlisted tickets (with a
  * refund) once a train's chart is prepared, and forgetting sign-ups whose
- * email was never confirmed.
+ * email was never confirmed and password reset codes nobody used.
  */
 @Component
 public class Housekeeping {
@@ -30,16 +31,19 @@ public class Housekeeping {
     private final InventoryService inventoryService;
     private final TransactionTemplate tx;
     private final UserRegistrationService registrationService;
+    private final PasswordResetService passwordResetService;
 
     public Housekeeping(BookingRepository bookingRepository, PaymentService paymentService,
                         CancellationService cancellationService, InventoryService inventoryService,
-                        TransactionTemplate tx, UserRegistrationService registrationService) {
+                        TransactionTemplate tx, UserRegistrationService registrationService,
+                        PasswordResetService passwordResetService) {
         this.bookingRepository = bookingRepository;
         this.paymentService = paymentService;
         this.cancellationService = cancellationService;
         this.inventoryService = inventoryService;
         this.tx = tx;
         this.registrationService = registrationService;
+        this.passwordResetService = passwordResetService;
     }
 
     @Scheduled(fixedDelayString = "${app.housekeeping.interval-ms:30000}", initialDelay = 10000)
@@ -47,6 +51,7 @@ public class Housekeeping {
         expireHolds();
         cancelWaitlistedAfterChart();
         registrationService.purgeAbandoned();
+        passwordResetService.purgeOld();
     }
 
     public int expireHolds() {

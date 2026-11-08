@@ -36,7 +36,38 @@
           </div>
           <div id="si-error" role="alert"></div>
           <button class="btn btn--primary btn--lg btn--block" type="submit">Sign in</button>
-          <p class="small muted">After five wrong passwords an account is locked for 15 minutes.</p>
+          <p class="small muted">After five wrong passwords an account is locked for 15 minutes. <button class="link-btn" type="button" id="forgot-open">Forgot password?</button></p>
+        </form>
+        <form id="forgot" class="stack" novalidate hidden>
+          <p>Enter the email you registered with. If it has an account, we will email a 6-digit code to set a new password.</p>
+          <div class="field">
+            <label for="fp-email">Email</label>
+            <input class="input input--lg" id="fp-email" name="email" type="email" autocomplete="email" required aria-describedby="fp-email-help">
+            <span class="help" id="fp-email-help"></span>
+          </div>
+          <div id="fp-error" role="alert"></div>
+          <button class="btn btn--primary btn--lg btn--block" type="submit">Send code</button>
+          <button class="btn btn--quiet" type="button" data-back-to-signin>Back to sign in</button>
+        </form>
+        <form id="reset" class="stack" novalidate hidden>
+          <p id="reset-sent" tabindex="-1"></p>
+          <div class="field">
+            <label for="rp-code">Code from the email</label>
+            <input class="input input--lg input--code" id="rp-code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required aria-describedby="rp-code-help">
+            <span class="help" id="rp-code-help" data-hint="6 digits. Check your spam folder if it has not arrived.">6 digits. Check your spam folder if it has not arrived.</span>
+          </div>
+          <div class="field">
+            <label for="rp-password">New password</label>
+            <input class="input input--lg" id="rp-password" name="newPassword" type="password" autocomplete="new-password" minlength="8" required aria-describedby="rp-password-help">
+            <span class="help" id="rp-password-help" data-hint="At least 8 characters.">At least 8 characters.</span>
+          </div>
+          <div id="rp-error" role="alert"></div>
+          <button class="btn btn--primary btn--lg btn--block" type="submit">Set new password</button>
+          <div class="row row--between">
+            <button class="btn btn--quiet" type="button" data-back-to-signin>Back to sign in</button>
+            <button class="btn btn--quiet" type="button" id="rp-resend">Send a new code</button>
+          </div>
+          <p class="small muted" id="rp-status" role="status"></p>
         </form>
         <div class="alt-signin" id="google-signin" hidden>
           <p class="alt-signin__or"><span>or</span></p>
