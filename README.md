@@ -63,6 +63,7 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 - **E-ticket** page and PDF, print view, public **PNR status** (statuses only, never names), and **My trips** (upcoming, past, cancelled).
 - **Cancellation** of some or all travellers, with a refund preview from the rule table before confirming. Freed berths go to RAC, and RAC places go to the waiting list automatically.
 - **Train schedule** pages (route, halts, day numbers, coach composition), **station boards**, a refund rules page, and an account page with profile, password change and saved travellers.
+- **Sign in with Google** for passengers who have linked a Google account from their account page. Google only signs in to an existing account; it never creates one, and a locked account stays locked.
 
 ### Operations console (`/admin/`)
 - Overview of today's bookings, revenue, refunds, pending holds, the last seven days, class mix and departures in the next 48 hours.
@@ -82,6 +83,14 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 ```
 
 Open http://localhost:8080. The first start seeds 98 stations and 66 long-distance trains; bookings are kept in `./data` between restarts (delete that folder to start fresh).
+
+### Keys and passwords
+
+Keys never go in the repository. Copy [`secrets.example.properties`](secrets.example.properties) to `../railway-secrets.properties` (the folder that contains this project) and fill it in, or set `RRS_SECRETS_FILE` to the path of your copy. The app reads it on start. Anything left empty is switched off cleanly:
+
+| Key | Turns on |
+| --- | --- |
+| `app.google.client-id` | "Sign in with Google". Create a Web application OAuth client in Google Cloud Console and add `http://localhost:8080` (and any public address you use) under Authorized JavaScript origins. |
 
 Useful settings (environment variables):
 

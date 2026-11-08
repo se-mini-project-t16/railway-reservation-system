@@ -31,6 +31,14 @@ export async function signIn(email, password) {
   return me({ fresh: true });
 }
 
+/** Signs in with a Google account the owner has already linked to their account here. */
+export async function signInWithGoogle(credential) {
+  const { token } = await api('/users/login/google', { method: 'POST', body: { credential }, redirectOn401: false });
+  setToken(token);
+  try { sessionStorage.removeItem(ME_KEY); } catch { /* ignore */ }
+  return me({ fresh: true });
+}
+
 export function signOut() {
   setToken(null);
   try { sessionStorage.removeItem(ME_KEY); } catch { /* ignore */ }
