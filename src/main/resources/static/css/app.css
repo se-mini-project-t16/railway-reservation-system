@@ -421,6 +421,7 @@ dl.facts dd { margin: var(--space-3xs) 0 0; font-weight: 800; }
 .alt-signin__or { display: flex; align-items: center; gap: var(--space-sm); color: var(--color-muted); font-size: var(--text-sm); }
 .alt-signin__or::before, .alt-signin__or::after { content: ""; flex: 1; border-top: 1px solid var(--color-rule); }
 .google-btn { min-height: 44px; }
+.input--code { font-size: var(--text-xl); letter-spacing: 0.4em; font-variant-numeric: tabular-nums; }
 
 /* ------------------------------------------------------------------ admin */
 

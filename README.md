@@ -63,6 +63,7 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 - **E-ticket** page and PDF, print view, public **PNR status** (statuses only, never names), and **My trips** (upcoming, past, cancelled).
 - **Cancellation** of some or all travellers, with a refund preview from the rule table before confirming. Freed berths go to RAC, and RAC places go to the waiting list automatically.
 - **Train schedule** pages (route, halts, day numbers, coach composition), **station boards**, a refund rules page, and an account page with profile, password change and saved travellers.
+- **Email verification at sign-up:** a 6-digit code is emailed and the account is created only once it is entered. Codes expire after 10 minutes, allow five wrong tries, and can be re-sent once a minute (five an hour). The mobile number is a contact number and is not verified.
 - **Sign in with Google** for passengers who have linked a Google account from their account page. Google only signs in to an existing account; it never creates one, and a locked account stays locked.
 
 ### Operations console (`/admin/`)
@@ -90,6 +91,7 @@ Keys never go in the repository. Copy [`secrets.example.properties`](secrets.exa
 
 | Key | Turns on |
 | --- | --- |
+| `spring.mail.username`, `spring.mail.password` | Emailing sign-up codes through Gmail. Use the Gmail address that owns a Gmail app password (2-Step Verification must be on). Without them, codes are written to the server log so sign-up still works on a local copy. |
 | `app.google.client-id` | "Sign in with Google". Create a Web application OAuth client in Google Cloud Console and add `http://localhost:8080` (and any public address you use) under Authorized JavaScript origins. |
 
 Useful settings (environment variables):

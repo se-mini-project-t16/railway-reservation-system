@@ -7,6 +7,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import com.railway.reservation.support.MailCatcherConfig;
+import com.railway.reservation.support.SignUp;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@Import(MailCatcherConfig.class)
 class UserRegistrationControllerTest {
 
     private static final String REGISTER_URL = "/api/v1/users/register";
@@ -34,15 +38,27 @@ class UserRegistrationControllerTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private MailCatcherConfig.MailCatcher mail;
+
+    @org.junit.jupiter.api.BeforeEach
+    void clearMail() {
+        mail.clear();
+    }
+
     @Test
     void registersUserWithBcryptAndDoesNotExposePasswordData() throws Exception {
-        String response = mockMvc.perform(post(REGISTER_URL)
+        String started = mockMvc.perform(post(REGISTER_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validRequest("Kishan", "kishan@example.com")))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String response = SignUp.verify(mockMvc, "kishan@example.com", mail.codeFor("kishan@example.com"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.userId").isNumber())
                 .andReturn().getResponse().getContentAsString();
 
+        assertThat(started).doesNotContain(RAW_PASSWORD).doesNotContain("passwordHash").doesNotContain("\"password\"");
         assertThat(response).doesNotContain(RAW_PASSWORD).doesNotContain("passwordHash").doesNotContain("\"password\"");
         User savedUser = userRepository.findByEmail("kishan@example.com").orElseThrow();
         assertThat(savedUser.getPasswordHash()).startsWith("$2");
@@ -73,10 +89,7 @@ class UserRegistrationControllerTest {
 
     @Test
     void rejectsDuplicateEmailWithConflictIncludingCaseDifferences() throws Exception {
-        mockMvc.perform(post(REGISTER_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(validRequest("Kishan", "kishan@example.com")))
-                .andExpect(status().isCreated());
+        SignUp.complete(mockMvc, mail, objectMapper.readValue(validRequest("Kishan", "kishan@example.com"), Map.class));
 
         String duplicateResponse = mockMvc.perform(post(REGISTER_URL)
                         .contentType(MediaType.APPLICATION_JSON)

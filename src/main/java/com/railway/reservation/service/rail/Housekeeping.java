@@ -4,6 +4,7 @@ import com.railway.reservation.model.Booking;
 import com.railway.reservation.model.BookingStatus;
 import com.railway.reservation.model.SeatStatus;
 import com.railway.reservation.repository.BookingRepository;
+import com.railway.reservation.service.UserRegistrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,8 +15,9 @@ import java.util.EnumSet;
 
 /**
  * Background work a reservation system does on its own: releasing unpaid
- * holds when they lapse, and cancelling fully waitlisted tickets (with a
- * refund) once a train's chart is prepared.
+ * holds when they lapse, cancelling fully waitlisted tickets (with a
+ * refund) once a train's chart is prepared, and forgetting sign-ups whose
+ * email was never confirmed.
  */
 @Component
 public class Housekeeping {
@@ -27,21 +29,24 @@ public class Housekeeping {
     private final CancellationService cancellationService;
     private final InventoryService inventoryService;
     private final TransactionTemplate tx;
+    private final UserRegistrationService registrationService;
 
     public Housekeeping(BookingRepository bookingRepository, PaymentService paymentService,
                         CancellationService cancellationService, InventoryService inventoryService,
-                        TransactionTemplate tx) {
+                        TransactionTemplate tx, UserRegistrationService registrationService) {
         this.bookingRepository = bookingRepository;
         this.paymentService = paymentService;
         this.cancellationService = cancellationService;
         this.inventoryService = inventoryService;
         this.tx = tx;
+        this.registrationService = registrationService;
     }
 
     @Scheduled(fixedDelayString = "${app.housekeeping.interval-ms:30000}", initialDelay = 10000)
     public void run() {
         expireHolds();
         cancelWaitlistedAfterChart();
+        registrationService.purgeAbandoned();
     }
 
     public int expireHolds() {

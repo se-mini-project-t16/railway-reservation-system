@@ -86,7 +86,7 @@ public class SecurityConfig {
                 // Diagnostic routes registered only by the reliability tests
                 .requestMatchers("/api/v1/test/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/users/register", "/api/v1/users/login",
-                        "/api/v1/users/login/google").permitAll()
+                        "/api/v1/users/login/google", "/api/v1/users/register/verify", "/api/v1/users/register/resend").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/sign-in-options").permitAll()
                 // Guests can discover journeys and check a PNR (statuses only, no names) [RRS-F-004, RRS-F-011]
                 .requestMatchers(HttpMethod.GET, "/api/v1/stations/**", "/api/v1/trains/**", "/api/v1/pnr/**",
