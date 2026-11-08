@@ -45,6 +45,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Sends sign-up verification codes by email -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- Verifies Google ID tokens against Google's published signing keys -->
         <dependency>
             <groupId>org.springframework.security</groupId>

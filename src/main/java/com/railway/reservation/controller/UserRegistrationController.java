@@ -4,6 +4,9 @@ import com.railway.reservation.dto.AccountDtos.GoogleCredential;
 import com.railway.reservation.dto.AccountDtos.SignInOptions;
 import com.railway.reservation.dto.RegisterRequestDto;
 import com.railway.reservation.dto.RegisterResponseDto;
+import com.railway.reservation.dto.SignUpDtos.ResendCodeRequest;
+import com.railway.reservation.dto.SignUpDtos.SignUpStarted;
+import com.railway.reservation.dto.SignUpDtos.VerifyEmailRequest;
 import com.railway.reservation.dto.LoginRequestDto;
 import com.railway.reservation.dto.LoginResponseDto;
 import com.railway.reservation.service.AuthenticationService;
@@ -46,9 +49,21 @@ public class UserRegistrationController {
         this.googleTokenVerifier = googleTokenVerifier;
     }
 
+    /** Step 1 of sign-up: emails a 6-digit code. The account does not exist until step 2. */
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponseDto> register(@Valid @RequestBody RegisterRequestDto request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(registrationService.register(request));
+    public ResponseEntity<SignUpStarted> register(@Valid @RequestBody RegisterRequestDto request) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(registrationService.start(request));
+    }
+
+    /** Step 2: the code from the email creates the account and signs the passenger in. */
+    @PostMapping("/register/verify")
+    public ResponseEntity<RegisterResponseDto> verify(@Valid @RequestBody VerifyEmailRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(registrationService.verify(request.email(), request.code()));
+    }
+
+    @PostMapping("/register/resend")
+    public ResponseEntity<SignUpStarted> resend(@Valid @RequestBody ResendCodeRequest request) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(registrationService.resend(request.email()));
     }
 
     @PostMapping("/login")

@@ -12,6 +12,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import com.railway.reservation.support.MailCatcherConfig;
+import com.railway.reservation.support.SignUp;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -40,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@Import(MailCatcherConfig.class)
 class UserLoginControllerTest {
 
     private static final String LOGIN_URL = "/api/v1/users/login";
@@ -55,6 +59,9 @@ class UserLoginControllerTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private MailCatcherConfig.MailCatcher mail;
 
     @Value("${app.jwt.secret}")
     private String configuredJwtSecret;
@@ -260,10 +267,15 @@ class UserLoginControllerTest {
                 "password", RAW_PASSWORD
         );
 
-        mockMvc.perform(post("/api/v1/users/register")
+        SignUp.start(mockMvc, registration).andExpect(status().isAccepted());
+
+        // Until the emailed code is confirmed there is no account to sign in to
+        mockMvc.perform(post(LOGIN_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(registration)))
-                .andExpect(status().isCreated());
+                        .content(loginRequest("kishan@example.com", RAW_PASSWORD)))
+                .andExpect(status().isUnauthorized());
+
+        SignUp.verify(mockMvc, "kishan@example.com", mail.codeFor("kishan@example.com")).andExpect(status().isCreated());
 
         mockMvc.perform(post(LOGIN_URL)
                         .contentType(MediaType.APPLICATION_JSON)

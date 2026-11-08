@@ -84,7 +84,7 @@ class InputValidationSecurityTest {
         mockMvc.perform(post(REGISTER_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registerJson("Conor O'Brien", "obrien-sec03@example.com")))
-                .andExpect(status().isCreated());
+                .andExpect(status().isAccepted());
     }
 
     @Test
@@ -92,7 +92,7 @@ class InputValidationSecurityTest {
         mockMvc.perform(post(REGISTER_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registerJson("Anne-Marie", "annemarie-sec03@example.com")))
-                .andExpect(status().isCreated());
+                .andExpect(status().isAccepted());
     }
 
     @Test

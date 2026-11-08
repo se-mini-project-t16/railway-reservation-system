@@ -14,6 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import com.railway.reservation.support.MailCatcherConfig;
+import com.railway.reservation.support.SignUp;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@Import(MailCatcherConfig.class)
 @DisplayName("TC-SEC-01 password protection [RRS-SR-001]")
 class PasswordProtectionSecurityTest {
 
@@ -47,6 +51,9 @@ class PasswordProtectionSecurityTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private MailCatcherConfig.MailCatcher mail;
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
@@ -122,16 +129,21 @@ class PasswordProtectionSecurityTest {
         }
     }
 
+    /** Both sign-up steps; returns the two responses joined so neither can leak a password. */
     private String register() throws Exception {
-        return mockMvc.perform(post(REGISTER_URL)
+        String started = mockMvc.perform(post(REGISTER_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "name", "Security User",
                                 "email", EMAIL,
                                 "phone", "9876543210",
                                 "password", RAW_PASSWORD))))
+                .andExpect(status().isAccepted())
+                .andReturn().getResponse().getContentAsString();
+        String created = SignUp.verify(mockMvc, EMAIL, mail.codeFor(EMAIL))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
+        return started + created;
     }
 
     private String loginJson(String password) throws Exception {

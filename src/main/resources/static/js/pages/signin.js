@@ -1,8 +1,8 @@
 import { mountShell } from '../core/shell.js';
-import { api, ApiError } from '../core/api.js';
+import { api, ApiError, setToken } from '../core/api.js';
 import { signIn, signInWithGoogle, safeNext, isSignedIn } from '../core/session.js';
 import { renderGoogleButton } from '../core/google.js';
-import { $, params, notice, setBusy, setFieldError, clearFieldErrors, showFieldErrors, tabs, setTitle } from '../core/ui.js';
+import { $, h, params, notice, setBusy, setFieldError, clearFieldErrors, showFieldErrors, tabs, setTitle } from '../core/ui.js';
 
 const q = params();
 const next = safeNext(q.get('next'), '/');
@@ -71,6 +71,39 @@ $('#signin').addEventListener('submit', async (e) => {
   }
 });
 
+// ------------------------------------------------------------------ create account: details, then the emailed code
+
+let pendingEmail = '';
+let resendTimer;
+
+function resendCountdown(seconds) {
+  const btn = $('#v-resend');
+  clearInterval(resendTimer);
+  let left = Math.max(0, Math.round(seconds));
+  const tick = () => {
+    btn.disabled = left > 0;
+    btn.textContent = left > 0 ? `Send a new code (${left}s)` : 'Send a new code';
+    if (left-- <= 0) clearInterval(resendTimer);
+  };
+  tick();
+  resendTimer = setInterval(tick, 1000);
+}
+
+function showVerify(started) {
+  pendingEmail = started.email;
+  $('#signup').hidden = true;
+  $('#verify').hidden = false;
+  $('#panel-up h1').textContent = 'Check your email';
+  $('#verify-sent').replaceChildren('We sent a 6-digit code to ', h('span', { class: 'strong' }, started.email),
+    `. It works for ${Math.round(started.expiresInSeconds / 60)} minutes.`);
+  $('#v-code').value = '';
+  $('#v-error').replaceChildren();
+  $('#v-status').textContent = '';
+  clearFieldErrors($('#verify'));
+  resendCountdown(started.resendInSeconds);
+  $('#v-code').focus();
+}
+
 $('#signup').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.currentTarget;
@@ -94,21 +127,75 @@ $('#signup').addEventListener('submit', async (e) => {
     return;
   }
   const btn = form.querySelector('[type="submit"]');
-  setBusy(btn, true, 'Creating account');
+  setBusy(btn, true, 'Sending code');
   try {
-    await api('/users/register', { method: 'POST', body, redirectOn401: false });
-    await signIn(body.email, body.password);
-    location.assign(next);
+    showVerify(await api('/users/register', { method: 'POST', body, redirectOn401: false }));
   } catch (ex) {
-    setBusy(btn, false);
     if (ex.status === 409) {
       setFieldError($('#su-email'), 'An account with this email already exists. Sign in instead.');
       $('#su-email').focus();
       return;
     }
+    if (ex.code === 'EMAIL_NOT_SENT') {
+      setFieldError($('#su-email'), ex.message);
+      $('#su-email').focus();
+      return;
+    }
     const map = { name: '#su-name', email: '#su-email', phone: '#su-phone', password: '#su-password' };
     if (!showFieldErrors(form, ex.fieldErrors, (f) => (map[f] ? $(map[f]) : null))) {
-      err.append(notice('error', 'Could not create the account.', ex.message));
+      err.append(notice('error', 'Could not send the code.', ex.message));
     }
+  } finally {
+    setBusy(btn, false);
   }
+});
+
+$('#v-code').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); });
+
+$('#verify').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.currentTarget;
+  clearFieldErrors(form);
+  $('#v-error').replaceChildren();
+  const code = $('#v-code').value.trim();
+  if (!/^\d{6}$/.test(code)) { setFieldError($('#v-code'), 'Enter the 6-digit code from the email.'); $('#v-code').focus(); return; }
+  const btn = form.querySelector('[type="submit"]');
+  setBusy(btn, true, 'Creating account');
+  try {
+    const { token } = await api('/users/register/verify', { method: 'POST', body: { email: pendingEmail, code }, redirectOn401: false });
+    setToken(token);
+    try { sessionStorage.removeItem('rrs.me'); } catch { /* ignore */ }
+    clearInterval(resendTimer);
+    location.assign(next);
+  } catch (ex) {
+    setBusy(btn, false);
+    if (ex.code === 'CODE_INVALID') { setFieldError($('#v-code'), ex.message); $('#v-code').select(); return; }
+    if (ex.code === 'CODE_EXPIRED' || ex.code === 'CODE_USED_UP') { resendCountdown(0); setFieldError($('#v-code'), ex.message); $('#v-resend').focus(); return; }
+    if (ex.status === 409) { $('#v-error').append(notice('error', 'This email already has an account.', 'Sign in instead.')); return; }
+    $('#v-error').append(notice('error', 'Could not create the account.', ex.message));
+  }
+});
+
+$('#v-resend').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  $('#v-error').replaceChildren();
+  setBusy(btn, true, 'Sending');
+  try {
+    const started = await api('/users/register/resend', { method: 'POST', body: { email: pendingEmail }, redirectOn401: false });
+    setBusy(btn, false);
+    showVerify(started);
+    $('#v-status').textContent = 'A new code is on its way. Only the newest code works.';
+  } catch (ex) {
+    setBusy(btn, false);
+    if (ex.code === 'RESEND_TOO_SOON') { resendCountdown(Number((ex.message.match(/(\d+) seconds/) || [])[1]) || 60); }
+    $('#v-error').append(notice('error', 'No new code was sent.', ex.message));
+  }
+});
+
+$('#v-back').addEventListener('click', () => {
+  clearInterval(resendTimer);
+  $('#verify').hidden = true;
+  $('#signup').hidden = false;
+  $('#panel-up h1').textContent = 'Create an account';
+  $('#su-email').focus();
 });

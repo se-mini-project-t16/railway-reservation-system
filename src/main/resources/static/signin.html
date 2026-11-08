@@ -69,7 +69,23 @@
             <span class="help" id="su-password-help" data-hint="At least 8 characters.">At least 8 characters.</span>
           </div>
           <div id="su-error" role="alert"></div>
+          <button class="btn btn--primary btn--lg btn--block" type="submit">Continue</button>
+          <p class="small muted">We will email you a 6-digit code to confirm the address.</p>
+        </form>
+        <form id="verify" class="stack" novalidate hidden>
+          <p id="verify-sent" tabindex="-1"></p>
+          <div class="field">
+            <label for="v-code">Code from the email</label>
+            <input class="input input--lg input--code" id="v-code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required aria-describedby="v-code-help">
+            <span class="help" id="v-code-help" data-hint="6 digits. Check your spam folder if it has not arrived.">6 digits. Check your spam folder if it has not arrived.</span>
+          </div>
+          <div id="v-error" role="alert"></div>
           <button class="btn btn--primary btn--lg btn--block" type="submit">Create account</button>
+          <div class="row row--between">
+            <button class="btn btn--quiet" type="button" id="v-back">Change details</button>
+            <button class="btn btn--quiet" type="button" id="v-resend">Send a new code</button>
+          </div>
+          <p class="small muted" id="v-status" role="status"></p>
         </form>
       </section>
     </div>
