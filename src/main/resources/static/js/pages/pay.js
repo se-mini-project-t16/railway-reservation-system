@@ -60,11 +60,11 @@ function render(b, prepared) {
   const countdown = h('span', { class: 'countdown', id: 'countdown', role: 'timer', 'aria-live': 'off' }, '');
   const releaseBtn = h('button', { type: 'button', class: 'btn btn--danger' }, 'Release the berths');
 
-  const form = h('form', { class: 'panel', novalidate: true, 'aria-labelledby': 'pay-title' },
+  const form = h('form', { class: 'panel stack', novalidate: true, 'aria-labelledby': 'pay-title' },
     h('div', { class: 'row row--between' }, h('h1', { id: 'pay-title', class: 'section-title' }, 'Pay for your booking'),
       h('div', { class: 'small' }, 'Berths held for ', countdown)),
     testNote,
-    h('p', {}, 'You pay on Razorpay\'s secure payment window with UPI, a debit or credit card, net banking or a wallet. Your card number, UPI PIN and bank password go to Razorpay only; this site never sees them.'),
+    h('p', {}, 'You pay in Razorpay\'s secure payment window, with whichever of card, net banking, wallet or UPI it offers you. Your card number, UPI PIN and bank password go to Razorpay only; this site never sees them.'),
     h('p', { class: 'small muted' }, 'If you close the window without paying, your berths stay held until the timer runs out.'),
     result,
     h('div', { class: 'row row--between' }, releaseBtn, payBtn));
