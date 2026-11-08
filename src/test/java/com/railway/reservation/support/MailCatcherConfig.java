@@ -14,16 +14,37 @@ import java.util.regex.Pattern;
 @TestConfiguration
 public class MailCatcherConfig {
 
-    public record Mail(String to, String subject, String text, String html) {}
+    public record Mail(String to, String subject, String text, String html, List<EmailSender.Attachment> attachments) {}
 
     public static class MailCatcher implements EmailSender {
         private final List<Mail> sent = new CopyOnWriteArrayList<>();
         private volatile boolean failing;
 
         @Override
-        public void send(String to, String subject, String text, String html) {
+        public void send(EmailSender.Email email) {
             if (failing) throw new com.railway.reservation.service.mail.EmailNotSentException("test", null);
-            sent.add(new Mail(to, subject, text, html));
+            sent.add(new Mail(email.to(), email.subject(), email.text(), email.html(), email.attachments()));
+        }
+
+        /** Waits up to five seconds for an email (sent in the background) whose subject contains the text. */
+        public Mail await(String to, String subjectContains) {
+            long until = System.currentTimeMillis() + 5000;
+            while (System.currentTimeMillis() < until) {
+                for (Mail m : sent) if (m.to().equalsIgnoreCase(to) && m.subject().contains(subjectContains)) return m;
+                try { Thread.sleep(50); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+            }
+            throw new AssertionError("No email to " + to + " with subject containing \"" + subjectContains + "\"; sent: "
+                    + sent.stream().map(Mail::subject).toList());
+        }
+
+        /** True when no email whose subject contains the text arrives within the given time. */
+        public boolean noneWithin(String subjectContains, long millis) {
+            long until = System.currentTimeMillis() + millis;
+            while (System.currentTimeMillis() < until) {
+                if (sent.stream().anyMatch(m -> m.subject().contains(subjectContains))) return false;
+                try { Thread.sleep(50); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+            }
+            return true;
         }
 
         public List<Mail> sent() { return sent; }

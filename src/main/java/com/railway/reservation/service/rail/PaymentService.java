@@ -6,6 +6,7 @@ import com.railway.reservation.dto.BookingDtos.PaymentConfirmation;
 import com.railway.reservation.dto.BookingDtos.PaymentResult;
 import com.railway.reservation.exception.ApiException;
 import com.railway.reservation.model.*;
+import com.railway.reservation.service.notify.BookingEvents;
 import com.railway.reservation.service.payment.GatewayException;
 import com.railway.reservation.service.payment.PaymentGateway;
 import com.railway.reservation.service.payment.PaymentGateway.GatewayOrder;
@@ -13,6 +14,7 @@ import com.railway.reservation.service.payment.PaymentGateway.GatewayPayment;
 import com.railway.reservation.service.payment.PaymentGateway.GatewayRefund;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,14 +49,17 @@ public class PaymentService {
     private final InventoryService inventoryService;
     private final BookingMapper mapper;
     private final PaymentGateway gateway;
+    private final ApplicationEventPublisher events;
 
     public PaymentService(BookingService bookingService, SeatOperations seatOperations,
-                          InventoryService inventoryService, BookingMapper mapper, PaymentGateway gateway) {
+                          InventoryService inventoryService, BookingMapper mapper, PaymentGateway gateway,
+                          ApplicationEventPublisher events) {
         this.bookingService = bookingService;
         this.seatOperations = seatOperations;
         this.inventoryService = inventoryService;
         this.mapper = mapper;
         this.gateway = gateway;
+        this.events = events;
     }
 
     /** Creates (once) the Razorpay order for this booking's fare and returns what Checkout needs. */
@@ -209,6 +214,7 @@ public class PaymentService {
             b.setStatus(BookingStatus.BOOKED);
             b.setBookedAt(now);
             log.info("Payment received pnr={} payment={} amount={}", b.getPnr(), p.id(), b.getTotalFare());
+            events.publishEvent(new BookingEvents.Paid(b.getPnr()));
             return result(b, b.payment(p.id()));
         }
 

@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -48,22 +49,27 @@ public class SmtpEmailSender implements EmailSender {
     }
 
     @Override
-    public void send(String to, String subject, String text, String html) {
+    public void send(Email email) {
+        String logSubject = email.subject().replaceAll("\\b\\d{6}\\b", "******");
         if (mailSender == null) {
-            log.warn("Email not configured. Message for {}: {}\n{}", to, subject, text);
+            log.warn("Email not configured. Message for {}: {}{}\n{}", email.to(), email.subject(),
+                    email.attachments().isEmpty() ? "" : " (" + email.attachments().size() + " attachment)", email.text());
             return;
         }
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
             helper.setFrom(from, fromName);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(text, html);
+            helper.setTo(email.to());
+            helper.setSubject(email.subject());
+            helper.setText(email.text(), email.html());
+            for (Attachment a : email.attachments()) {
+                helper.addAttachment(a.filename(), new ByteArrayResource(a.bytes()), a.contentType());
+            }
             mailSender.send(message);
-            log.info("Email sent to {}: {}", to, subject.replaceAll("\\d{6}", "******"));
+            log.info("Email sent to {}: {}", email.to(), logSubject);
         } catch (MailException | MessagingException | UnsupportedEncodingException e) {
-            log.error("Email to {} failed: {}", to, e.getMessage());
+            log.error("Email to {} failed: {}", email.to(), e.getMessage());
             throw new EmailNotSentException("Email could not be sent", e);
         }
     }

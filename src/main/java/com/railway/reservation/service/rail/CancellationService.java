@@ -7,11 +7,13 @@ import com.railway.reservation.exception.ApiException;
 import com.railway.reservation.model.*;
 import com.railway.reservation.repository.CancellationAuditLogRepository;
 import com.railway.reservation.repository.CancellationRuleRepository;
+import com.railway.reservation.service.notify.BookingEvents;
 import com.railway.reservation.service.payment.GatewayException;
 import com.railway.reservation.service.payment.PaymentGateway;
 import com.railway.reservation.service.payment.PaymentGateway.GatewayRefund;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -39,14 +41,17 @@ public class CancellationService {
     private final SeatOperations seatOperations;
     private final InventoryService inventoryService;
     private final PaymentGateway gateway;
+    private final ApplicationEventPublisher events;
 
     public CancellationService(CancellationRuleRepository ruleRepository, CancellationAuditLogRepository auditRepository,
-                               SeatOperations seatOperations, InventoryService inventoryService, PaymentGateway gateway) {
+                               SeatOperations seatOperations, InventoryService inventoryService, PaymentGateway gateway,
+                               ApplicationEventPublisher events) {
         this.ruleRepository = ruleRepository;
         this.auditRepository = auditRepository;
         this.seatOperations = seatOperations;
         this.inventoryService = inventoryService;
         this.gateway = gateway;
+        this.events = events;
     }
 
     public record Refund(int fare, int deduction, int refund, String rule) {}
@@ -157,6 +162,7 @@ public class CancellationService {
             }
         }
         auditRepository.save(entry);
+        events.publishEvent(new BookingEvents.Cancelled(b.getPnr(), refunds.size(), total, entry.getRefundRef(), reason));
         return total;
     }
 
