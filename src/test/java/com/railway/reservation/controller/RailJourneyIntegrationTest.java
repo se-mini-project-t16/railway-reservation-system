@@ -12,6 +12,7 @@ import com.railway.reservation.repository.UserRepository;
 import com.railway.reservation.service.JwtService;
 import com.railway.reservation.service.rail.Housekeeping;
 import com.railway.reservation.support.FakeRazorpay;
+import com.railway.reservation.support.MailCatcherConfig;
 import com.railway.reservation.support.MutableClock;
 import com.railway.reservation.support.RailFixtures;
 import com.railway.reservation.support.TestClockConfig;
@@ -45,7 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import({TestClockConfig.class, FakeRazorpay.Config.class})
+@Import({TestClockConfig.class, FakeRazorpay.Config.class, MailCatcherConfig.class})
 class RailJourneyIntegrationTest {
 
     @Autowired MockMvc mvc;
@@ -59,6 +60,7 @@ class RailJourneyIntegrationTest {
     @Autowired MutableClock clock;
     @Autowired Housekeeping housekeeping;
     @Autowired FakeRazorpay razorpay;
+    @Autowired MailCatcherConfig.MailCatcher mail;
 
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     private static final LocalDate MONDAY = LocalDate.of(2026, 11, 9);
@@ -70,6 +72,7 @@ class RailJourneyIntegrationTest {
     void setUp() {
         clock.set(MONDAY.atTime(9, 0));
         razorpay.reset();
+        mail.clear();
         RailFixtures.reset(jdbc, rules);
         Map<String, Station> st = RailFixtures.stations(stationRepository);
         RailFixtures.superfast(st, trainRepository);
@@ -421,6 +424,61 @@ class RailJourneyIntegrationTest {
         String other = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
         as(asha, post("/api/v1/payments/" + other + "/order")).andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("PAYMENTS_UNAVAILABLE"));
+    }
+
+    @Test
+    @DisplayName("TC-MAIL-01: A paid booking emails the e-ticket as a PDF to the passenger")
+    void bookingEmail() throws Exception {
+        String pnr = book(asha, MONDAY.plusDays(2), "SL", 2).get("pnr").asText();
+        String paymentId = pay(asha, pnr).get("txnRef").asText();
+        MailCatcherConfig.Mail m = mail.await("asha@example.com", "Booking confirmed: PNR " + pnr);
+        assertThat(m.subject()).contains("12901 AAA to DDD");
+        assertThat(m.text()).contains("Traveller A, 30: CNF").contains("Traveller B, 31").contains(paymentId);
+        assertThat(m.html()).contains("Your ticket is booked").contains(pnr);
+        assertThat(m.attachments()).singleElement().satisfies(a -> {
+            assertThat(a.filename()).isEqualTo("e-ticket-" + pnr + ".pdf");
+            assertThat(new String(a.bytes(), 0, 4)).isEqualTo("%PDF");
+        });
+    }
+
+    @Test
+    @DisplayName("TC-MAIL-02: Cancelling travellers emails the refund amount and the Razorpay refund id")
+    void cancellationEmail() throws Exception {
+        JsonNode b = paidBooking(MONDAY.plusDays(5), 2);
+        String pnr = b.get("pnr").asText();
+        JsonNode after = cancel(pnr, b.get("passengers").get(0).get("id").asLong());
+        int refund = after.get("refundTotal").asInt();
+        String refundId = after.get("cancellations").get(0).get("refundRef").asText();
+        MailCatcherConfig.Mail m = mail.await("asha@example.com", "Cancelled: PNR " + pnr);
+        assertThat(m.subject()).contains("1 traveller").contains(String.valueOf(refund));
+        assertThat(m.text()).contains("You cancelled 1 traveller").contains(refundId).contains("Traveller A, 30: Cancelled");
+        assertThat(m.html()).contains("Travellers cancelled");
+    }
+
+    @Test
+    @DisplayName("TC-MAIL-03: A mail server failure never undoes a booking; a declined payment sends no ticket")
+    void mailFailureIsHarmless() throws Exception {
+        String declinedPnr = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        FakeRazorpay.Paid declined = razorpay.decline(order(asha, declinedPnr), "card", "Visa credit card ending 0002", "Declined.");
+        as(asha, post("/api/v1/payments/" + declinedPnr + "/failure").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"paymentId\":\"" + declined.paymentId() + "\"}")).andExpect(status().isOk());
+        assertThat(mail.noneWithin("Booking confirmed", 500)).isTrue();
+
+        mail.failNext(true);
+        String pnr = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        assertThat(pay(asha, pnr).get("outcome").asText()).isEqualTo("SUCCESS");
+        assertThat(mail.noneWithin("Booking confirmed", 500)).isTrue();
+        assertThat(body(as(asha, get("/api/v1/bookings/" + pnr))).get("status").asText()).isEqualTo("BOOKED");
+    }
+
+    @Test
+    @DisplayName("TC-MAIL-04: A payment found later (closed tab) still emails the ticket")
+    void emailAfterReconcile() throws Exception {
+        String pnr = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        razorpay.pay(order(asha, pnr), "upi", "UPI asha@okaxis");
+        clock.advance(Duration.ofMinutes(11));
+        housekeeping.expireHolds();
+        assertThat(mail.await("asha@example.com", "Booking confirmed: PNR " + pnr).attachments()).hasSize(1);
     }
 
     private int availableSl() throws Exception {
