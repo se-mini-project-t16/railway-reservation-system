@@ -1,6 +1,7 @@
 import { mountShell } from '../core/shell.js';
 import { api, ApiError } from '../core/api.js';
-import { signIn, safeNext, isSignedIn } from '../core/session.js';
+import { signIn, signInWithGoogle, safeNext, isSignedIn } from '../core/session.js';
+import { renderGoogleButton } from '../core/google.js';
 import { $, params, notice, setBusy, setFieldError, clearFieldErrors, showFieldErrors, tabs, setTitle } from '../core/ui.js';
 
 const q = params();
@@ -21,6 +22,28 @@ if (q.get('reason') === 'expired') {
 if (note.childElementCount) note.classList.add('auth-note');
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// ------------------------------------------------------------------ Google (linked accounts only)
+
+let googleBusy = false;
+async function googleCredential(credential) {
+  if (googleBusy) return;
+  googleBusy = true;
+  const err = $('#g-error');
+  err.replaceChildren();
+  try {
+    await signInWithGoogle(credential);
+    location.assign(next);
+  } catch (ex) {
+    googleBusy = false;
+    const title = ex.code === 'GOOGLE_NOT_LINKED' ? 'This Google account is not linked yet.' : 'Could not sign you in with Google.';
+    err.append(notice('error', title, ex.message));
+  }
+}
+
+// Shown before drawing so Google can size the button to the form; hidden again if Google sign-in is off
+$('#google-signin').hidden = false;
+renderGoogleButton($('#google-btn'), googleCredential).then((shown) => { $('#google-signin').hidden = !shown; });
 
 $('#signin').addEventListener('submit', async (e) => {
   e.preventDefault();

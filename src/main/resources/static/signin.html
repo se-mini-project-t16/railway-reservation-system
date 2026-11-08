@@ -38,6 +38,12 @@
           <button class="btn btn--primary btn--lg btn--block" type="submit">Sign in</button>
           <p class="small muted">After five wrong passwords an account is locked for 15 minutes.</p>
         </form>
+        <div class="alt-signin" id="google-signin" hidden>
+          <p class="alt-signin__or"><span>or</span></p>
+          <div class="google-btn" id="google-btn"></div>
+          <p class="small muted">Works once you have linked Google from your account page. Google cannot create a new account here.</p>
+          <div id="g-error" role="alert"></div>
+        </div>
       </section>
       <section class="panel" role="tabpanel" id="panel-up" aria-labelledby="tab-up" hidden>
         <h1 class="section-title">Create an account</h1>

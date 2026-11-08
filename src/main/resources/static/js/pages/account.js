@@ -1,6 +1,7 @@
 import { mountShell } from '../core/shell.js';
 import { api } from '../core/api.js';
 import { requireSignIn, me } from '../core/session.js';
+import { googleClientId, renderGoogleButton } from '../core/google.js';
 import { $, h, icon, notice, setBusy, setFieldError, clearFieldErrors, showFieldErrors, GENDERS, BERTHS, FOODS, fmtDate } from '../core/ui.js';
 
 const NAME = /^[A-Za-z][A-Za-z .']{1,39}$/;
@@ -12,6 +13,55 @@ async function loadProfile() {
   $('#p-name').value = p.name;
   $('#p-email').value = p.email;
   $('#p-phone').value = p.phone;
+  showGoogle(p);
+}
+
+// ------------------------------------------------------------------ Google sign-in (link only)
+
+async function showGoogle(p, message) {
+  if (!(await googleClientId())) return;
+  const panel = $('#google-panel');
+  const box = $('#google-state');
+  panel.hidden = false;
+  const flash = message ? h('p', { class: 'small', role: 'status' }, message) : null;
+  if (p.googleEmail) {
+    const unlink = h('button', { type: 'button', class: 'btn' }, 'Unlink Google');
+    unlink.addEventListener('click', async () => {
+      setBusy(unlink, true, 'Unlinking');
+      try {
+        const updated = await api('/me/google', { method: 'DELETE' });
+        try { sessionStorage.removeItem('rrs.me'); } catch { /* ignore */ }
+        showGoogle(updated, 'Google is unlinked. Sign in with your email and password from now on.');
+      } catch (err) {
+        setBusy(unlink, false);
+        box.append(notice('error', 'Google is still linked.', err.message));
+      }
+    });
+    box.replaceChildren(...[flash,
+      h('p', {}, 'Linked to ', h('span', { class: 'strong' }, p.googleEmail), '. You can sign in with this Google account or with your password.'),
+      h('div', {}, unlink)].filter(Boolean));
+    return;
+  }
+  const slot = h('div', { class: 'google-btn' });
+  const err = h('div', { role: 'alert' });
+  box.replaceChildren(...[flash,
+    h('p', {}, 'Link a Google account to sign in without typing your password. Your email and password keep working.'),
+    slot, err].filter(Boolean));
+  let busy = false;
+  const shown = await renderGoogleButton(slot, async (credential) => {
+    if (busy) return;
+    busy = true;
+    err.replaceChildren();
+    try {
+      const updated = await api('/me/google', { method: 'POST', body: { credential } });
+      try { sessionStorage.removeItem('rrs.me'); } catch { /* ignore */ }
+      showGoogle(updated, 'Google is linked. Next time, use "Sign in with Google" on the sign-in page.');
+    } catch (ex) {
+      busy = false;
+      err.replaceChildren(notice('error', 'Google was not linked.', ex.message));
+    }
+  }, { text: 'continue_with' });
+  if (!shown) slot.replaceWith(h('p', { class: 'small muted' }, 'Google sign-in could not be loaded. Check your connection and reload the page.'));
 }
 
 $('#profile').addEventListener('submit', async (e) => {

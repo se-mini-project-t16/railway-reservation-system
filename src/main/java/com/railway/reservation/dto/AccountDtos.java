@@ -12,7 +12,15 @@ public final class AccountDtos {
 
     private AccountDtos() {}
 
-    public record Profile(Long id, String name, String email, String phone, String role, LocalDateTime memberSince) {}
+    public record Profile(Long id, String name, String email, String phone, String role, LocalDateTime memberSince,
+                          String googleEmail) {}
+
+    /** The credential Google's sign-in button returns: a signed ID token. */
+    public record GoogleCredential(@NotBlank(message = "Google did not return a sign-in credential.")
+                                   @Size(max = 4096) String credential) {}
+
+    /** What the sign-in page may offer; null fields mean the option is switched off. */
+    public record SignInOptions(String googleClientId) {}
 
     public record ProfileUpdate(
             @NotBlank(message = "Enter your name.") @Size(max = 100) @SafeText String name,

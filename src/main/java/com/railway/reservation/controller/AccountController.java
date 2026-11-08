@@ -1,6 +1,7 @@
 package com.railway.reservation.controller;
 
 import com.railway.reservation.dto.AccountDtos.*;
+import com.railway.reservation.service.google.GoogleSignInService;
 import com.railway.reservation.service.rail.AccountService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -15,9 +16,11 @@ import java.util.List;
 public class AccountController {
 
     private final AccountService accountService;
+    private final GoogleSignInService googleSignInService;
 
-    public AccountController(AccountService accountService) {
+    public AccountController(AccountService accountService, GoogleSignInService googleSignInService) {
         this.accountService = accountService;
+        this.googleSignInService = googleSignInService;
     }
 
     @GetMapping
@@ -34,6 +37,17 @@ public class AccountController {
     public ResponseEntity<Void> password(@Valid @RequestBody PasswordChange change, Authentication auth) {
         accountService.changePassword(CurrentUser.id(auth), change);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Links the Google account behind this credential, so it can be used to sign in later. */
+    @PostMapping("/google")
+    public Profile linkGoogle(@Valid @RequestBody GoogleCredential body, Authentication auth) {
+        return googleSignInService.link(CurrentUser.id(auth), body.credential());
+    }
+
+    @DeleteMapping("/google")
+    public Profile unlinkGoogle(Authentication auth) {
+        return googleSignInService.unlink(CurrentUser.id(auth));
     }
 
     @GetMapping("/travellers")

@@ -86,7 +86,7 @@ public class AccountService {
 
     public static Profile toProfile(User u) {
         return new Profile(u.getId(), u.getName(), u.getEmail(), u.getPhone(),
-                u.getRole().name().replace("ROLE_", ""), u.getCreatedAt());
+                u.getRole().name().replace("ROLE_", ""), u.getCreatedAt(), u.getGoogleEmail());
     }
 
     static Traveller toDto(SavedTraveller t) {

@@ -34,6 +34,16 @@ public class User {
     @Column(name = "locked_until")
     private LocalDateTime lockedUntil;
 
+    /** Google's stable account id ("sub"), set only when the owner links Google from the account page. */
+    @Column(name = "google_subject", unique = true, length = 64)
+    private String googleSubject;
+
+    @Column(name = "google_email", length = 150)
+    private String googleEmail;
+
+    @Column(name = "google_linked_at")
+    private LocalDateTime googleLinkedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -71,6 +81,22 @@ public class User {
 
     public LocalDateTime getLockedUntil() { return lockedUntil; }
     public void setLockedUntil(LocalDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
+
+    public String getGoogleSubject() { return googleSubject; }
+    public String getGoogleEmail() { return googleEmail; }
+    public LocalDateTime getGoogleLinkedAt() { return googleLinkedAt; }
+
+    public void linkGoogle(String subject, String email, LocalDateTime at) {
+        this.googleSubject = subject;
+        this.googleEmail = email;
+        this.googleLinkedAt = at;
+    }
+
+    public void unlinkGoogle() {
+        this.googleSubject = null;
+        this.googleEmail = null;
+        this.googleLinkedAt = null;
+    }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
