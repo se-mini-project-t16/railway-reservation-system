@@ -438,6 +438,13 @@ class RailJourneyIntegrationTest {
         assertThat(m.attachments()).singleElement().satisfies(a -> {
             assertThat(a.filename()).isEqualTo("e-ticket-" + pnr + ".pdf");
             assertThat(new String(a.bytes(), 0, 4)).isEqualTo("%PDF");
+            // The ticket inside carries the PNR, the train, both travellers and the payment
+            try (org.apache.pdfbox.pdmodel.PDDocument pdf = org.apache.pdfbox.Loader.loadPDF(a.bytes())) {
+                String text = new org.apache.pdfbox.text.PDFTextStripper().getText(pdf);
+                assertThat(text).contains(pnr).contains("12901").contains("Traveller A").contains("Traveller B").contains(paymentId);
+            } catch (java.io.IOException e) {
+                throw new AssertionError(e);
+            }
         });
     }
 
@@ -517,6 +524,17 @@ class RailJourneyIntegrationTest {
         assertThat(text).doesNotContain("Traveller A").doesNotContain("asha@example.com").doesNotContain("9876543210");
         as(null, get("/api/v1/pnr/2999999999")).andExpect(status().isNotFound());
         as(null, get("/api/v1/pnr/123")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("TC-HIS-02: History lists the newest journey first; upcoming trips list the soonest first")
+    void historyOrder() throws Exception {
+        String sooner = paidBooking(MONDAY.plusDays(2), 1).get("pnr").asText();
+        String later = paidBooking(MONDAY.plusDays(5), 1).get("pnr").asText();
+        assertThat(body(as(asha, get("/api/v1/bookings").param("scope", "all")))).extracting(n -> n.get("pnr").asText())
+                .containsExactly(later, sooner);
+        assertThat(body(as(asha, get("/api/v1/bookings").param("scope", "upcoming")))).extracting(n -> n.get("pnr").asText())
+                .containsExactly(sooner, later);
     }
 
     // ------------------------------------------------------------------ cancellation
@@ -672,6 +690,23 @@ class RailJourneyIntegrationTest {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("TIME_ORDER"));
         as(admin, post("/api/v1/admin/trains").contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(RailFixtures.trainForm("12999", "Again")))).andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("TC-ADM-06: An admin edits a train and the change shows in the timetable and search")
+    void adminEditsTrain() throws Exception {
+        as(admin, post("/api/v1/admin/trains").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(RailFixtures.trainForm("12999", "New Service")))).andExpect(status().isCreated());
+        Map<String, Object> edited = new HashMap<>(RailFixtures.trainForm("12999", "Renamed Service"));
+        edited.put("runningDays", "1111100");
+        as(admin, put("/api/v1/admin/trains/12999").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(edited)))
+                .andExpect(status().isOk());
+        assertThat(body(as(null, get("/api/v1/trains/12999"))).get("name").asText()).isEqualTo("Renamed Service");
+        // Monday runs, Sunday no longer does
+        JsonNode monday = body(as(null, get("/api/v1/trains/search").param("from", "BBB").param("to", "DDD").param("date", MONDAY.plusDays(7).toString())));
+        assertThat(monday.get("results")).extracting(n -> n.get("number").asText()).contains("12999");
+        JsonNode sunday = body(as(null, get("/api/v1/trains/search").param("from", "BBB").param("to", "DDD").param("date", MONDAY.plusDays(6).toString())));
+        assertThat(sunday.get("results")).extracting(n -> n.get("number").asText()).doesNotContain("12999");
     }
 
     @Test
