@@ -94,6 +94,6 @@ export async function mountShell() {
       h('a', { href: '/train.html' }, 'Train schedule'), h('a', { href: '/refunds.html' }, 'Refund rules'),
       h('a', { href: '/bookings.html' }, 'My trips'));
     footer.replaceChildren(h('div', { class: 'container' }, wordmark(), links,
-      h('p', { class: 'notice-line' }, 'A reservation system built as a software engineering project. Timetables and fares are close approximations, payments are simulated, and no ticket issued here is valid for travel.')));
+      h('p', { class: 'notice-line' }, 'A reservation system built as a software engineering project. Timetables and fares are close approximations, payments run in Razorpay test mode so no real money moves, and no ticket issued here is valid for travel.')));
   }
 }

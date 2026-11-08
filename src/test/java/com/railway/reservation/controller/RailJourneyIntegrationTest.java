@@ -11,6 +11,7 @@ import com.railway.reservation.repository.TrainRepository;
 import com.railway.reservation.repository.UserRepository;
 import com.railway.reservation.service.JwtService;
 import com.railway.reservation.service.rail.Housekeeping;
+import com.railway.reservation.support.FakeRazorpay;
 import com.railway.reservation.support.MutableClock;
 import com.railway.reservation.support.RailFixtures;
 import com.railway.reservation.support.TestClockConfig;
@@ -44,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@Import(TestClockConfig.class)
+@Import({TestClockConfig.class, FakeRazorpay.Config.class})
 class RailJourneyIntegrationTest {
 
     @Autowired MockMvc mvc;
@@ -57,6 +58,7 @@ class RailJourneyIntegrationTest {
     @Autowired JwtService jwtService;
     @Autowired MutableClock clock;
     @Autowired Housekeeping housekeeping;
+    @Autowired FakeRazorpay razorpay;
 
     private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     private static final LocalDate MONDAY = LocalDate.of(2026, 11, 9);
@@ -67,6 +69,7 @@ class RailJourneyIntegrationTest {
     @BeforeEach
     void setUp() {
         clock.set(MONDAY.atTime(9, 0));
+        razorpay.reset();
         RailFixtures.reset(jdbc, rules);
         Map<String, Station> st = RailFixtures.stations(stationRepository);
         RailFixtures.superfast(st, trainRepository);
@@ -118,9 +121,21 @@ class RailJourneyIntegrationTest {
                 .content(json.writeValueAsString(bookingBody(date, cls, "GN", travellers)))).andExpect(status().isCreated()));
     }
 
+    /** Opens Checkout for the booking: the server creates (or reuses) the Razorpay order. */
+    private String order(String token, String pnr) throws Exception {
+        return body(as(token, post("/api/v1/payments/" + pnr + "/order")).andExpect(status().isOk())).get("orderId").asText();
+    }
+
+    private ResultActions confirm(String token, String pnr, FakeRazorpay.Paid paid) throws Exception {
+        return as(token, post("/api/v1/payments/" + pnr + "/confirm").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("orderId", paid.orderId(), "paymentId", paid.paymentId(),
+                        "signature", paid.signature()))));
+    }
+
+    /** The passenger pays by UPI in Checkout and the page reports the result. */
     private JsonNode pay(String token, String pnr) throws Exception {
-        return body(as(token, post("/api/v1/payments/" + pnr).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"method\":\"UPI\",\"upiId\":\"asha@okaxis\"}")).andExpect(status().isOk()));
+        FakeRazorpay.Paid paid = razorpay.pay(order(token, pnr), "upi", "UPI asha@okaxis");
+        return body(confirm(token, pnr, paid).andExpect(status().isOk()));
     }
 
     // ------------------------------------------------------------------ search
@@ -200,8 +215,7 @@ class RailJourneyIntegrationTest {
     void guestBlocked() throws Exception {
         as(null, post("/api/v1/bookings").contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(bookingBody(MONDAY.plusDays(1), "SL", "GN", 1)))).andExpect(status().isUnauthorized());
-        as(null, post("/api/v1/payments/2123456789").contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"UPI\"}"))
-                .andExpect(status().isUnauthorized());
+        as(null, post("/api/v1/payments/2123456789/order")).andExpect(status().isUnauthorized());
         as(null, get("/api/v1/bookings")).andExpect(status().isUnauthorized());
         as(null, get("/api/v1/bookings/2123456789/ticket.pdf")).andExpect(status().isUnauthorized());
     }
@@ -242,8 +256,7 @@ class RailJourneyIntegrationTest {
     void ownershipIsolation() throws Exception {
         String pnr = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
         as(bob, get("/api/v1/bookings/" + pnr)).andExpect(status().isNotFound());
-        as(bob, post("/api/v1/payments/" + pnr).contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"UPI\",\"upiId\":\"bob@okaxis\"}"))
-                .andExpect(status().isNotFound());
+        as(bob, post("/api/v1/payments/" + pnr + "/order")).andExpect(status().isNotFound());
         pay(asha, pnr);
         as(bob, get("/api/v1/bookings/" + pnr + "/ticket.pdf")).andExpect(status().isNotFound());
         as(bob, post("/api/v1/bookings/" + pnr + "/cancel").contentType(MediaType.APPLICATION_JSON).content("{\"passengerIds\":[1]}"))
@@ -255,45 +268,61 @@ class RailJourneyIntegrationTest {
     // ------------------------------------------------------------------ payment
 
     @Test
-    @DisplayName("TC-PAY-01: Paying books the ticket; paying again returns the same receipt without charging twice")
+    @DisplayName("TC-PAY-01: A verified Razorpay payment books the ticket; reporting it again does not record it twice")
     void payIsIdempotent() throws Exception {
         String pnr = book(asha, MONDAY.plusDays(2), "3A", 1).get("pnr").asText();
-        JsonNode first = pay(asha, pnr);
+        JsonNode checkout = body(as(asha, post("/api/v1/payments/" + pnr + "/order")).andExpect(status().isOk()));
+        assertThat(checkout.get("keyId").asText()).startsWith("rzp_test_");
+        assertThat(checkout.get("testMode").asBoolean()).isTrue();
+        assertThat(checkout.get("prefill").get("email").asText()).isEqualTo("asha@example.com");
+        JsonNode held = body(as(asha, get("/api/v1/bookings/" + pnr)));
+        assertThat(checkout.get("amount").asLong()).isEqualTo(held.get("fare").get("total").asLong() * 100);
+        // Opening Checkout again reuses the same order
+        assertThat(order(asha, pnr)).isEqualTo(checkout.get("orderId").asText());
+        assertThat(razorpay.orderCount()).isEqualTo(1);
+
+        FakeRazorpay.Paid paid = razorpay.pay(checkout.get("orderId").asText(), "upi", "UPI asha@okaxis");
+        JsonNode first = body(confirm(asha, pnr, paid).andExpect(status().isOk()));
         assertThat(first.get("outcome").asText()).isEqualTo("SUCCESS");
+        assertThat(first.get("txnRef").asText()).isEqualTo(paid.paymentId());
         assertThat(first.get("booking").get("status").asText()).isEqualTo("BOOKED");
-        JsonNode second = pay(asha, pnr);
-        assertThat(second.get("txnRef").asText()).isEqualTo(first.get("txnRef").asText());
+        assertThat(first.get("booking").get("payments").get(0).get("instrument").asText()).isEqualTo("UPI asha@okaxis");
+        JsonNode second = body(confirm(asha, pnr, paid).andExpect(status().isOk()));
+        assertThat(second.get("txnRef").asText()).isEqualTo(paid.paymentId());
         assertThat(second.get("booking").get("payments")).hasSize(1);
+        as(asha, post("/api/v1/payments/" + pnr + "/order")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ALREADY_PAID"));
     }
 
     @Test
-    @DisplayName("TC-PAY-02: A declined card keeps the hold for a retry; an invalid card is refused; card numbers are masked")
+    @DisplayName("TC-PAY-02: A declined payment is recorded and keeps the hold, so the passenger can pay again")
     void declineAndRetry() throws Exception {
         String pnr = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
-        JsonNode declined = body(as(asha, post("/api/v1/payments/" + pnr).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"method\":\"CARD\",\"cardNumber\":\"4000 0000 0000 0002\",\"cardExpiry\":\"12/29\",\"cardCvv\":\"123\",\"cardName\":\"Asha\"}")));
-        assertThat(declined.get("outcome").asText()).isEqualTo("FAILED");
-        assertThat(declined.get("booking").get("status").asText()).isEqualTo("PAYMENT_PENDING");
-        assertThat(declined.get("booking").get("payments").get(0).get("instrument").asText()).isEqualTo("Visa ending 0002");
-        as(asha, post("/api/v1/payments/" + pnr).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"method\":\"CARD\",\"cardNumber\":\"4111 1111 1111 1112\",\"cardExpiry\":\"12/29\",\"cardCvv\":\"123\",\"cardName\":\"Asha\"}"))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_CARD"));
-        JsonNode ok = body(as(asha, post("/api/v1/payments/" + pnr).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"method\":\"CARD\",\"cardNumber\":\"4111 1111 1111 1111\",\"cardExpiry\":\"12/29\",\"cardCvv\":\"123\",\"cardName\":\"Asha\"}")));
+        String orderId = order(asha, pnr);
+        FakeRazorpay.Paid declined = razorpay.decline(orderId, "card", "Visa credit card ending 0002", "Your bank declined this payment.");
+        JsonNode afterFailure = body(as(asha, post("/api/v1/payments/" + pnr + "/failure").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"paymentId\":\"" + declined.paymentId() + "\"}")).andExpect(status().isOk()));
+        assertThat(afterFailure.get("status").asText()).isEqualTo("PAYMENT_PENDING");
+        assertThat(afterFailure.get("payments").get(0).get("status").asText()).isEqualTo("FAILED");
+        assertThat(afterFailure.get("payments").get(0).get("failureReason").asText()).isEqualTo("Your bank declined this payment.");
+
+        JsonNode ok = body(confirm(asha, pnr, razorpay.pay(orderId, "card", "Visa credit card ending 1111")).andExpect(status().isOk()));
         assertThat(ok.get("outcome").asText()).isEqualTo("SUCCESS");
-        assertThat(ok.toString()).doesNotContain("4111111111111111");
+        assertThat(ok.get("booking").get("payments")).hasSize(2);
+        assertThat(ok.get("booking").get("payments").get(1).get("instrument").asText()).isEqualTo("Visa credit card ending 1111");
     }
 
     @Test
     @DisplayName("TC-PAY-03: An unpaid hold expires after 10 minutes, its berths return, and it can no longer be paid")
     void holdExpiry() throws Exception {
         String pnr = book(asha, MONDAY.plusDays(2), "SL", 2).get("pnr").asText();
+        order(asha, pnr);
         int before = availableSl();
         clock.advance(Duration.ofMinutes(11));
         assertThat(housekeeping.expireHolds()).isEqualTo(1);
         assertThat(availableSl()).isEqualTo(before + 2);
-        as(asha, post("/api/v1/payments/" + pnr).contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"UPI\",\"upiId\":\"a@ok\"}"))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("PAYMENT_CLOSED"));
+        as(asha, post("/api/v1/payments/" + pnr + "/order")).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("HOLD_EXPIRED"));
     }
 
     @Test
@@ -303,6 +332,88 @@ class RailJourneyIntegrationTest {
         int before = availableSl();
         as(asha, post("/api/v1/payments/" + pnr + "/abandon")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PAYMENT_FAILED"));
         assertThat(availableSl()).isEqualTo(before + 1);
+    }
+
+    @Test
+    @DisplayName("TC-PAY-05: A forged signature, or a payment from another booking's order, books nothing")
+    void forgedPayments() throws Exception {
+        String pnr = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        String orderId = order(asha, pnr);
+        FakeRazorpay.Paid real = razorpay.pay(orderId, "upi", "UPI asha@okaxis");
+        confirm(asha, pnr, new FakeRazorpay.Paid(orderId, real.paymentId(), "0".repeat(64)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PAYMENT_UNVERIFIED"));
+
+        String other = book(bob, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        FakeRazorpay.Paid bobs = razorpay.pay(order(bob, other), "upi", "UPI bob@okaxis");
+        confirm(asha, pnr, bobs).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PAYMENT_MISMATCH"));
+        confirm(asha, pnr, new FakeRazorpay.Paid("order_<script>", "pay_x", "abc"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+        assertThat(body(as(asha, get("/api/v1/bookings/" + pnr))).get("status").asText()).isEqualTo("PAYMENT_PENDING");
+    }
+
+    @Test
+    @DisplayName("TC-PAY-06: Paid but the tab was closed: the payment is found and books the ticket instead of the hold expiring")
+    void paidButTabClosed() throws Exception {
+        String pnr = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        razorpay.pay(order(asha, pnr), "upi", "UPI asha@okaxis");
+        // Reopening the pay page finds it
+        assertThat(body(as(asha, post("/api/v1/payments/" + pnr + "/sync")).andExpect(status().isOk())).get("status").asText())
+                .isEqualTo("BOOKED");
+
+        String later = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        razorpay.pay(order(asha, later), "upi", "UPI asha@okaxis");
+        // Nobody comes back: the hold check at expiry finds it
+        clock.advance(Duration.ofMinutes(11));
+        assertThat(housekeeping.expireHolds()).isEqualTo(1);
+        JsonNode b = body(as(asha, get("/api/v1/bookings/" + later)));
+        assertThat(b.get("status").asText()).isEqualTo("BOOKED");
+        assertThat(b.get("payments").get(0).get("status").asText()).isEqualTo("SUCCESS");
+        assertThat(razorpay.refunds()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("TC-PAY-07: Money that arrives after the hold was released is refunded in full automatically")
+    void latePaymentRefunded() throws Exception {
+        String pnr = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        String orderId = order(asha, pnr);
+        as(asha, post("/api/v1/payments/" + pnr + "/abandon")).andExpect(status().isOk());
+        FakeRazorpay.Paid late = razorpay.pay(orderId, "upi", "UPI asha@okaxis");
+        JsonNode r = body(confirm(asha, pnr, late).andExpect(status().isOk()));
+        assertThat(r.get("outcome").asText()).isEqualTo("REFUNDED");
+        assertThat(r.get("booking").get("status").asText()).isEqualTo("PAYMENT_FAILED");
+        assertThat(r.get("booking").get("payments").get(0).get("status").asText()).isEqualTo("REFUNDED");
+        assertThat(razorpay.refunds()).singleElement().satisfies(x -> {
+            assertThat(x.paymentId()).isEqualTo(late.paymentId());
+            assertThat(x.amountPaise()).isEqualTo(r.get("booking").get("fare").get("total").asLong() * 100);
+        });
+    }
+
+    @Test
+    @DisplayName("TC-PAY-08: If Razorpay cannot be asked, a lapsed hold waits up to 30 minutes before its berths are released")
+    void gatewayDownAtExpiry() throws Exception {
+        String pnr = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        order(asha, pnr);
+        razorpay.setDown(true);
+        clock.advance(Duration.ofMinutes(11));
+        assertThat(housekeeping.expireHolds()).isZero();
+        assertThat(body(as(asha, get("/api/v1/bookings/" + pnr))).get("status").asText()).isEqualTo("PAYMENT_PENDING");
+        clock.advance(Duration.ofMinutes(30));
+        assertThat(housekeeping.expireHolds()).isEqualTo(1);
+        assertThat(body(as(asha, get("/api/v1/bookings/" + pnr))).get("status").asText()).isEqualTo("EXPIRED");
+    }
+
+    @Test
+    @DisplayName("TC-PAY-09: An authorised payment is captured before the ticket is booked; without keys, payment is unavailable")
+    void captureAndUnavailable() throws Exception {
+        String pnr = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        FakeRazorpay.Paid authorised = razorpay.authorize(order(asha, pnr));
+        assertThat(body(confirm(asha, pnr, authorised).andExpect(status().isOk())).get("outcome").asText()).isEqualTo("SUCCESS");
+        assertThat(razorpay.fetchPayment(authorised.paymentId()).captured()).isTrue();
+
+        razorpay.setEnabled(false);
+        String other = book(asha, MONDAY.plusDays(2), "SL", 1).get("pnr").asText();
+        as(asha, post("/api/v1/payments/" + other + "/order")).andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("PAYMENTS_UNAVAILABLE"));
     }
 
     private int availableSl() throws Exception {
@@ -389,10 +500,32 @@ class RailJourneyIntegrationTest {
         assertThat(after.get("status").asText()).isEqualTo("PARTIALLY_CANCELLED");
         assertThat(after.get("refundTotal").asInt()).isEqualTo(b.get("perPassenger").asInt() - 120);
         assertThat(after.get("cancellations")).hasSize(1);
+        // The refund goes back through Razorpay against the original payment
+        String paymentId = b.get("payments").get(0).get("txnRef").asText();
+        assertThat(razorpay.refunds()).singleElement().satisfies(r -> {
+            assertThat(r.paymentId()).isEqualTo(paymentId);
+            assertThat(r.amountPaise()).isEqualTo((b.get("perPassenger").asLong() - 120) * 100);
+            assertThat(after.get("cancellations").get(0).get("refundRef").asText()).isEqualTo(r.id());
+        });
         as(asha, post("/api/v1/bookings/" + pnr + "/cancel").contentType(MediaType.APPLICATION_JSON).content("{\"passengerIds\":[" + first + "]}"))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ALREADY_CANCELLED"));
         long second = b.get("passengers").get(1).get("id").asLong();
         assertThat(cancel(pnr, second).get("status").asText()).isEqualTo("CANCELLED");
+    }
+
+    @Test
+    @DisplayName("TC-CAN-12: If Razorpay cannot start the refund, nothing is cancelled")
+    void refundFailureCancelsNothing() throws Exception {
+        JsonNode b = paidBooking(MONDAY.plusDays(5), 1);
+        String pnr = b.get("pnr").asText();
+        razorpay.setRefundsFail(true);
+        as(asha, post("/api/v1/bookings/" + pnr + "/cancel").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"passengerIds\":[" + b.get("passengers").get(0).get("id").asLong() + "]}"))
+                .andExpect(status().isBadGateway()).andExpect(jsonPath("$.code").value("REFUND_FAILED"));
+        JsonNode still = body(as(asha, get("/api/v1/bookings/" + pnr)));
+        assertThat(still.get("status").asText()).isEqualTo("BOOKED");
+        assertThat(still.get("refundTotal").asInt()).isZero();
+        assertThat(still.get("cancellations")).isEmpty();
     }
 
     @Test
@@ -424,6 +557,10 @@ class RailJourneyIntegrationTest {
         JsonNode after = body(as(asha, get("/api/v1/bookings/" + wl.get("pnr").asText())));
         assertThat(after.get("status").asText()).isEqualTo("CANCELLED");
         assertThat(after.get("refundTotal").asInt()).isEqualTo(wl.get("perPassenger").asInt() - 60);
+        assertThat(razorpay.refunds()).singleElement().satisfies(r -> {
+            assertThat(r.paymentId()).isEqualTo(wl.get("payments").get(0).get("txnRef").asText());
+            assertThat(r.amountPaise()).isEqualTo((wl.get("perPassenger").asLong() - 60) * 100);
+        });
     }
 
     // ------------------------------------------------------------------ Tatkal

@@ -7,6 +7,12 @@ import com.railway.reservation.exception.ApiException;
 import com.railway.reservation.model.*;
 import com.railway.reservation.repository.CancellationAuditLogRepository;
 import com.railway.reservation.repository.CancellationRuleRepository;
+import com.railway.reservation.service.payment.GatewayException;
+import com.railway.reservation.service.payment.PaymentGateway;
+import com.railway.reservation.service.payment.PaymentGateway.GatewayRefund;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -23,6 +29,8 @@ import java.util.*;
 @Service
 public class CancellationService {
 
+    private static final Logger log = LoggerFactory.getLogger(CancellationService.class);
+
     public static final int CLERKAGE = 60;
     public static final int QUEUED_CUTOFF_MINUTES = 30;
 
@@ -30,13 +38,15 @@ public class CancellationService {
     private final CancellationAuditLogRepository auditRepository;
     private final SeatOperations seatOperations;
     private final InventoryService inventoryService;
+    private final PaymentGateway gateway;
 
     public CancellationService(CancellationRuleRepository ruleRepository, CancellationAuditLogRepository auditRepository,
-                               SeatOperations seatOperations, InventoryService inventoryService) {
+                               SeatOperations seatOperations, InventoryService inventoryService, PaymentGateway gateway) {
         this.ruleRepository = ruleRepository;
         this.auditRepository = auditRepository;
         this.seatOperations = seatOperations;
         this.inventoryService = inventoryService;
+        this.gateway = gateway;
     }
 
     public record Refund(int fare, int deduction, int refund, String rule) {}
@@ -131,8 +141,22 @@ public class CancellationService {
         } else {
             b.setStatus(BookingStatus.PARTIALLY_CANCELLED);
         }
-        auditRepository.save(new CancellationAuditLog(b.getPnr(), actorId, reason, refunds.size(),
-                BigDecimal.valueOf(total), now));
+        CancellationAuditLog entry = new CancellationAuditLog(b.getPnr(), actorId, reason, refunds.size(),
+                BigDecimal.valueOf(total), now);
+        if (paid != null && paid.viaGateway() && total > 0) {
+            // The refund goes back to the card, UPI account or bank that paid. If Razorpay cannot start it,
+            // the exception rolls the whole cancellation back, so no traveller is cancelled without their refund.
+            try {
+                GatewayRefund r = gateway.refund(paid.getTxnRef(), total * 100L, Map.of("pnr", b.getPnr(), "reason", reason));
+                entry.setRefund(r.id(), r.status());
+                log.info("Refund started pnr={} payment={} refund={} amount={} status={}",
+                        b.getPnr(), paid.getTxnRef(), r.id(), total, r.status());
+            } catch (GatewayException e) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY, "REFUND_FAILED",
+                        "Razorpay could not start the refund just now, so nothing was cancelled. Try again in a few minutes.");
+            }
+        }
+        auditRepository.save(entry);
         return total;
     }
 

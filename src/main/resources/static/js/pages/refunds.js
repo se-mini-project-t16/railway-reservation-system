@@ -27,7 +27,9 @@ async function load() {
           h('div', {}, h('dt', {}, 'RAC or waitlisted'), h('dd', {}, `Full refund less ${money(p.waitlistClerkage)} per traveller, up to 30 minutes before departure.`)),
           h('div', {}, h('dt', {}, 'Still waitlisted at chart'), h('dd', {}, `Cancelled automatically, refunded less ${money(p.waitlistClerkage)}.`)),
           h('div', {}, h('dt', {}, 'Tatkal'), h('dd', {}, p.tatkalRule)),
-          h('div', {}, h('dt', {}, 'Unpaid holds'), h('dd', {}, 'Released after 10 minutes. Nothing is charged.')))));
+          h('div', {}, h('dt', {}, 'Unpaid holds'), h('dd', {}, 'Released after 10 minutes. Nothing is charged.')),
+          h('div', {}, h('dt', {}, 'Where refunds go'), h('dd', {}, 'Back to the card, UPI account, bank or wallet you paid with, through Razorpay. Banks usually show it within 5 to 7 working days.')),
+          h('div', {}, h('dt', {}, 'Paid too late'), h('dd', {}, 'A payment that completes after the hold has ended is refunded in full automatically.')))));
     out.className = 'stack-lg';
   } catch (err) {
     out.replaceChildren(notice('error', 'We could not load the refund rules.', err.message, h('button', { type: 'button', class: 'btn', onclick: load }, 'Try again')));

@@ -52,12 +52,13 @@ public class Housekeeping {
     public int expireHolds() {
         int n = 0;
         for (String pnr : bookingRepository.findExpiredHolds(inventoryService.now())) {
-            Boolean done = tx.execute(status -> bookingRepository.findByPnrForUpdate(pnr).map(b -> {
-                if (b.getStatus() != BookingStatus.PAYMENT_PENDING) return false;
-                paymentService.expire(b);
-                return true;
-            }).orElse(false));
-            if (Boolean.TRUE.equals(done)) n++;
+            try {
+                Boolean done = tx.execute(status -> bookingRepository.findByPnrForUpdate(pnr)
+                        .map(paymentService::closeLapsedHold).orElse(false));
+                if (Boolean.TRUE.equals(done)) n++;
+            } catch (RuntimeException e) {
+                log.error("Could not close the lapsed hold pnr={}: {}", pnr, e.getMessage());
+            }
         }
         return n;
     }
@@ -67,18 +68,23 @@ public class Housekeeping {
         var statuses = EnumSet.of(BookingStatus.BOOKED, BookingStatus.PARTIALLY_CANCELLED);
         for (String pnr : bookingRepository.findLiveDepartingFrom(statuses, inventoryService.today().minusDays(3),
                 inventoryService.now())) {
-            Boolean done = tx.execute(status -> bookingRepository.findByPnrForUpdate(pnr).map(b -> {
-                if (!b.getStatus().isLive() || !inventoryService.chartPrepared(b.getTrain(), b.getTrainStartDate())) {
-                    return false;
-                }
-                boolean allWaitlisted = !b.activePassengers().isEmpty()
-                        && b.activePassengers().stream().allMatch(p -> p.getCurrentStatus() == SeatStatus.WL);
-                if (!allWaitlisted) return false;
-                cancellationService.cancelUnconfirmedAfterChart(b);
-                log.info("Waitlisted ticket cancelled after chart pnr={}", b.getPnr());
-                return true;
-            }).orElse(false));
-            if (Boolean.TRUE.equals(done)) n++;
+            try {
+                Boolean done = tx.execute(status -> bookingRepository.findByPnrForUpdate(pnr).map(b -> {
+                    if (!b.getStatus().isLive() || !inventoryService.chartPrepared(b.getTrain(), b.getTrainStartDate())) {
+                        return false;
+                    }
+                    boolean allWaitlisted = !b.activePassengers().isEmpty()
+                            && b.activePassengers().stream().allMatch(p -> p.getCurrentStatus() == SeatStatus.WL);
+                    if (!allWaitlisted) return false;
+                    cancellationService.cancelUnconfirmedAfterChart(b);
+                    log.info("Waitlisted ticket cancelled after chart pnr={}", b.getPnr());
+                    return true;
+                }).orElse(false));
+                if (Boolean.TRUE.equals(done)) n++;
+            } catch (RuntimeException e) {
+                // A refund Razorpay could not start leaves the ticket as it was; the next run tries again
+                log.error("Could not cancel waitlisted ticket pnr={}: {}", pnr, e.getMessage());
+            }
         }
         return n;
     }

@@ -1,7 +1,7 @@
 import { mountShell } from '../core/shell.js';
 import { api } from '../core/api.js';
 import { requireSignIn } from '../core/session.js';
-import { $, h, money, fmtDate, params, notice, setBusy, setFieldError, clearFieldErrors, statusChip, tabs, setTitle } from '../core/ui.js';
+import { $, h, money, fmtDate, params, notice, setBusy, statusChip, setTitle } from '../core/ui.js';
 
 const pnr = (params().get('pnr') || '').replace(/\D/g, '');
 const root = $('#pay-root');
@@ -26,76 +26,61 @@ function summary(b) {
 function closed(b) {
   const why = b.status === 'EXPIRED' ? 'The 10 minute hold ran out before payment, so the berths went back on sale.'
     : 'Payment was not completed and the berths were released.';
+  const refunded = (b.payments || []).filter((p) => p.status === 'REFUNDED');
   root.replaceChildren(h('div', { class: 'empty-state' },
     h('h1', { class: 'section-title' }, 'This booking can no longer be paid.'), h('p', {}, why),
+    refunded.map((p) => h('p', {}, `Your payment of ${money(p.amount)} (${p.txnRef}) arrived after the hold ended and was refunded in full.`)),
     h('a', { class: 'btn btn--primary', href: `/trains.html?from=${b.from.code}&to=${b.to.code}&date=${b.journeyDate}&quota=${b.quota}` }, 'Search this journey again')));
 }
 
-function field(id, labelText, attrs = {}, hint = '') {
-  return h('div', { class: 'field' }, h('label', { for: id }, labelText),
-    h('input', { class: 'input input--lg', id, 'aria-describedby': `${id}-help`, ...attrs }),
-    h('span', { class: 'help', id: `${id}-help`, 'data-hint': hint }, hint));
+// ------------------------------------------------------------------ Razorpay Checkout
+
+const CHECKOUT_JS = 'https://checkout.razorpay.com/v1/checkout.js';
+let checkoutLoading;
+
+function loadCheckout() {
+  if (window.Razorpay) return Promise.resolve(window.Razorpay);
+  if (!checkoutLoading) {
+    checkoutLoading = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = CHECKOUT_JS;
+      s.async = true;
+      s.onload = () => (window.Razorpay ? resolve(window.Razorpay) : reject(new Error('Razorpay did not load.')));
+      s.onerror = () => { checkoutLoading = null; reject(new Error('Razorpay could not be loaded. Check your connection and try again.')); };
+      document.head.append(s);
+    });
+  }
+  return checkoutLoading;
 }
 
-function brand(n) {
-  if (/^4/.test(n)) return 'Visa';
-  if (/^(5[1-5]|2[2-7])/.test(n)) return 'Mastercard';
-  if (/^(60|65|81|82|508)/.test(n)) return 'RuPay';
-  if (/^3[47]/.test(n)) return 'American Express';
-  return '';
-}
-
-function render(b, banks) {
-  const tablist = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Payment method' },
-    h('button', { type: 'button', role: 'tab', id: 'tab-upi', 'aria-selected': 'true', 'aria-controls': 'p-upi' }, 'UPI'),
-    h('button', { type: 'button', role: 'tab', id: 'tab-card', 'aria-selected': 'false', 'aria-controls': 'p-card', tabindex: '-1' }, 'Card'),
-    h('button', { type: 'button', role: 'tab', id: 'tab-nb', 'aria-selected': 'false', 'aria-controls': 'p-nb', tabindex: '-1' }, 'Net banking'));
-
-  const upi = h('div', { role: 'tabpanel', id: 'p-upi', 'aria-labelledby': 'tab-upi', class: 'stack' },
-    field('upi', 'UPI ID', { autocomplete: 'off', placeholder: 'name@bank', inputmode: 'email' }, 'The request appears in your UPI app.'));
-  const cardNo = h('input', { class: 'input input--lg', id: 'card-no', inputmode: 'numeric', autocomplete: 'cc-number', maxlength: 23, 'aria-describedby': 'card-no-help' });
-  const cardHelp = h('span', { class: 'help', id: 'card-no-help', 'data-hint': '' }, '');
-  cardNo.addEventListener('input', () => {
-    const digits = cardNo.value.replace(/\D/g, '').slice(0, 19);
-    cardNo.value = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
-    cardHelp.dataset.hint = brand(digits);
-    if (!cardHelp.classList.contains('is-error')) cardHelp.textContent = brand(digits);
-  });
-  const expiry = h('input', { class: 'input input--lg', id: 'card-exp', inputmode: 'numeric', autocomplete: 'cc-exp', placeholder: 'MM/YY', maxlength: 5, 'aria-describedby': 'card-exp-help' });
-  expiry.addEventListener('input', () => {
-    const d = expiry.value.replace(/\D/g, '').slice(0, 4);
-    expiry.value = d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
-  });
-  const card = h('div', { role: 'tabpanel', id: 'p-card', 'aria-labelledby': 'tab-card', class: 'stack', hidden: true },
-    h('div', { class: 'field' }, h('label', { for: 'card-no' }, 'Card number'), cardNo, cardHelp),
-    h('div', { class: 'two-up' },
-      h('div', { class: 'field' }, h('label', { for: 'card-exp' }, 'Expiry'), expiry, h('span', { class: 'help', id: 'card-exp-help' }, '')),
-      field('card-cvv', 'Security code', { inputmode: 'numeric', autocomplete: 'cc-csc', maxlength: 4, type: 'password' })),
-    field('card-name', 'Name on card', { autocomplete: 'cc-name' }));
-  const bankList = h('fieldset', { class: 'seg bank-grid' }, h('legend', { class: 'visually-hidden' }, 'Bank'),
-    Object.entries(banks).map(([code, name], i) => [
-      h('input', { type: 'radio', name: 'bank', id: `bank-${code}`, value: code, checked: i === 0 }),
-      h('label', { for: `bank-${code}` }, name)]));
-  const nb = h('div', { role: 'tabpanel', id: 'p-nb', 'aria-labelledby': 'tab-nb', hidden: true }, bankList,
-    h('p', { class: 'small muted', style: null }, 'You would normally be sent to your bank to sign in.'));
-
-  let method = 'UPI';
+function render(b, prepared) {
   const payBtn = h('button', { type: 'submit', class: 'btn btn--primary btn--lg' }, `Pay ${money(b.fare.total)}`);
-  const result = h('div');
+  const result = h('div', { 'aria-live': 'polite' });
+  const testNote = h('div');
   const countdown = h('span', { class: 'countdown', id: 'countdown', role: 'timer', 'aria-live': 'off' }, '');
   const releaseBtn = h('button', { type: 'button', class: 'btn btn--danger' }, 'Release the berths');
 
   const form = h('form', { class: 'panel', novalidate: true, 'aria-labelledby': 'pay-title' },
     h('div', { class: 'row row--between' }, h('h1', { id: 'pay-title', class: 'section-title' }, 'Pay for your booking'),
       h('div', { class: 'small' }, 'Berths held for ', countdown)),
-    h('p', { class: 'notice notice--info small' }, 'This is a simulated payment. No money moves, and card numbers are never stored: only the last four digits are kept on the receipt.'),
-    h('div', { class: 'pay-methods' }, tablist, upi, card, nb),
+    testNote,
+    h('p', {}, 'You pay on Razorpay\'s secure payment window with UPI, a debit or credit card, net banking or a wallet. Your card number, UPI PIN and bank password go to Razorpay only; this site never sees them.'),
+    h('p', { class: 'small muted' }, 'If you close the window without paying, your berths stay held until the timer runs out.'),
     result,
     h('div', { class: 'row row--between' }, releaseBtn, payBtn));
 
   root.replaceChildren(h('div', { class: 'two-col' }, form, h('aside', { class: 'aside-sticky' }, summary(b))));
-  tabs(tablist, (tab) => { method = { 'tab-upi': 'UPI', 'tab-card': 'CARD', 'tab-nb': 'NETBANKING' }[tab.id]; clearFieldErrors(form); });
 
+  if (prepared.order?.testMode) {
+    testNote.replaceChildren(notice('info', 'Razorpay test mode: no real money moves.',
+      'In the payment window choose Netbanking and any bank, then press Success on Razorpay\'s test bank page. Failure shows what a declined payment looks like.'));
+  }
+  if (prepared.error?.code === 'PAYMENTS_UNAVAILABLE') {
+    payBtn.disabled = true;
+    result.replaceChildren(notice('error', 'Online payment is unavailable.', prepared.error.message));
+  }
+
+  let paying = false;
   const due = new Date(b.paymentDueAt).getTime();
   const tick = () => {
     const left = Math.max(0, Math.round((due - Date.now()) / 1000));
@@ -103,6 +88,7 @@ function render(b, banks) {
     countdown.classList.toggle('is-low', left <= 60);
     if (left === 0) {
       clearInterval(timer);
+      if (paying) return; // a payment in progress is settled by the server, which checks Razorpay before releasing anything
       payBtn.disabled = true;
       result.replaceChildren(notice('error', 'The hold has run out.', 'Your berths are being released. Search again to book.'));
       setTimeout(load, 3000);
@@ -111,48 +97,83 @@ function render(b, banks) {
   tick();
   timer = setInterval(tick, 1000);
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    clearFieldErrors(form);
-    result.replaceChildren();
-    const body = { method };
-    const bad = [];
-    if (method === 'UPI') {
-      body.upiId = $('#upi').value.trim();
-      if (!/^[A-Za-z0-9._-]{2,64}@[A-Za-z]{2,32}$/.test(body.upiId)) bad.push(['#upi', 'Enter a UPI ID like name@bank.']);
-    } else if (method === 'CARD') {
-      body.cardNumber = cardNo.value.replace(/\s/g, '');
-      body.cardExpiry = expiry.value;
-      body.cardCvv = $('#card-cvv').value;
-      body.cardName = $('#card-name').value.trim();
-      if (!/^\d{13,19}$/.test(body.cardNumber)) bad.push(['#card-no', 'Enter the card number.']);
-      if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(body.cardExpiry)) bad.push(['#card-exp', 'Enter the expiry as MM/YY.']);
-      if (!/^\d{3,4}$/.test(body.cardCvv)) bad.push(['#card-cvv', 'Enter the 3 or 4 digit code.']);
-      if (body.cardName.length < 2) bad.push(['#card-name', 'Enter the name on the card.']);
-    } else {
-      body.bankCode = form.querySelector('input[name="bank"]:checked')?.value;
-    }
-    if (bad.length) { bad.forEach(([s, m]) => setFieldError($(s), m)); $(bad[0][0]).focus(); return; }
-    setBusy(payBtn, true, 'Processing');
-    releaseBtn.disabled = true;
+  const done = (outcome) => {
+    paying = false;
+    setBusy(payBtn, false);
+    releaseBtn.disabled = false;
+    if (outcome) result.replaceChildren(outcome);
+  };
+
+  async function confirmPayment(resp) {
+    setBusy(payBtn, true, 'Confirming payment');
     try {
-      const res = await api(`/payments/${b.pnr}`, { method: 'POST', body });
+      const res = await api(`/payments/${b.pnr}/confirm`, { method: 'POST', body: {
+        orderId: resp.razorpay_order_id, paymentId: resp.razorpay_payment_id, signature: resp.razorpay_signature } });
       if (res.outcome === 'SUCCESS') {
         clearInterval(timer);
         location.assign(`/ticket.html?pnr=${b.pnr}&paid=1`);
         return;
       }
-      setBusy(payBtn, false);
-      releaseBtn.disabled = false;
-      result.replaceChildren(notice('error', 'The payment did not go through.', `${res.message} Try again or use another method.`));
+      if (res.outcome === 'REFUNDED') {
+        clearInterval(timer);
+        done(notice('error', 'Your payment was refunded.', res.message));
+        setTimeout(load, 6000);
+        return;
+      }
+      done(notice(res.outcome === 'PENDING' ? 'info' : 'error',
+        res.outcome === 'PENDING' ? 'Waiting for Razorpay.' : 'The payment did not go through.', res.message));
     } catch (err) {
-      setBusy(payBtn, false);
-      releaseBtn.disabled = false;
-      const map = { INVALID_UPI: '#upi', INVALID_CARD: '#card-no', INVALID_EXPIRY: '#card-exp', CARD_EXPIRED: '#card-exp', INVALID_CVV: '#card-cvv', INVALID_CARD_NAME: '#card-name' };
-      if (map[err.code]) { setFieldError($(map[err.code]), err.message); $(map[err.code]).focus(); return; }
       if (err.code === 'HOLD_EXPIRED' || err.code === 'PAYMENT_CLOSED') { load(); return; }
-      result.replaceChildren(notice('error', 'The payment did not go through.', err.message));
+      done(notice('error', 'We could not confirm the payment.', `${err.message} If money left your account, your ticket is booked or the amount refunded automatically within a few minutes.`));
     }
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (paying) return;
+    paying = true;
+    result.replaceChildren();
+    setBusy(payBtn, true, 'Opening Razorpay');
+    releaseBtn.disabled = true;
+    let order = prepared.order;
+    let Razorpay;
+    try {
+      [order, Razorpay] = await Promise.all([order || api(`/payments/${b.pnr}/order`, { method: 'POST' }), loadCheckout()]);
+      prepared.order = order;
+    } catch (err) {
+      if (err.code === 'ALREADY_PAID') { location.replace(`/ticket.html?pnr=${b.pnr}`); return; }
+      if (err.code === 'HOLD_EXPIRED' || err.code === 'PAYMENT_CLOSED') { load(); return; }
+      done(notice('error', 'Payment could not start.', err.message));
+      return;
+    }
+    let settled = false;
+    const rzp = new Razorpay({
+      key: order.keyId,
+      order_id: order.orderId,
+      amount: order.amount,
+      currency: order.currency,
+      name: order.name,
+      description: order.description,
+      prefill: order.prefill,
+      notes: { pnr: b.pnr },
+      theme: { color: '#1f5ed9' },
+      // Razorpay closes its window when the hold runs out, so nobody pays for released berths
+      timeout: Math.max(60, order.holdSecondsLeft),
+      retry: { enabled: true },
+      handler: (resp) => { settled = true; confirmPayment(resp); },
+      modal: {
+        confirm_close: true,
+        ondismiss: () => { if (!settled) done(notice('info', 'Payment window closed.', 'Nothing was charged. You can pay again while the berths are held.')); },
+      },
+    });
+    rzp.on('payment.failed', (resp) => {
+      const id = resp?.error?.metadata?.payment_id;
+      if (id) api(`/payments/${b.pnr}/failure`, { method: 'POST', body: { paymentId: id } }).catch(() => {});
+      result.replaceChildren(notice('error', 'That attempt did not go through.',
+        `${resp?.error?.description || 'The payment was declined.'} You can try again in the Razorpay window or choose another method.`));
+    });
+    setBusy(payBtn, true, 'Waiting for payment');
+    rzp.open();
   });
 
   const dialog = h('dialog', { class: 'dialog', 'aria-labelledby': 'rel-title' },
@@ -166,9 +187,10 @@ function render(b, banks) {
   $('#confirm-release').addEventListener('click', async (e) => {
     setBusy(e.currentTarget, true, 'Releasing');
     try {
-      await api(`/payments/${b.pnr}/abandon`, { method: 'POST' });
+      const after = await api(`/payments/${b.pnr}/abandon`, { method: 'POST' });
       clearInterval(timer);
       dialog.close();
+      if (after.status === 'BOOKED') { location.assign(`/ticket.html?pnr=${b.pnr}&paid=1`); return; }
       load();
     } catch (err) {
       setBusy(e.currentTarget, false);
@@ -185,11 +207,20 @@ async function load() {
     return;
   }
   try {
-    const [b, banks] = await Promise.all([api(`/bookings/${pnr}`), api('/payments/banks')]);
+    // Also picks up a payment made earlier whose result never reached us (for example, a closed tab)
+    const b = await api(`/payments/${pnr}/sync`, { method: 'POST' });
     setTitle(`Pay for PNR ${b.pnr}`);
     if (b.status === 'BOOKED' || b.status === 'PARTIALLY_CANCELLED' || b.status === 'CANCELLED') { location.replace(`/ticket.html?pnr=${b.pnr}`); return; }
     if (b.status !== 'PAYMENT_PENDING') { closed(b); return; }
-    render(b, banks);
+    // The Razorpay order is prepared now, so the button opens Checkout at once
+    const prepared = {};
+    try { prepared.order = await api(`/payments/${b.pnr}/order`, { method: 'POST' }); } catch (err) {
+      if (err.code === 'ALREADY_PAID') { location.replace(`/ticket.html?pnr=${b.pnr}`); return; }
+      if (err.code === 'HOLD_EXPIRED' || err.code === 'PAYMENT_CLOSED') { closed({ ...b, status: 'EXPIRED' }); return; }
+      prepared.error = err;
+    }
+    document.querySelectorAll('dialog').forEach((d) => d.remove());
+    render(b, prepared);
   } catch (err) {
     root.replaceChildren(notice('error', 'We could not load this booking.', err.message, h('button', { type: 'button', class: 'btn', onclick: load }, 'Try again')));
   }

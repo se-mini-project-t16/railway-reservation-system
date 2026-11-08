@@ -382,13 +382,10 @@ dl.facts dd { margin: var(--space-3xs) 0 0; font-weight: 800; }
 .chip:disabled { opacity: 0.55; cursor: not-allowed; }
 .countdown { font-size: var(--text-2xl); font-weight: 800; }
 .countdown.is-low { color: var(--color-error); }
-.pay-methods { margin-bottom: var(--space-lg); }
 .tabs { display: flex; overflow-x: auto; border-bottom: var(--rule-bar) solid var(--color-ink); margin-bottom: var(--space-lg); }
 .tabs [role="tab"], .tabs a { min-height: 44px; padding: 0 var(--space-md); border: 0; background: transparent; color: var(--color-ink); font: 500 var(--text-sm)/1 var(--font-body); cursor: pointer; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; transition: background-color var(--dur-micro) steps(1); }
 .tabs [role="tab"]:hover, .tabs a:hover { background: var(--color-paper-2); color: var(--color-ink); }
 .tabs [role="tab"][aria-selected="true"], .tabs a[aria-current="page"] { background: var(--color-ink); color: var(--color-paper); font-weight: 800; }
-.bank-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0; }
-.bank-grid label { margin: 0 calc(-1 * var(--rule-bar)) calc(-1 * var(--rule-bar)) 0; justify-content: flex-start; }
 .ticket-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-lg); align-items: end; padding-bottom: var(--space-lg); border-bottom: var(--rule-bar) solid var(--color-ink); margin-bottom: var(--space-lg); }
 .pnr-big { font-size: var(--text-display-s); font-weight: 800; line-height: 1; color: var(--color-accent); letter-spacing: -0.02em; overflow-wrap: break-word; min-width: 0; }
 .ticket-actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); justify-content: end; }

@@ -44,7 +44,7 @@ public class BookingMapper {
                 pay.getRefundedAmount().intValue())).toList();
         List<CancellationView> cancellations = auditRepository.findByPnrOrderByCancelledAtAsc(b.getPnr()).stream()
                 .map(a -> new CancellationView(a.getCancelledAt(), a.getReason(), a.getPassengersCancelled(),
-                        a.getRefundAmount().intValue())).toList();
+                        a.getRefundAmount().intValue(), a.getRefundRef(), a.getRefundStatus())).toList();
         int travellers = Math.max(1, b.getPassengers().size());
         return new BookingView(b.getPnr(), b.getStatus().name(), statusLabel(b.getStatus()), trainRef(b.getTrain()),
                 b.getCoachClass().code(), b.getCoachClass().label(), b.getQuota().code(), b.getQuota().label(),
