@@ -88,7 +88,7 @@ Open http://localhost:8080. The first start seeds 98 stations and 66 long-distan
 
 ### Keys and passwords
 
-Keys never go in the repository. Copy [`secrets.example.properties`](secrets.example.properties) to `../railway-secrets.properties` (the folder that contains this project) and fill it in, or set `RRS_SECRETS_FILE` to the path of your copy. The app reads it on start. Anything left empty is switched off cleanly:
+Keys are never committed. Copy [`secrets.example.properties`](secrets.example.properties) to `railway-secrets.properties` in the project folder and fill it in; git ignores that file. To keep it somewhere else, set `RRS_SECRETS_FILE` to its path. The app reads it on start. Anything left empty is switched off cleanly:
 
 | Key | Turns on |
 | --- | --- |
