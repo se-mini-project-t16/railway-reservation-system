@@ -37,11 +37,12 @@ async function loadBoard(code) {
     rows.slice(0, 5).forEach((d) => {
       tbody.append(h('tr', {},
         h('td', {}, h('span', { class: 'time' }, d.departure), d.tomorrow ? h('span', { class: 'train-no' }, 'Tomorrow') : null),
-        h('td', {}, h('a', { href: `/train.html?no=${d.number}`, class: 'dest' }, d.name), h('span', { class: 'train-no' }, d.number)),
-        h('td', {}, h('span', { class: 'dest' }, d.terminusCity))));
+        h('td', {}, h('a', { href: `/train.html?no=${d.number}`, class: 'dest' }, d.name), h('span', { class: 'train-no' }, d.number),
+          h('span', { class: 'to-sm' }, `To ${d.terminusCity}`)),
+        h('td', { class: 'hide-sm' }, h('span', { class: 'dest' }, d.terminusCity))));
     });
     board.replaceChildren(h('table', { class: 'board' },
-      h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Departs'), h('th', { scope: 'col' }, 'Train'), h('th', { scope: 'col' }, 'To'))),
+      h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Departs'), h('th', { scope: 'col' }, 'Train'), h('th', { scope: 'col', class: 'hide-sm' }, 'To'))),
       tbody),
       h('p', { class: 'small' }, h('a', { href: `/station.html?code=${code}` }, 'Full station board')));
   } catch (err) {

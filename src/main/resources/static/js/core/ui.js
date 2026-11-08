@@ -18,6 +18,8 @@ export function h(tag, attrs = {}, ...children) {
     else if (v === true) el.setAttribute(k, '');
     else el.setAttribute(k, String(v));
   }
+  // A table that scrolls sideways on a phone must be reachable by keyboard to scroll it (WCAG 2.1.1)
+  if (el.classList.contains('table-wrap') && !el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
   for (const c of children.flat(Infinity)) {
     if (c === null || c === undefined || c === false) continue;
     el.append(c instanceof Node ? c : document.createTextNode(String(c)));

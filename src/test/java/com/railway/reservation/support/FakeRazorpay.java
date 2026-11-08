@@ -94,7 +94,7 @@ public class FakeRazorpay implements PaymentGateway {
     public GatewayPayment fetchPayment(String paymentId) {
         check();
         GatewayPayment p = payments.get(paymentId);
-        if (p == null) throw new GatewayException("The id provided does not exist");
+        if (p == null) throw new GatewayException("The id provided does not exist", 400, null);
         return p;
     }
 

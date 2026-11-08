@@ -348,6 +348,13 @@ class RailJourneyIntegrationTest {
         confirm(asha, pnr, bobs).andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PAYMENT_MISMATCH"));
         confirm(asha, pnr, new FakeRazorpay.Paid("order_<script>", "pay_x", "abc"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+        // A payment id Razorpay has never issued is bad input, not a gateway failure
+        as(asha, post("/api/v1/payments/" + pnr + "/failure").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"paymentId\":\"pay_NoSuchPayment1\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("PAYMENT_MISMATCH"));
+        // A body in any format other than JSON is refused cleanly
+        as(asha, post("/api/v1/payments/" + pnr + "/confirm").contentType(MediaType.APPLICATION_XML).content("<x/>"))
+                .andExpect(status().isUnsupportedMediaType()).andExpect(jsonPath("$.code").value("UNSUPPORTED_MEDIA_TYPE"));
         assertThat(body(as(asha, get("/api/v1/bookings/" + pnr))).get("status").asText()).isEqualTo("PAYMENT_PENDING");
     }
 

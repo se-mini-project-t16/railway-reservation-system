@@ -177,8 +177,14 @@ public class RazorpayGateway implements PaymentGateway {
             return json.readTree(request.get());
         } catch (RestClientResponseException e) {
             String reason = errorDescription(e.getResponseBodyAsString());
-            log.error("Razorpay {} failed: {} {}", what, e.getStatusCode().value(), reason);
-            throw new GatewayException(reason, e);
+            int status = e.getStatusCode().value();
+            if (status == 400 || status == 404) {
+                // Razorpay looked and said no (an unknown id, usually from a bad request): not a fault here
+                log.warn("Razorpay {} refused: {} {}", what, status, reason);
+            } else {
+                log.error("Razorpay {} failed: {} {}", what, status, reason);
+            }
+            throw new GatewayException(reason, status, e);
         } catch (RestClientException e) {
             log.error("Razorpay {} failed: {}", what, e.getMessage());
             throw new GatewayException("Razorpay could not be reached", e);
@@ -198,7 +204,7 @@ public class RazorpayGateway implements PaymentGateway {
 
     /** Ids are only ever Razorpay's own (order_..., pay_...), never free text in a URL. */
     private static String safeId(String id) {
-        if (id == null || !id.matches("^[A-Za-z0-9_]{1,40}$")) throw new GatewayException("Invalid Razorpay id");
+        if (id == null || !id.matches("^[A-Za-z0-9_]{1,40}$")) throw new GatewayException("Invalid Razorpay id", 400, null);
         return id;
     }
 }

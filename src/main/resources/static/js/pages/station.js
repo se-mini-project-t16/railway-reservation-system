@@ -24,11 +24,12 @@ async function load(code, date) {
       return;
     }
     board.replaceChildren(h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
-      h('thead', {}, h('tr', {}, h('th', {}, 'Departs'), h('th', {}, 'Train'), h('th', {}, 'To'), h('th', { class: 'hide-sm' }, 'Arrives'))),
+      h('thead', {}, h('tr', {}, h('th', {}, 'Departs'), h('th', {}, 'Train'), h('th', { class: 'hide-sm' }, 'To'), h('th', { class: 'hide-sm' }, 'Arrives'))),
       h('tbody', {}, b.departures.map((d) => h('tr', {},
         h('td', {}, h('span', { class: 'time' }, d.departure)),
-        h('td', {}, h('a', { class: 'dest', href: `/train.html?no=${d.number}&from=${code}&date=${date}` }, d.name), h('span', { class: 'train-no' }, `${d.number}, ${d.typeLabel}`)),
-        h('td', {}, h('span', { class: 'dest' }, d.terminusCity), h('span', { class: 'train-no' }, d.terminusName)),
+        h('td', {}, h('a', { class: 'dest', href: `/train.html?no=${d.number}&from=${code}&date=${date}` }, d.name), h('span', { class: 'train-no' }, `${d.number}, ${d.typeLabel}`),
+          h('span', { class: 'to-sm' }, `To ${d.terminusCity}`)),
+        h('td', { class: 'hide-sm' }, h('span', { class: 'dest' }, d.terminusCity), h('span', { class: 'train-no' }, d.terminusName)),
         h('td', { class: 'hide-sm' }, d.terminusDay > 1 ? `${d.arrivalAtTerminus}, day ${d.terminusDay}` : d.arrivalAtTerminus,
           d.starts ? null : h('span', { class: 'train-no' }, 'Passing through'))))))));
   } catch (err) {

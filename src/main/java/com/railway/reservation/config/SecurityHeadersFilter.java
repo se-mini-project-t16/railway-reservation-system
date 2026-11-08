@@ -25,36 +25,27 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
             + "frame-ancestors 'none'";
 
     /**
-     * Hash of the {@code <style id="googleidentityservice_button_styles">} block Google's library adds.
-     * If Google changes it, the browser only logs a warning: the button is drawn inside Google's frame.
-     */
-    static final String GSI_BUTTON_STYLES = "sha256-RU4sU0AaS8IBGZx8XrGt/pa9A5SLA3dQszGeqT5L3Kw=";
-
-    /**
      * Google Identity Services, as listed in Google's own CSP guidance for the sign-in button.
-     * The library sizes its iframe with style attributes, so inline style attributes (never
-     * script) are allowed on these two pages only.
+     * The library injects its own styles, which change with Google's releases and with the
+     * signed-in state ("Continue as ..."), so inline styles are allowed on these pages only.
+     * Scripts stay limited to this site and Google's client.
      */
     static final String GOOGLE_POLICY = "default-src 'self'; "
             + "script-src 'self' https://accounts.google.com/gsi/client; "
-            + "style-src 'self' https://accounts.google.com/gsi/style '" + GSI_BUTTON_STYLES + "'; "
-            + "style-src-attr 'unsafe-inline'; font-src 'self'; "
+            + "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; font-src 'self'; "
             + "img-src 'self' data:; connect-src 'self' https://accounts.google.com/gsi/; "
             + "frame-src https://accounts.google.com/gsi/; object-src 'none'; base-uri 'self'; "
             + "form-action 'self'; frame-ancestors 'none'";
 
     static final Set<String> GOOGLE_PAGES = Set.of("/signin.html", "/account.html");
 
-    /** Hash of the one {@code <style>} block Razorpay Checkout adds to the page for its overlay. */
-    static final String CHECKOUT_STYLES = "sha256-VYoJM+B5VwF3YDs5YIEt5XASBqk8M2apkiuz5wugOu4=";
-
     /**
      * Razorpay Checkout: its script, and the frame on Razorpay's own domain where the payment is made.
-     * Checkout positions its overlay with style attributes, so those (never script) are allowed here.
+     * Checkout styles its overlay inline and changes those styles between releases, so inline styles
+     * (never scripts) are allowed on the pay page only.
      */
     static final String RAZORPAY_POLICY = "default-src 'self'; "
-            + "script-src 'self' https://checkout.razorpay.com; style-src 'self' '" + CHECKOUT_STYLES + "'; "
-            + "style-src-attr 'unsafe-inline'; font-src 'self'; "
+            + "script-src 'self' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline'; font-src 'self'; "
             + "img-src 'self' data: https://*.razorpay.com; connect-src 'self' https://*.razorpay.com; "
             + "frame-src https://api.razorpay.com https://checkout.razorpay.com; object-src 'none'; base-uri 'self'; "
             + "form-action 'self'; frame-ancestors 'none'";
