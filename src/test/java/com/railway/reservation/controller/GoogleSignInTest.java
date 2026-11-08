@@ -158,4 +158,12 @@ class GoogleSignInTest {
         assertThat(mvc.perform(get("/index.html")).andReturn().getResponse().getHeader("Content-Security-Policy"))
                 .doesNotContain("google").doesNotContain("unsafe-inline").contains("script-src 'self';");
     }
+
+    @Test
+    @DisplayName("TC-SEC-08: Requests that arrive over HTTPS are told to stay on HTTPS; plain local HTTP is not")
+    void strictTransportSecurity() throws Exception {
+        assertThat(mvc.perform(get("/index.html").header("X-Forwarded-Proto", "https")).andReturn().getResponse()
+                .getHeader("Strict-Transport-Security")).isEqualTo("max-age=31536000");
+        assertThat(mvc.perform(get("/index.html")).andReturn().getResponse().getHeader("Strict-Transport-Security")).isNull();
+    }
 }

@@ -1,6 +1,6 @@
 # Software Architecture and Design Specification (SAD)
 
-**Project:** Railway Reservation System (`v1.0`)
+**Project:** Railway Reservation System (`v2.0`, updated for the final product; changes from v1.0 are in [`docs/deviations`](../deviations/))
 
 Describes the 3-tier layered architecture, component design, STRIDE threat model, relational database schema, REST API specifications, and UML component and sequence diagrams.
 

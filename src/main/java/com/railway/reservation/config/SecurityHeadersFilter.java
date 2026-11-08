@@ -61,8 +61,17 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
             // Google's button needs the page origin (never the path or query) to confirm where it is shown
             response.setHeader("Referrer-Policy", GOOGLE_PAGES.contains(path) ? "strict-origin-when-cross-origin" : "same-origin");
             response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+            if (overHttps(request)) {
+                // Browsers that reached us over HTTPS (directly or through the TLS proxy) stay on HTTPS (RRS-SR-002)
+                response.setHeader("Strict-Transport-Security", "max-age=31536000");
+            }
         }
         chain.doFilter(request, response);
+    }
+
+    /** True for HTTPS requests, including those a TLS-terminating proxy such as Cloudflare forwards as HTTP. */
+    static boolean overHttps(HttpServletRequest request) {
+        return request.isSecure() || "https".equalsIgnoreCase(request.getHeader("X-Forwarded-Proto"));
     }
 
     static String policyFor(String path) {
