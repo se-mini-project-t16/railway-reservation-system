@@ -425,6 +425,8 @@ dl.facts dd { margin: var(--space-3xs) 0 0; font-weight: 800; }
 .google-btn iframe { color-scheme: light; }
 /* Google's placeholder logo, if its own styles are late, never grows past the button's size */
 .google-btn svg { width: 18px; height: 18px; }
+.link-btn { border: 0; padding: 0; background: none; color: var(--color-ink); font: inherit; text-decoration: underline; cursor: pointer; }
+.link-btn:hover { color: var(--color-accent); }
 .input--code { font-size: var(--text-xl); letter-spacing: 0.4em; font-variant-numeric: tabular-nums; }
 
 /* ------------------------------------------------------------------ admin */

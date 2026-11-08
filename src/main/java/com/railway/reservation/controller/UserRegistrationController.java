@@ -4,12 +4,14 @@ import com.railway.reservation.dto.AccountDtos.GoogleCredential;
 import com.railway.reservation.dto.AccountDtos.SignInOptions;
 import com.railway.reservation.dto.RegisterRequestDto;
 import com.railway.reservation.dto.RegisterResponseDto;
+import com.railway.reservation.dto.SignUpDtos.PasswordResetRequest;
 import com.railway.reservation.dto.SignUpDtos.ResendCodeRequest;
 import com.railway.reservation.dto.SignUpDtos.SignUpStarted;
 import com.railway.reservation.dto.SignUpDtos.VerifyEmailRequest;
 import com.railway.reservation.dto.LoginRequestDto;
 import com.railway.reservation.dto.LoginResponseDto;
 import com.railway.reservation.service.AuthenticationService;
+import com.railway.reservation.service.PasswordResetService;
 import com.railway.reservation.service.UserRegistrationService;
 import com.railway.reservation.service.google.GoogleSignInService;
 import com.railway.reservation.service.google.GoogleTokenVerifier;
@@ -37,16 +39,19 @@ public class UserRegistrationController {
     private final AuthenticationService authenticationService;
     private final GoogleSignInService googleSignInService;
     private final GoogleTokenVerifier googleTokenVerifier;
+    private final PasswordResetService passwordResetService;
 
     public UserRegistrationController(
             UserRegistrationService registrationService,
             AuthenticationService authenticationService,
             GoogleSignInService googleSignInService,
-            GoogleTokenVerifier googleTokenVerifier) {
+            GoogleTokenVerifier googleTokenVerifier,
+            PasswordResetService passwordResetService) {
         this.registrationService = registrationService;
         this.authenticationService = authenticationService;
         this.googleSignInService = googleSignInService;
         this.googleTokenVerifier = googleTokenVerifier;
+        this.passwordResetService = passwordResetService;
     }
 
     /** Step 1 of sign-up: emails a 6-digit code. The account does not exist until step 2. */
@@ -69,6 +74,18 @@ public class UserRegistrationController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequestDto request) {
         return ResponseEntity.ok(authenticationService.login(request));
+    }
+
+    /** Forgot password, step 1: emails a code if the address has an account. Answers the same either way. */
+    @PostMapping("/password/forgot")
+    public ResponseEntity<SignUpStarted> forgotPassword(@Valid @RequestBody ResendCodeRequest request) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(passwordResetService.request(request.email()));
+    }
+
+    /** Forgot password, step 2: the emailed code sets the new password and signs the passenger in. */
+    @PostMapping("/password/reset")
+    public ResponseEntity<LoginResponseDto> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
+        return ResponseEntity.ok(passwordResetService.reset(request.email(), request.code(), request.newPassword()));
     }
 
     /** Signs in with a Google account that the owner has already linked. Never creates an account. */

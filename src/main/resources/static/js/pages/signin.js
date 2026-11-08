@@ -199,3 +199,114 @@ $('#v-back').addEventListener('click', () => {
   $('#panel-up h1').textContent = 'Create an account';
   $('#su-email').focus();
 });
+
+// ------------------------------------------------------------------ forgot password: email, then code and new password
+
+let resetEmail = '';
+let resetTimer;
+const signinTitle = $('#panel-in h1');
+
+function showSignin(view) {
+  ['#signin', '#forgot', '#reset'].forEach((sel) => { $(sel).hidden = sel !== view; });
+  $('#google-signin').hidden = view !== '#signin' || !$('#google-btn').classList.contains('is-ready');
+  signinTitle.textContent = view === '#signin' ? 'Sign in to book' : view === '#forgot' ? 'Reset your password' : 'Check your email';
+}
+
+function resetCountdown(seconds) {
+  const btn = $('#rp-resend');
+  clearInterval(resetTimer);
+  let left = Math.max(0, Math.round(seconds));
+  const tick = () => {
+    btn.disabled = left > 0;
+    btn.textContent = left > 0 ? `Send a new code (${left}s)` : 'Send a new code';
+    if (left-- <= 0) clearInterval(resetTimer);
+  };
+  tick();
+  resetTimer = setInterval(tick, 1000);
+}
+
+function showReset(started) {
+  resetEmail = started.email;
+  showSignin('#reset');
+  $('#reset-sent').replaceChildren('If ', h('span', { class: 'strong' }, started.email),
+    ` has an account, a 6-digit code is on its way. It works for ${Math.round(started.expiresInSeconds / 60)} minutes.`);
+  $('#rp-code').value = '';
+  $('#rp-password').value = '';
+  $('#rp-error').replaceChildren();
+  clearFieldErrors($('#reset'));
+  resetCountdown(started.resendInSeconds);
+  $('#rp-code').focus();
+}
+
+$('#forgot-open').addEventListener('click', () => {
+  $('#fp-email').value = $('#si-email').value.trim();
+  showSignin('#forgot');
+  $('#fp-email').focus();
+});
+document.querySelectorAll('[data-back-to-signin]').forEach((b) => b.addEventListener('click', () => {
+  clearInterval(resetTimer);
+  showSignin('#signin');
+  $('#si-email').focus();
+}));
+
+$('#forgot').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.currentTarget;
+  clearFieldErrors(form);
+  $('#fp-error').replaceChildren();
+  const email = $('#fp-email').value.trim();
+  if (!EMAIL.test(email)) { setFieldError($('#fp-email'), 'Enter the email you registered with.'); $('#fp-email').focus(); return; }
+  const btn = form.querySelector('[type="submit"]');
+  setBusy(btn, true, 'Sending code');
+  try {
+    showReset(await api('/users/password/forgot', { method: 'POST', body: { email }, redirectOn401: false }));
+  } catch (ex) {
+    $('#fp-error').append(notice('error', 'Could not send the code.', ex.message));
+  } finally {
+    setBusy(btn, false);
+  }
+});
+
+$('#rp-code').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); });
+
+$('#reset').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.currentTarget;
+  clearFieldErrors(form);
+  $('#rp-error').replaceChildren();
+  const code = $('#rp-code').value.trim();
+  const newPassword = $('#rp-password').value;
+  let bad = false;
+  if (!/^\d{6}$/.test(code)) { setFieldError($('#rp-code'), 'Enter the 6-digit code from the email.'); bad = true; }
+  if (newPassword.length < 8) { setFieldError($('#rp-password'), 'Use at least 8 characters.'); bad = true; }
+  if (bad) { form.querySelector('[aria-invalid="true"]').focus(); return; }
+  const btn = form.querySelector('[type="submit"]');
+  setBusy(btn, true, 'Saving');
+  try {
+    const { token } = await api('/users/password/reset', { method: 'POST', body: { email: resetEmail, code, newPassword }, redirectOn401: false });
+    setToken(token);
+    try { sessionStorage.removeItem('rrs.me'); } catch { /* ignore */ }
+    clearInterval(resetTimer);
+    location.assign(next);
+  } catch (ex) {
+    setBusy(btn, false);
+    if (ex.code === 'CODE_INVALID' || ex.code === 'CODE_EXPIRED') { setFieldError($('#rp-code'), ex.message); $('#rp-code').select(); return; }
+    if (!showFieldErrors(form, ex.fieldErrors, (f) => ({ code: $('#rp-code'), newPassword: $('#rp-password') }[f] || null))) {
+      $('#rp-error').append(notice('error', 'The password was not changed.', ex.message));
+    }
+  }
+});
+
+$('#rp-resend').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  setBusy(btn, true, 'Sending');
+  try {
+    const started = await api('/users/password/forgot', { method: 'POST', body: { email: resetEmail }, redirectOn401: false });
+    setBusy(btn, false);
+    showReset(started);
+    $('#rp-status').textContent = 'A new code is on its way. Only the newest code works.';
+  } catch (ex) {
+    setBusy(btn, false);
+    $('#rp-error').append(notice('error', 'No new code was sent.', ex.message));
+  }
+});
