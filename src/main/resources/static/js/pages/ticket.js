@@ -70,7 +70,7 @@ export function renderTicket(container, b, { apiBase = '/bookings', onChange, fl
       h('tr', { class: 'total' }, h('td', {}, paid ? 'Paid' : 'Total'), h('td', { class: 'num' }, money(f.total))),
       b.refundTotal > 0 ? h('tr', {}, h('td', {}, 'Refunded'), h('td', { class: 'num' }, money(b.refundTotal))) : null)),
     paid ? h('dl', { class: 'facts', style: null },
-      h('div', {}, h('dt', {}, 'Transaction'), h('dd', {}, paid.txnRef)),
+      h('div', {}, h('dt', {}, 'Payment ID'), h('dd', {}, paid.txnRef)),
       h('div', {}, h('dt', {}, 'Paid with'), h('dd', {}, paid.instrument)),
       h('div', {}, h('dt', {}, 'Paid on'), h('dd', {}, fmtDateTime(paid.at)))) : null);
 
@@ -79,7 +79,8 @@ export function renderTicket(container, b, { apiBase = '/bookings', onChange, fl
     h('table', { class: 'table' }, h('thead', {}, h('tr', {}, h('th', {}, 'When'), h('th', {}, 'By'), h('th', {}, 'Travellers'), h('th', { class: 'num' }, 'Refund'))),
       h('tbody', {}, b.cancellations.map((c) => h('tr', {}, h('td', {}, fmtDateTime(c.at)),
         h('td', {}, { PASSENGER: 'You', ADMIN: 'Railway staff', AUTO_WAITLIST: 'Automatic, still waitlisted at chart' }[c.reason] || c.reason),
-        h('td', {}, c.passengers), h('td', { class: 'num' }, money(c.refund))))))) : null;
+        h('td', {}, c.passengers), h('td', { class: 'num' }, money(c.refund),
+          c.refundRef ? h('div', { class: 'small muted' }, `Refund ${c.refundRef}`) : null)))))) : null;
 
   const notes = h('section', { class: 'panel panel--flat' }, h('h2', {}, 'Before you travel'),
     h('p', { class: 'small' }, 'Carry a photo ID matching one traveller on this ticket. RAC travellers share a side berth. A ticket still fully waitlisted when the chart is prepared is cancelled automatically and refunded, less a clerkage charge.'),

@@ -123,7 +123,7 @@ public class TicketPdfService {
                 float py = y + 15 * (lines.size() + 1) + 8;
                 text(cs, bold, 11, px, py, INK, "Payment");
                 if (paid != null) {
-                    text(cs, regular, 10, px, py - 19, INK, "Transaction " + paid.txnRef());
+                    text(cs, regular, 10, px, py - 19, INK, "Payment ID " + paid.txnRef());
                     text(cs, regular, 10, px, py - 34, INK, paid.instrument());
                     text(cs, regular, 10, px, py - 49, INK, "Paid " + paid.at().format(STAMP));
                 }

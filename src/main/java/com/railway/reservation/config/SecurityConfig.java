@@ -90,7 +90,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/sign-in-options").permitAll()
                 // Guests can discover journeys and check a PNR (statuses only, no names) [RRS-F-004, RRS-F-011]
                 .requestMatchers(HttpMethod.GET, "/api/v1/stations/**", "/api/v1/trains/**", "/api/v1/pnr/**",
-                        "/api/v1/policies/**", "/api/v1/payments/banks").permitAll()
+                        "/api/v1/policies/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/bookings/quote").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 // Booking, payment, tickets and the account need a signed-in owner [RRS-SR-006]

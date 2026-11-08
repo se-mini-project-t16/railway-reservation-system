@@ -5,7 +5,10 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** One payment attempt against a booking. Only masked instrument details are stored. */
+/**
+ * One payment attempt against a booking. {@code txnRef} is the provider's payment id (pay_...) and
+ * {@code gatewayOrderId} its order id; only a masked description of the instrument is stored.
+ */
 @Entity
 @Table(name = "payments")
 public class Payment {
@@ -20,6 +23,10 @@ public class Payment {
 
     @Column(name = "txn_ref", nullable = false, unique = true, length = 24)
     private String txnRef;
+
+    /** The provider's order id; empty only for payments recorded before online payment existed. */
+    @Column(name = "gateway_order_id", length = 40)
+    private String gatewayOrderId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 12)
@@ -46,9 +53,10 @@ public class Payment {
 
     protected Payment() {}
 
-    public Payment(String txnRef, PaymentMethod method, String instrument, BigDecimal amount,
+    public Payment(String txnRef, String gatewayOrderId, PaymentMethod method, String instrument, BigDecimal amount,
                    PaymentStatus status, String failureReason, LocalDateTime createdAt) {
         this.txnRef = txnRef;
+        this.gatewayOrderId = gatewayOrderId;
         this.method = method;
         this.instrument = instrument;
         this.amount = amount;
@@ -61,6 +69,13 @@ public class Payment {
     public Booking getBooking() { return booking; }
     void setBooking(Booking booking) { this.booking = booking; }
     public String getTxnRef() { return txnRef; }
+    public String getGatewayOrderId() { return gatewayOrderId; }
+    public boolean viaGateway() { return gatewayOrderId != null; }
+    public void markRefunded(String reason) {
+        this.status = PaymentStatus.REFUNDED;
+        this.refundedAmount = amount;
+        this.failureReason = reason;
+    }
     public PaymentMethod getMethod() { return method; }
     public String getInstrument() { return instrument; }
     public BigDecimal getAmount() { return amount; }

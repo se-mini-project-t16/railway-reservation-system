@@ -1,3 +1,4 @@
 package com.railway.reservation.model;
 
-public enum PaymentStatus { SUCCESS, FAILED }
+/** SUCCESS: captured and kept. FAILED: declined or abandoned at the provider. REFUNDED: captured, then returned in full. */
+public enum PaymentStatus { SUCCESS, FAILED, REFUNDED }

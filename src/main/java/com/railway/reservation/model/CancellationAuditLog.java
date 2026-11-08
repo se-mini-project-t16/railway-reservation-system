@@ -32,6 +32,13 @@ public class CancellationAuditLog {
     @Column(name = "cancelled_at", nullable = false)
     private LocalDateTime cancelledAt;
 
+    /** The provider's refund id (rfnd_...), when the money went back through the payment provider. */
+    @Column(name = "refund_ref", length = 40)
+    private String refundRef;
+
+    @Column(name = "refund_status", length = 16)
+    private String refundStatus;
+
     protected CancellationAuditLog() {}
 
     public CancellationAuditLog(String pnr, Long actorUserId, String reason, int passengersCancelled,
@@ -51,4 +58,10 @@ public class CancellationAuditLog {
     public int getPassengersCancelled() { return passengersCancelled; }
     public BigDecimal getRefundAmount() { return refundAmount; }
     public LocalDateTime getCancelledAt() { return cancelledAt; }
+    public String getRefundRef() { return refundRef; }
+    public String getRefundStatus() { return refundStatus; }
+    public void setRefund(String ref, String status) {
+        this.refundRef = ref;
+        this.refundStatus = status;
+    }
 }

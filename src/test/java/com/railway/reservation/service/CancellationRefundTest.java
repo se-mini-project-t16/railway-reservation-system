@@ -21,7 +21,7 @@ import static org.mockito.Mockito.when;
 class CancellationRefundTest {
 
     private final CancellationRuleRepository rules = mock(CancellationRuleRepository.class);
-    private final CancellationService service = new CancellationService(rules, null, null, null);
+    private final CancellationService service = new CancellationService(rules, null, null, null, null);
     private final LocalDateTime departure = LocalDateTime.of(2026, 11, 20, 10, 0);
 
     @BeforeEach

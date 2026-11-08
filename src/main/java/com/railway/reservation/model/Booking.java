@@ -102,6 +102,10 @@ public class Booking {
     @Column(name = "payment_due_at")
     private LocalDateTime paymentDueAt;
 
+    /** The provider's order for this booking's fare, created when the passenger first opens payment. */
+    @Column(name = "payment_order_id", length = 40)
+    private String paymentOrderId;
+
     @Column(name = "booked_at")
     private LocalDateTime bookedAt;
 
@@ -197,6 +201,11 @@ public class Booking {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getPaymentDueAt() { return paymentDueAt; }
     public void setPaymentDueAt(LocalDateTime paymentDueAt) { this.paymentDueAt = paymentDueAt; }
+    public String getPaymentOrderId() { return paymentOrderId; }
+    public void setPaymentOrderId(String paymentOrderId) { this.paymentOrderId = paymentOrderId; }
+    public Payment payment(String txnRef) {
+        return payments.stream().filter(p -> p.getTxnRef().equals(txnRef)).findFirst().orElse(null);
+    }
     public LocalDateTime getBookedAt() { return bookedAt; }
     public void setBookedAt(LocalDateTime bookedAt) { this.bookedAt = bookedAt; }
     public LocalDateTime getClosedAt() { return closedAt; }

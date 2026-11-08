@@ -6,7 +6,6 @@ import com.railway.reservation.dto.TrainDtos.FareDto;
 import com.railway.reservation.model.BerthPreference;
 import com.railway.reservation.model.FoodChoice;
 import com.railway.reservation.model.Gender;
-import com.railway.reservation.model.PaymentMethod;
 import com.railway.reservation.validation.SafeText;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -14,6 +13,7 @@ import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /** Requests and read models for booking, payment, tickets, PNR status and cancellation. */
 public final class BookingDtos {
@@ -62,9 +62,20 @@ public final class BookingDtos {
 
     public record CancelRequest(@NotEmpty(message = "Choose at least one traveller to cancel.") List<Long> passengerIds) {}
 
-    public record PaymentRequest(
-            @NotNull(message = "Choose how to pay.") PaymentMethod method,
-            String upiId, String cardNumber, String cardExpiry, String cardCvv, String cardName, String bankCode) {}
+    /** What the browser needs to open Razorpay Checkout for a held booking. Amounts are in paise. */
+    public record CheckoutOrder(String keyId, String orderId, long amount, String currency, String name,
+                                String description, Map<String, String> prefill, long holdSecondsLeft,
+                                boolean testMode) {}
+
+    /** Checkout's success callback, passed through for the server to verify. */
+    public record PaymentConfirmation(
+            @NotBlank @Pattern(regexp = "^order_[A-Za-z0-9]{1,30}$", message = "Invalid order id.") String orderId,
+            @NotBlank @Pattern(regexp = "^pay_[A-Za-z0-9]{1,30}$", message = "Invalid payment id.") String paymentId,
+            @NotBlank @Pattern(regexp = "^[a-fA-F0-9]{64}$", message = "Invalid signature.") String signature) {}
+
+    /** Checkout reported a failed attempt; the server looks the payment up itself. */
+    public record PaymentFailure(
+            @NotBlank @Pattern(regexp = "^pay_[A-Za-z0-9]{1,30}$", message = "Invalid payment id.") String paymentId) {}
 
     // ------------------------------------------------------------------ views
 
@@ -80,7 +91,8 @@ public final class BookingDtos {
     public record PaymentView(String txnRef, String method, String instrument, int amount, String status,
                               String failureReason, LocalDateTime at, int refunded) {}
 
-    public record CancellationView(LocalDateTime at, String reason, int passengers, int refund) {}
+    public record CancellationView(LocalDateTime at, String reason, int passengers, int refund, String refundRef,
+                                   String refundStatus) {}
 
     public record BookingView(String pnr, String status, String statusLabel, TrainRef train, String classCode,
                               String classLabel, String quota, String quotaLabel, EndPoint from, EndPoint to,

@@ -2,7 +2,7 @@
 
 Mini project for the Software Engineering course (`UE24CS341A`).
 
-A comprehensive, production-grade web-based Railway Reservation System that allows passengers to search trains, check real-time seat availability, book tickets with automatic seat allocation and online payment simulation, download printable PDF e-tickets, track booking history, query PNR status, and cancel bookings with automated rule-based refund calculation. The system also includes an administrative management module for configuring trains, routes, schedules, and fares, alongside filtered booking reports and audit logging.
+A comprehensive, production-grade web-based Railway Reservation System that allows passengers to search trains, check real-time seat availability, book tickets with automatic seat allocation and online payment through Razorpay (test mode), download printable PDF e-tickets, track booking history, query PNR status, and cancel bookings with automated rule-based refund calculation. The system also includes an administrative management module for configuring trains, routes, schedules, and fares, alongside filtered booking reports and audit logging.
 
 ## Team Members (Team 16)
 
@@ -59,9 +59,10 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 - **Fares** calculated on the server from distance (tapering rates for long journeys), class, reservation and superfast charges, catering on premium trains, Tatkal charges and 5% GST on AC classes.
 - **Booking** in three steps (travellers, review, payment) for up to six travellers (four for Tatkal), with berth and meal preferences, lower berths for travellers aged 60+ and women aged 45+, groups seated together, saved travellers, and an option to book only if every berth is confirmed. Booking needs sign-in; guests are returned to the same booking after signing in.
 - **Quotas:** General, and Tatkal opening at 10:00 (AC) or 11:00 (non-AC) the day before the train leaves its origin.
-- **Payment** (simulated) by UPI, card or net banking, with a 10-minute seat hold, a live countdown, declines and retries, and protection against double charging. Card numbers are never stored.
+- **Payment through Razorpay** (test mode, so no real money moves) by card, net banking, wallet or UPI where enabled, with a 10-minute seat hold and a live countdown. The server creates the Razorpay order, checks Checkout's signature and confirms the payment with Razorpay before booking. A payment whose page never reported back is picked up when the pay page reopens or when the hold would lapse, and money that arrives after a hold ended is refunded in full automatically. Card numbers, UPI PINs and bank passwords never reach this server.
+- **Refunds through Razorpay** to the original payment method whenever travellers are cancelled, including the automatic cancellation of waitlisted tickets at chart time. If Razorpay cannot start a refund, nothing is cancelled.
 - **E-ticket** page and PDF, print view, public **PNR status** (statuses only, never names), and **My trips** (upcoming, past, cancelled).
-- **Cancellation** of some or all travellers, with a refund preview from the rule table before confirming. Freed berths go to RAC, and RAC places go to the waiting list automatically.
+- **Cancellation** of some or all travellers, with a refund preview from the rule table before confirming, and the Razorpay refund reference on the ticket. Freed berths go to RAC, and RAC places go to the waiting list automatically.
 - **Train schedule** pages (route, halts, day numbers, coach composition), **station boards**, a refund rules page, and an account page with profile, password change and saved travellers.
 - **Email verification at sign-up:** a 6-digit code is emailed and the account is created only once it is entered. Codes expire after 10 minutes, allow five wrong tries, and can be re-sent once a minute (five an hour). The mobile number is a contact number and is not verified.
 - **Sign in with Google** for passengers who have linked a Google account from their account page. Google only signs in to an existing account; it never creates one, and a locked account stays locked.
@@ -92,6 +93,7 @@ Keys never go in the repository. Copy [`secrets.example.properties`](secrets.exa
 | Key | Turns on |
 | --- | --- |
 | `spring.mail.username`, `spring.mail.password` | Emailing sign-up codes through Gmail. Use the Gmail address that owns a Gmail app password (2-Step Verification must be on). Without them, codes are written to the server log so sign-up still works on a local copy. |
+| `app.razorpay.key-id`, `app.razorpay.key-secret` | Online payment and refunds through Razorpay. Test keys (`rzp_test_...`) from the Razorpay dashboard move no real money. Without them, the pay page says online payment is unavailable. |
 | `app.google.client-id` | "Sign in with Google". Create a Web application OAuth client in Google Cloud Console and add `http://localhost:8080` (and any public address you use) under Authorized JavaScript origins. |
 
 Useful settings (environment variables):
@@ -103,7 +105,7 @@ Useful settings (environment variables):
 | `DB_URL` | JDBC URL, for example `jdbc:h2:mem:railwaydb` for a throwaway database | `./data/railwaydb` |
 | `H2_CONSOLE` | `true` to enable the H2 console at `/h2-console` | `false` |
 
-For testing payments: card `4111 1111 1111 1111` (any future expiry, any CVV) succeeds, card `4000 0000 0000 0002` is declined, and any UPI ID starting with `decline` is declined.
+Paying in Razorpay test mode: in the payment window choose **Netbanking**, pick any bank, then press **Success** on Razorpay's test bank page (**Failure** shows a declined payment). Razorpay's [test card numbers](https://razorpay.com/docs/payments/payments/test-card-details/) also work.
 
 ### Running Automated Tests
 
