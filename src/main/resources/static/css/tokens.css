@@ -28,6 +28,9 @@
   --body-weight: 400;
 }
 
+/* Light chosen in the app: native controls (the date picker's calendar icon) follow it, not the system theme */
+[data-mode="light"] { color-scheme: light; }
+
 /* Night: the platform after dark. Hue stays, elevation steps lighter, shadows go. */
 [data-mode="dark"] {
   color-scheme: dark;
