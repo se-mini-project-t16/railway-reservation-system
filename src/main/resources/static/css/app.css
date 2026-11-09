@@ -464,7 +464,7 @@ dl.facts dd { margin: var(--space-3xs) 0 0; font-weight: 800; }
 .berth small { display: block; font-size: 0.6875rem; color: var(--color-muted); }
 .berth.is-other { background: var(--color-berth-other); color: var(--color-muted); border-color: var(--color-berth-other); }
 .berth.is-booked { background: var(--color-ink); color: var(--color-paper); border-color: var(--color-ink); cursor: pointer; }
-.berth.is-booked small { color: var(--color-plate-muted); }
+.berth.is-booked small { color: var(--color-paper-2); }
 .berth.is-part { background: var(--color-accent-2); color: var(--color-amber-ink); border-color: var(--color-accent-2); cursor: pointer; }
 .berth.is-part small { color: var(--color-amber-ink); }
 button.berth:hover { outline: var(--rule-bar) solid var(--color-accent); outline-offset: -2px; }
