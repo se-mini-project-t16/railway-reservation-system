@@ -145,9 +145,9 @@ Unit test report, system validation report, code coverage report and branch cove
 
 Every place where the final product differs from the submitted SRS, SAD and test plan v1.0, and why, as a Word document and a PDF.
 
-### [7. Sprint 01 Demonstration Video](docs/demo/)
+### [7. Demonstration Videos](docs/demo/)
 
-Complete end-to-end silent video demonstration (1 min 15 sec) illustrating the application startup, train search, real-time seat availability check, demo account auto-fill, ticket booking with PNR allocation, printable ERS slip, and PNR status lookup.
+Silent 1080p walkthroughs, with a step-by-step guide and timestamps in [`docs/demo/README.md`](docs/demo/README.md).
 
-- Walkthrough documentation: [`docs/demo/README.md`](docs/demo/README.md)
-- Video file: [`docs/demo/sprint-01-demo.mp4`](docs/demo/sprint-01-demo.mp4)
+- **Sprint 1** (1 min 15 s): [`docs/demo/sprint-01-demo.mp4`](docs/demo/sprint-01-demo.mp4). The first version: application startup, train search, seat availability, demo account auto-fill, booking with a PNR, the printable slip and PNR status.
+- **Sprint 2** (2 min): [`docs/demo/sprint-02-demo.mp4`](docs/demo/sprint-02-demo.mp4). The final product on the live site: search, sign-in with Google, booking two travellers, payment in Razorpay test mode, the e-ticket, PDF and confirmation email, cancelling a traveller with a Razorpay refund and its email, then the operations console (overview, bookings report, reservation chart, trains) and My trips.
