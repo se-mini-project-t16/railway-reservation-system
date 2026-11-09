@@ -52,7 +52,7 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 - Rebuilt the reservation engine and the whole interface. See the capabilities below.
 - Search and refund boundary tests, an accessibility audit with its fixes, and the four Part 3 test reports. 146 automated tests, 80.0% line coverage and 63.2% branch coverage.
 - **Spill-over (7th and 8th Nov, issues #80 to #86):** sign-in with a linked Google account, email verification at sign-up, Razorpay payments and refunds in place of the simulated gateway, e-ticket and cancellation emails, password reset, a full-site check with its fixes, and updated SRS, SAD, test plan and a deviations document. 195 automated tests, 83.0% line coverage and 65.7% branch coverage.
-- **Testing on the final build (8th and 9th Nov):** a usability test on the live site with the other three team members (`RRS-NF-003`), then the system validation run again: the Postman collection (56 requests), a browser journey with real Razorpay test payments and refunds, a 100-user load test, security checks and an accessibility sweep of all 24 pages. The four Part 3 reports were rebuilt from it.
+- **Testing on the final build (8th and 9th Nov):** a usability test on the live site with the other three team members (`RRS-NF-003`), then the system validation run again: the Postman collection (56 requests), a browser journey with real Razorpay test payments and refunds, a 100-user load test, security checks and an accessibility sweep of all 24 pages. The four Part 3 reports were rebuilt from it, after four more tests for the last gaps (fare quote, saved travellers, train edits, cancel refusals) and a browser check of the idle timeout: 199 automated tests, 84.7% line coverage and 69.0% branch coverage.
 
 ## System Capabilities
 
@@ -131,7 +131,7 @@ Version 2.0. Models the 3-tier layered architecture, the Razorpay, Gmail and Goo
 
 ### [3. Software Test Plan (STP)](docs/test-plan/)
 
-Outlines the unit, integration, system, performance, and security testing strategy, test schedule, environment setup, and test cases mapped to the SRS requirements. Version 3.1 lists all 195 automated tests and maps each of the 28 requirements to them, or to the manual runs for load, accessibility and usability.
+Outlines the unit, integration, system, performance, and security testing strategy, test schedule, environment setup, and test cases mapped to the SRS requirements. Version 3.1 lists all 199 automated tests and maps each of the 28 requirements to them, or to the manual runs for load, accessibility and usability.
 
 ### [4. Performance Benchmark](docs/performance/issue17-search-benchmark.md)
 

@@ -236,6 +236,32 @@ class RailJourneyIntegrationTest {
     }
 
     @Test
+    @DisplayName("TC-BK-04: The fare quote before booking matches what the booking then charges, part by part")
+    void quoteMatchesBooking() throws Exception {
+        Map<String, Object> q = Map.of("trainNumber", "12901", "from", "AAA", "to", "DDD",
+                "date", MONDAY.plusDays(3).toString(), "classCode", "3A", "quota", "GN", "passengers", 2);
+        JsonNode quote = body(as(null, post("/api/v1/bookings/quote").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(q))).andExpect(status().isOk()));
+        assertThat(quote.get("from").get("code").asText()).isEqualTo("AAA");
+        assertThat(quote.get("to").get("code").asText()).isEqualTo("DDD");
+        assertThat(quote.get("passengers").asInt()).isEqualTo(2);
+        assertThat(quote.get("total").get("total").asInt()).isEqualTo(2 * quote.get("perPassenger").get("total").asInt());
+        assertThat(quote.get("berthPreferences")).isNotEmpty();
+
+        JsonNode booked = book(asha, MONDAY.plusDays(3), "3A", 2);
+        assertThat(booked.get("fare").get("total").asInt()).isEqualTo(quote.get("total").get("total").asInt());
+
+        Map<String, Object> wrong = new HashMap<>(q);
+        wrong.put("classCode", "1A");
+        as(null, post("/api/v1/bookings/quote").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(wrong)))
+                .andExpect(status().is4xxClientError());
+        wrong.put("classCode", "3A");
+        wrong.put("passengers", 7);
+        as(null, post("/api/v1/bookings/quote").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(wrong)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("TC-BK-02: Missing or invalid traveller details are rejected field by field")
     void bookingValidation() throws Exception {
         Map<String, Object> bad = bookingBody(MONDAY.plusDays(2), "SL", "GN", 1);
@@ -574,6 +600,45 @@ class RailJourneyIntegrationTest {
     }
 
     @Test
+    @DisplayName("TC-CAN-13: Cancelling an unpaid or already cancelled ticket, nobody, a traveller from another ticket, or after departure is refused")
+    void badCancelRequests() throws Exception {
+        String held = book(asha, MONDAY.plusDays(3), "SL", 1).get("pnr").asText();
+        long heldId = body(as(asha, get("/api/v1/bookings/" + held))).get("passengers").get(0).get("id").asLong();
+        as(asha, post("/api/v1/bookings/" + held + "/cancel").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"passengerIds\":[" + heldId + "]}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("NOT_PAID"));
+
+        JsonNode paid = paidBooking(MONDAY.plusDays(3), 2);
+        String pnr = paid.get("pnr").asText();
+        as(asha, post("/api/v1/bookings/" + pnr + "/cancel").contentType(MediaType.APPLICATION_JSON).content("{\"passengerIds\":[]}"))
+                .andExpect(status().isBadRequest());
+        as(asha, post("/api/v1/bookings/" + pnr + "/cancel").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"passengerIds\":[" + paid.get("passengers").get(0).get("id").asLong() + "," + heldId + "]}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("UNKNOWN_TRAVELLER"));
+        as(asha, post("/api/v1/bookings/" + pnr + "/cancel/preview").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"passengerIds\":[" + heldId + "]}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("UNKNOWN_TRAVELLER"));
+
+        JsonNode after = body(as(asha, get("/api/v1/bookings/" + pnr)));
+        assertThat(after.get("status").asText()).isEqualTo("BOOKED");
+        assertThat(razorpay.refunds()).isEmpty();
+
+        // A fully cancelled ticket cannot be cancelled again
+        JsonNode single = paidBooking(MONDAY.plusDays(4), 1);
+        long singleId = single.get("passengers").get(0).get("id").asLong();
+        cancel(single.get("pnr").asText(), singleId);
+        as(asha, post("/api/v1/bookings/" + single.get("pnr").asText() + "/cancel").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"passengerIds\":[" + singleId + "]}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("NOT_CANCELLABLE"));
+
+        // Once the train has left the boarding station, a confirmed ticket can no longer be cancelled
+        clock.set(MONDAY.plusDays(3).atTime(9, 0));
+        as(asha, post("/api/v1/bookings/" + pnr + "/cancel").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"passengerIds\":[" + paid.get("passengers").get(0).get("id").asLong() + "]}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("TOO_LATE"));
+    }
+
+    @Test
     @DisplayName("TC-CAN-01: Cancelling some travellers refunds them, leaves the rest booked, and refuses a repeat")
     void partialCancellation() throws Exception {
         JsonNode b = paidBooking(MONDAY.plusDays(5), 2);
@@ -710,6 +775,55 @@ class RailJourneyIntegrationTest {
     }
 
     @Test
+    @DisplayName("TC-ADM-07: Editing a train: classes and route change freely without tickets; with tickets, coaches can only be added")
+    void adminTrainEditRules() throws Exception {
+        as(admin, post("/api/v1/admin/trains").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(RailFixtures.trainForm("12999", "New Service")))).andExpect(status().isCreated());
+
+        // No tickets yet: drop 3A, add CC, and shorten the route to AAA - BBB
+        Map<String, Object> edit = new HashMap<>(RailFixtures.trainForm("12999", "New Service"));
+        edit.put("classes", List.of(Map.of("code", "SL", "coaches", 3), Map.of("code", "CC", "coaches", 1)));
+        edit.put("stops", List.of(
+                Map.of("code", "AAA", "arrival", "", "departure", "09:00", "day", 1, "distanceKm", 0),
+                Map.of("code", "BBB", "arrival", "11:00", "departure", "", "day", 1, "distanceKm", 160)));
+        JsonNode t = body(as(admin, put("/api/v1/admin/trains/12999").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(edit))).andExpect(status().isOk()));
+        assertThat(t.get("classes")).extracting(n -> n.get("code").asText()).containsExactlyInAnyOrder("SL", "CC");
+        assertThat(t.get("stops")).hasSize(2);
+
+        // Bad forms
+        Map<String, Object> bad = new HashMap<>(edit);
+        bad.put("classes", List.of(Map.of("code", "SL", "coaches", 1), Map.of("code", "SL", "coaches", 2)));
+        as(admin, put("/api/v1/admin/trains/12999").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(bad)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("DUPLICATE_CLASS"));
+        bad.put("classes", List.of(Map.of("code", "XX", "coaches", 1)));
+        as(admin, put("/api/v1/admin/trains/12999").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(bad)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("UNKNOWN_CLASS"));
+        bad = new HashMap<>(edit);
+        bad.put("number", "12998");
+        as(admin, put("/api/v1/admin/trains/12999").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(bad)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("NUMBER_CHANGE"));
+
+        // The fixture train 12901 has a paid ticket: more coaches is fine, fewer, a dropped class or a new route is not
+        paidBooking(MONDAY.plusDays(2), 1);
+        Map<String, Object> form = new HashMap<>(Map.of("number", "12901", "name", "Test Superfast", "type", "SUPERFAST",
+                "runningDays", "1111111", "pantry", true, "active", true));
+        form.put("classes", List.of(Map.of("code", "SL", "coaches", 2), Map.of("code", "3A", "coaches", 1), Map.of("code", "CC", "coaches", 1)));
+        as(admin, put("/api/v1/admin/trains/12901").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(form)))
+                .andExpect(status().isOk());
+        form.put("classes", List.of(Map.of("code", "SL", "coaches", 1), Map.of("code", "3A", "coaches", 1), Map.of("code", "CC", "coaches", 1)));
+        as(admin, put("/api/v1/admin/trains/12901").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(form)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CLASS_LOCKED"));
+        form.put("classes", List.of(Map.of("code", "SL", "coaches", 2), Map.of("code", "3A", "coaches", 1)));
+        as(admin, put("/api/v1/admin/trains/12901").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(form)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CLASS_LOCKED"));
+        form.put("classes", List.of(Map.of("code", "SL", "coaches", 2), Map.of("code", "3A", "coaches", 1), Map.of("code", "CC", "coaches", 1)));
+        form.put("stops", edit.get("stops"));
+        as(admin, put("/api/v1/admin/trains/12901").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(form)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ROUTE_LOCKED"));
+    }
+
+    @Test
     @DisplayName("TC-ADM-03: A train with tickets keeps its route, cannot be deleted, and can be stopped from taking bookings")
     void trainWithBookingsIsProtected() throws Exception {
         paidBooking(MONDAY.plusDays(2), 1);
@@ -764,6 +878,34 @@ class RailJourneyIntegrationTest {
         assertThat(body(as(bob, get("/api/v1/me/travellers")))).isEmpty();
         as(bob, delete("/api/v1/me/travellers/" + t.get("id").asLong())).andExpect(status().isNotFound());
         as(asha, delete("/api/v1/me/travellers/" + t.get("id").asLong())).andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("TC-ACC-02: 'Save these travellers' keeps each name once, with tidy spacing, and updates it on the next booking")
+    void bookingSavesTravellers() throws Exception {
+        Map<String, Object> first = bookingBody(MONDAY.plusDays(3), "SL", "GN", 1);
+        first.put("passengers", List.of(Map.of("name", "Meera  Krishnan", "age", 41, "gender", "FEMALE")));
+        first.put("saveTravellers", true);
+        as(asha, post("/api/v1/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(first)))
+                .andExpect(status().isCreated());
+        JsonNode saved = body(as(asha, get("/api/v1/me/travellers")));
+        assertThat(saved).hasSize(1);
+        assertThat(saved.get(0).get("name").asText()).isEqualTo("Meera Krishnan");
+
+        // Same person again, a year older and in another case: updated, not added twice
+        Map<String, Object> again = bookingBody(MONDAY.plusDays(4), "SL", "GN", 2);
+        again.put("passengers", List.of(Map.of("name", "meera krishnan", "age", 42, "gender", "FEMALE"),
+                Map.of("name", "Arjun Krishnan", "age", 44, "gender", "MALE")));
+        again.put("saveTravellers", true);
+        as(asha, post("/api/v1/bookings").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(again)))
+                .andExpect(status().isCreated());
+        saved = body(as(asha, get("/api/v1/me/travellers")));
+        assertThat(saved).extracting(n -> n.get("name").asText()).containsExactly("Arjun Krishnan", "meera krishnan");
+        assertThat(saved.get(1).get("age").asInt()).isEqualTo(42);
+
+        // Without the option nothing is saved
+        book(bob, MONDAY.plusDays(3), "SL", 1);
+        assertThat(body(as(bob, get("/api/v1/me/travellers")))).isEmpty();
     }
 
     // ------------------------------------------------------------------ errors and headers
