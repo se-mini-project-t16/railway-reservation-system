@@ -11,7 +11,7 @@ This folder holds the test plan, the list of automated test cases and the tracea
 
 ## Latest run
 
-We ran `./mvnw clean test` on 08 November 2026 at 15:56 on `dev/shakthi`, which matched `main` after PR #88 plus these document updates. Maven reported:
+We ran `./mvnw clean test` on 09 November 2026 at 12:25 on `dev/shakthi`, which matched `main` after PR #89 plus these document updates. Maven reported:
 
 ```text
 Tests run: 195, Failures: 0, Errors: 0, Skipped: 0
@@ -51,7 +51,7 @@ Parameterised tests count once per input row, which is why `SafeTextRulesTest` s
 
 ## Traceability matrix
 
-The SRS has 28 requirements. In this run 25 were covered by automated tests, 2 were partly covered and 1 had no test. Where the rebuilt app behaves differently from the SRS acceptance criteria we wrote that in the Notes column instead of counting it as a pass.
+The SRS has 28 requirements. 26 are covered, 2 partly covered and 0 not covered. Most are covered by the automated tests; search speed, load, accessibility and the 5 minute booking target are covered by the manual runs named in the table. Where the rebuilt app behaves differently from the SRS acceptance criteria we wrote that in the Notes column instead of counting it as a pass.
 
 | Requirement | Description | Covering tests | Tests run | Status | Notes |
 |---|---|---|---:|---|---|
@@ -71,10 +71,10 @@ The SRS has 28 requirements. In this run 25 were covered by automated tests, 2 w
 | RRS-F-014 | Booking history | TC-HIS-02, TC-BK-03 / TC-HIS-01 | 2 | Covered | History lists the newest journey first. The Upcoming tab lists the soonest trip first, which is the order a traveller needs; this is listed in the deviations document. |
 | RRS-F-015 | Admin add, update, delete trains, routes, fares | TC-ADM-01, TC-ADM-03, TC-ADM-06 | 3 | Covered | Creating, editing (name and running days), stopping a train and refusing to delete one with bookings. |
 | RRS-F-016 | Admin bookings report by date and train | TC-ADM-04 | 1 | Covered | Report filtered by train 12901 and date, plus the chart and its CSV. |
-| RRS-NF-001 | Search within 3 s for 95% of requests | TC-PERF-01, load test on 06 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.3); earlier JMeter run on 29 Oct 2026 (docs/performance/issue17-search-benchmark.md) | - | Covered | Re-run after the rebuild: 100 searches sent together, three rounds, p95 833 ms and slowest 892 ms, well inside 3 s. The 29 Oct JMeter run (p95 200 ms and 290 ms) was on the old two-train version. |
+| RRS-NF-001 | Search within 3 s for 95% of requests | TC-PERF-01, load test on 09 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.3); earlier JMeter run on 29 Oct 2026 (docs/performance/issue17-search-benchmark.md) | - | Covered | 100 searches sent together, three rounds, on the final build: p95 663 ms and slowest 736 ms, well inside 3 s. The 29 Oct JMeter run (p95 200 ms and 290 ms) was on the old two-train version. |
 | RRS-NF-002 | 99% availability during demo | TC-OPS-01 | 3 | Partly covered | The health endpoint and a burst of parallel health checks are tested; real uptime over the demo period is not measured. |
-| RRS-NF-003 | New user books within 5 minutes | None | - | Not covered | To be measured in the usability test with classmates on the live site (TC-UX-01). |
-| RRS-NF-004 | 100 concurrent users | TC-OPS-01; TC-PERF-02, load test on 06 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.3) | 1 | Covered | 300 of 300 searches succeeded at 100 concurrent users after the rebuild, with no errors. The 29 Oct JMeter run with 100 threads also had 0 errors but predates PR #68. |
+| RRS-NF-003 | New user books within 5 minutes | TC-UX-01, usability test on 08 Nov 2026 with the three other team members on the live site, timed from the database (docs/reports/system-validation-report.pdf, section 3.6) | - | Covered | The three other team members each signed up with a new account on the live site and were not helped. They know the project, and Kishan had used an earlier build on 04 Nov, so this is weaker evidence than the outside classmates the SRS asks for. One went from a new account to a paid ticket in 2 min 29 s. One took 13 min 36 s for the first ticket (this included linking Google and a refused attempt with 'book only if all confirmed' ticked) and 3 min 28 s for a second one. One reserved seats but did not pay, so the hold expired. The 5 minute target was met by one of three new users on the first try. |
+| RRS-NF-004 | 100 concurrent users | TC-OPS-01; TC-PERF-02, load test on 09 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.3) | 1 | Covered | 300 of 300 searches succeeded at 100 concurrent users on the final build, with no errors. The 29 Oct JMeter run with 100 threads also had 0 errors but predates PR #68. |
 | RRS-NF-005 | Log errors with timestamp and user id | TC-OPS-02 | 5 | Covered | ERROR level logs with user id and timestamp, daily rotation in logs/, and no stack traces in responses. |
 | RRS-SR-001 | BCrypt password hashing | PasswordProtectionSecurityTest, UserRegistrationControllerTest | 5 | Covered | Hash format and salt, and the password never appears in responses or logs. Email and reset codes are stored as BCrypt hashes too. |
 | RRS-SR-002 | HTTPS (TLS 1.2+) | TC-SEC-08; Manual check on 08 Nov 2026: https://railway-reservation.srspace.dev negotiates TLS 1.3 | 1 | Partly covered | The public address is served over TLS 1.3 through the Cloudflare tunnel and the app sends HSTS on HTTPS requests. The app itself listens on plain HTTP behind the tunnel, so a local run on localhost is HTTP. |
@@ -82,12 +82,11 @@ The SRS has 28 requirements. In this run 25 were covered by automated tests, 2 w
 | RRS-SR-004 | Role based access control | TC-ADM-02, TC-SEC-06, TC-SEC-07 | 3 | Covered | A passenger gets 403 and a guest 401 on admin routes; passengers cannot open each other's bookings. |
 | RRS-SR-005 | Session timeout after 15 minutes | TC-SEC-05 | 5 | Covered | The API side (401 Session Expired, token renewal) is tested; the redirect to the login page in the browser is not. |
 | RRS-SR-006 | Guests can search; booking needs sign-in | TC-SEC-06, TC-SRC-01 | 2 | Covered | Guests search trains and check PNRs; booking, paying, history and tickets answer 401 until they sign in. |
-| RRS-NF-006 | Accessibility (keyboard, focus, contrast, labels) | accessibility-audit.md; axe-core sweep on 08 Nov 2026 | - | Covered | The audit's 4 axe findings were fixed in commit 9274510. On 08 Nov 2026 axe-core (WCAG 2.1 A and AA) found 0 violations on all 22 pages as guest, passenger and admin at 1280 and 375 px wide, after two more fixes (board contrast on phones, keyboard access to scrolling tables). There is no automated test in the suite. |
+| RRS-NF-006 | Accessibility (keyboard, focus, contrast, labels) | accessibility-audit.md; axe-core sweep on 09 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.5) | - | Covered | The audit's 4 axe findings were fixed in commit 9274510. On 09 Nov 2026 axe-core (WCAG 2.1 A and AA) found 0 violations on all 24 pages as guest, passenger and admin, light and dark, at 1280 and 375 px wide (96 runs), after three more fixes (board contrast on phones, keyboard access to scrolling tables, berth label contrast in the dark reservation chart). There is no automated test in the suite. |
 
 ### Gaps
 
 - **RRS-NF-002** (partly covered): The health endpoint and a burst of parallel health checks are tested; real uptime over the demo period is not measured.
-- **RRS-NF-003** (not covered): To be measured in the usability test with classmates on the live site (TC-UX-01).
 - **RRS-SR-002** (partly covered): The public address is served over TLS 1.3 through the Cloudflare tunnel and the app sends HSTS on HTTPS requests. The app itself listens on plain HTTP behind the tunnel, so a local run on localhost is HTTP.
 
 ### Tests with no SRS requirement
