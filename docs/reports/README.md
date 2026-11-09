@@ -9,7 +9,7 @@ Each report is a Word document with a PDF export of the same content.
 | Code Coverage Report | [docx](code-coverage-report.docx) | [pdf](code-coverage-report.pdf) |
 | Branch Coverage Report | [docx](branch-coverage-report.docx) | [pdf](branch-coverage-report.pdf) |
 
-Latest run, 9 November 2026: 199 tests, all passing. Line coverage 84.7%, branch coverage 69.0%. The system
+Latest run, 9 November 2026: 202 tests, all passing. Line coverage 90.3%, branch coverage 70.7%. The system
 validation report also covers the usability test on the live site (8 November), the Postman collection run, a
 load test, security checks, an idle timeout check in a real browser and an accessibility sweep, all against the
 final build.
