@@ -15,7 +15,7 @@ async function load() {
           h('td', { class: 'strong' }, r.minHoursBefore ? `${r.minHoursBefore} hours before departure` : 'Any time before departure'),
           h('td', {}, h('input', { class: 'input', type: 'number', min: 0, max: 100, step: '0.5', value: r.deductionPercent, 'data-k': 'pct', 'aria-label': `Deduction percent from ${r.minHoursBefore} hours` })),
           h('td', {}, h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: r.flatMinimum, 'data-k': 'flat' }), ' Yes')),
-          h('td', {}, h('input', { class: 'input', maxlength: 80, value: r.description, 'data-k': 'desc', 'aria-label': `Description for ${r.minHoursBefore} hours` }))))))),
+          h('td', {}, h('textarea', { class: 'input', rows: 2, maxlength: 80, 'data-k': 'desc', 'aria-label': `Description for ${r.minHoursBefore} hours` }, r.description))))))),
       h('p', { class: 'small muted' }, 'RAC and waitlisted tickets always lose only the clerkage charge, and confirmed Tatkal tickets are never refunded.'),
       msg, h('div', { class: 'row' }, save));
     form.addEventListener('submit', async (e) => {

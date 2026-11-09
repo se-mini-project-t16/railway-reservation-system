@@ -215,7 +215,7 @@ dl.facts dd { margin: var(--space-3xs) 0 0; font-weight: 800; }
 .board td { padding: var(--space-md) var(--space-md) var(--space-md) 0; border-bottom: var(--rule-hair) solid var(--color-plate-rule); vertical-align: baseline; }
 .board .time { font-size: var(--text-2xl); font-weight: 800; color: var(--color-accent-2); line-height: 1; }
 .board .train-no { display: block; font-size: var(--text-sm); color: var(--color-plate-muted); }
-.board .dest { font-size: var(--text-lg); font-weight: 800; overflow-wrap: anywhere; }
+.board .dest { font-size: var(--text-lg); font-weight: 800; overflow-wrap: break-word; }
 .board a { color: var(--color-plate-ink); text-decoration: none; }
 .board a:hover { color: var(--color-accent-2); text-decoration: underline; }
 .board .tag { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--space-xs); background: var(--color-accent-2); color: var(--color-amber-ink); font-size: var(--text-xs); font-weight: 800; }
@@ -525,7 +525,24 @@ details .fare-lines { margin-top: var(--space-xs); max-width: 20rem; }
 .dialog fieldset, fieldset.stack { border: 0; padding: 0; margin: 0; min-width: 0; }
 #ticket-root > .notice, #pay-root > .notice { margin-bottom: var(--space-lg); }
 .traveller { grid-template-columns: 2rem minmax(0, 2fr) 4.5rem minmax(0, 1.2fr) minmax(0, 1.5fr) minmax(0, 1.1fr) auto; }
-@media (max-width: 60rem) { .traveller { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+/* Wide screens: name and age on the first line, gender, berth and meal under them, so no select is squeezed */
+@media (min-width: 78rem) {
+  .traveller { grid-template-columns: 2rem repeat(3, minmax(0, 1fr)) auto; }
+  .traveller .n { grid-row: 1 / span 2; }
+  .traveller .f-name { grid-column: 2 / 4; }
+  .traveller > :nth-child(4), .traveller > :nth-child(5), .traveller > :nth-child(6) { grid-row: 2; }
+  .traveller > :nth-child(7) { grid-column: 5; grid-row: 1 / span 2; }
+}
+@media (max-width: 77.99rem) {
+  .traveller { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .traveller .n { grid-column: 1 / -1; padding-top: 0; }
+  .traveller .f-name { grid-column: 1 / -1; }
+  .traveller .remove { margin-top: 0; justify-self: start; }
+}
+/* Admin: room for the refund rule wording and the train filter's hint */
+.table textarea[data-k="desc"] { min-width: 20rem; width: 100%; min-height: 0; resize: vertical; line-height: 1.4; }
+.table input[data-k="pct"] { width: 6.5rem; }
+.toolbar .field:has(input[type="search"]) { flex: 0 1 22rem; }
 .admin-tabs .container { display: flex; }
 .admin-bar .btn { color: var(--color-plate-ink); border-color: var(--color-plate-ink); }
 .admin-bar .btn:hover { background: var(--color-plate-rule); color: var(--color-plate-ink); }
@@ -577,7 +594,6 @@ details .fare-lines { margin-top: var(--space-xs); max-width: 20rem; }
 /* Softened corners (trial): boxes, controls and dialogs take --radius-card; joined strips stay square */
 .panel, .searchboard, .hero-board, .class-cell, .class-panel, .route-step, .notice, .detail, dialog.dialog,
 .icon-btn, .nav a, .nav button.navlink, .account-menu, .combo-list, .form-errors, .rake span, .tabs [role="tab"], .tabs a, .admin-tabs a { border-radius: var(--radius-card); }
-.searchboard { overflow: hidden; }
 .cells button, .seg label, .date-strip a, .calendar > div, .berth { border-radius: 0; }
 .seg label:first-of-type, .cells button:first-child { border-radius: var(--radius-card) 0 0 var(--radius-card); }
 .seg label:last-of-type, .cells button:last-child { border-radius: 0 var(--radius-card) var(--radius-card) 0; }
