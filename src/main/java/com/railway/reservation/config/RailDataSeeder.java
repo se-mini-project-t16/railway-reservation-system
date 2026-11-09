@@ -49,10 +49,15 @@ public class RailDataSeeder implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         seedRules();
-        if (seedTimetable && stationRepository.count() == 0) {
-            Map<String, Station> stations = seedStations();
-            int trains = seedTrains(stations);
-            log.info("Seeded {} stations and {} trains", stations.size(), trains);
+        if (!seedTimetable) return;
+        // Adds any seeded station or train that is missing by code or number, so an existing database picks up
+        // a wider network without losing its accounts and bookings. Nothing that already exists is changed.
+        int before = (int) stationRepository.count();
+        Map<String, Station> stations = seedStations();
+        int trains = seedTrains(stations);
+        int newStations = (int) stationRepository.count() - before;
+        if (newStations > 0 || trains > 0) {
+            log.info("Seeded {} stations and {} trains", newStations, trains);
         }
     }
 
@@ -170,13 +175,52 @@ public class RailDataSeeder implements CommandLineRunner {
             {"CTC", "Cuttack", "Cuttack", "Odisha"},
             {"BBS", "Bhubaneswar", "Bhubaneswar", "Odisha"},
             {"PURI", "Puri", "Puri", "Odisha"},
+            // Added with the wider network (Mumbai to the south and east, the Konkan line to Kerala,
+            // Rajasthan, Punjab, Uttarakhand, the North East and Hyderabad to Mysuru)
+            {"LTT", "Lokmanya Tilak Terminus", "Mumbai", "Maharashtra"},
+            {"NK", "Nashik Road", "Nashik", "Maharashtra"},
+            {"AK", "Akola Junction", "Akola", "Maharashtra"},
+            {"DURG", "Durg Junction", "Durg", "Chhattisgarh"},
+            {"BSP", "Bilaspur Junction", "Bilaspur", "Chhattisgarh"},
+            {"JSG", "Jharsuguda Junction", "Jharsuguda", "Odisha"},
+            {"TATA", "Tatanagar Junction", "Jamshedpur", "Jharkhand"},
+            {"RU", "Renigunta Junction", "Tirupati", "Andhra Pradesh"},
+            {"DHNE", "Dhone Junction", "Dhone", "Andhra Pradesh"},
+            {"KCG", "Kacheguda", "Hyderabad", "Telangana"},
+            {"MBNR", "Mahbubnagar", "Mahbubnagar", "Telangana"},
+            {"KAWR", "Karwar", "Karwar", "Karnataka"},
+            {"UD", "Udupi", "Udupi", "Karnataka"},
+            {"MAQ", "Mangaluru Central", "Mangaluru", "Karnataka"},
+            {"CAN", "Kannur", "Kannur", "Kerala"},
+            {"CLT", "Kozhikode", "Kozhikode", "Kerala"},
+            {"SRR", "Shoranur Junction", "Shoranur", "Kerala"},
+            {"MSH", "Mahesana Junction", "Mahesana", "Gujarat"},
+            {"PNU", "Palanpur Junction", "Palanpur", "Gujarat"},
+            {"ABR", "Abu Road", "Abu Road", "Rajasthan"},
+            {"AII", "Ajmer Junction", "Ajmer", "Rajasthan"},
+            {"JP", "Jaipur Junction", "Jaipur", "Rajasthan"},
+            {"AWR", "Alwar Junction", "Alwar", "Rajasthan"},
+            {"GGN", "Gurugram", "Gurugram", "Haryana"},
+            {"JUC", "Jalandhar City", "Jalandhar", "Punjab"},
+            {"ASR", "Amritsar Junction", "Amritsar", "Punjab"},
+            {"MTC", "Meerut City", "Meerut", "Uttar Pradesh"},
+            {"MOZ", "Muzaffarnagar", "Muzaffarnagar", "Uttar Pradesh"},
+            {"RK", "Roorkee", "Roorkee", "Uttarakhand"},
+            {"HW", "Haridwar Junction", "Haridwar", "Uttarakhand"},
+            {"DDN", "Dehradun", "Dehradun", "Uttarakhand"},
+            {"BWN", "Barddhaman Junction", "Barddhaman", "West Bengal"},
+            {"MLDT", "Malda Town", "Malda", "West Bengal"},
+            {"NJP", "New Jalpaiguri", "Siliguri", "West Bengal"},
+            {"GHY", "Guwahati", "Guwahati", "Assam"},
             {"BAM", "Brahmapur", "Brahmapur", "Odisha"},
     };
 
     private Map<String, Station> seedStations() {
         Map<String, Station> out = new LinkedHashMap<>();
         for (String[] s : STATIONS) {
-            out.put(s[0], stationRepository.save(new Station(s[0], s[1], s[2], s[3])));
+            Station station = stationRepository.findByCodeIgnoreCase(s[0])
+                    .orElseGet(() -> stationRepository.save(new Station(s[0], s[1], s[2], s[3])));
+            out.put(s[0], station);
         }
         return out;
     }
@@ -382,12 +426,85 @@ public class RailDataSeeder implements CommandLineRunner {
                         s("AGC", 1481, 98, 5), t("NDLS", 1676, 195)));
         out.add(x); out.add(x.reverse("12724", "Telangana Express", "16:00", DAILY));
 
+        // ---- Wider network: Mumbai to Chennai, Bengaluru, Hyderabad and Kolkata
+        x = new Spec("22159", "Mumbai Chennai Superfast Express", TrainType.SUPERFAST, DAILY, true, "SL:10,3A:5,2A:2", "12:45",
+                List.of(o("CSMT"), s("DR", 9, 15, 2), s("TNA", 34, 25, 2), s("KYN", 54, 20, 3), s("LNL", 128, 75, 2),
+                        s("PUNE", 192, 70, 5), s("DD", 268, 70, 5), s("SUR", 455, 170, 5), s("KLBG", 567, 105, 3),
+                        s("WADI", 604, 40, 10), s("RC", 712, 120, 2), s("GTL", 838, 130, 10), s("RU", 1121, 300, 10),
+                        s("AJJ", 1218, 105, 2), t("MAS", 1286, 70)));
+        out.add(x); out.add(x.reverse("22160", "Chennai Mumbai Superfast Express", "12:20", DAILY));
+
+        x = new Spec("11301", "Udyan Express", TrainType.MAIL_EXPRESS, DAILY, true, "SL:10,3A:4,2A:2", "08:10",
+                List.of(o("CSMT"), s("DR", 9, 15, 2), s("TNA", 34, 25, 2), s("KYN", 54, 20, 3), s("LNL", 128, 80, 2),
+                        s("PUNE", 192, 75, 5), s("DD", 268, 75, 5), s("SUR", 455, 185, 5), s("KLBG", 567, 115, 3),
+                        s("WADI", 604, 45, 10), s("RC", 712, 125, 2), s("GTL", 838, 135, 10), s("ATP", 908, 80, 2),
+                        s("DMM", 965, 60, 5), s("YPR", 1146, 210, 5), t("SBC", 1152, 20)));
+        out.add(x); out.add(x.reverse("11302", "Udyan Express", "20:45", DAILY));
+
+        x = new Spec("12701", "Hussainsagar Express", TrainType.SUPERFAST, DAILY, false, "SL:10,3A:4,2A:2", "21:50",
+                List.of(o("CSMT"), s("DR", 9, 15, 2), s("TNA", 34, 25, 2), s("KYN", 54, 20, 3), s("LNL", 128, 75, 2),
+                        s("PUNE", 192, 70, 5), s("DD", 268, 70, 5), s("SUR", 455, 170, 5), s("KLBG", 567, 105, 3),
+                        s("WADI", 604, 40, 10), s("SC", 798, 200, 5), t("HYB", 808, 25)));
+        out.add(x); out.add(x.reverse("12702", "Hussainsagar Express", "14:45", DAILY));
+
+        x = new Spec("12809", "Howrah Mail via Nagpur", TrainType.MAIL_EXPRESS, DAILY, true, "SL:10,3A:5,2A:2,1A:1", "21:30",
+                List.of(o("CSMT"), s("DR", 9, 15, 2), s("TNA", 34, 25, 2), s("KYN", 54, 20, 3), s("NK", 187, 170, 5),
+                        s("MMR", 260, 75, 5), s("BSL", 444, 165, 10), s("AK", 584, 125, 5), s("NGP", 837, 270, 15),
+                        s("DURG", 1103, 260, 5), s("BSP", 1240, 150, 10), s("JSG", 1446, 200, 5), s("TATA", 1756, 290, 10),
+                        s("KGP", 1891, 140, 5), t("HWH", 1968, 110)));
+        out.add(x); out.add(x.reverse("12810", "Mumbai Mail via Nagpur", "19:40", DAILY));
+
+        // ---- Kolkata to Bengaluru, and Hyderabad to Bengaluru and Mysuru
+        x = new Spec("12863", "Howrah Yesvantpur Superfast Express", TrainType.SUPERFAST, DAILY, true, "SL:10,3A:5,2A:2", "10:35",
+                List.of(o("HWH"), s("KGP", 116, 90, 5), s("BLS", 235, 95, 2), s("CTC", 409, 135, 2), s("BBS", 437, 40, 5),
+                        s("BAM", 603, 145, 5), s("VSKP", 881, 260, 20), s("RJY", 1081, 190, 2), s("BZA", 1231, 125, 10),
+                        s("OGL", 1371, 125, 2), s("NLR", 1487, 110, 2), s("GDR", 1525, 40, 2), s("RU", 1608, 110, 10),
+                        s("KPD", 1713, 120, 5), s("JTJ", 1798, 80, 2), s("BWT", 1874, 85, 2), s("KJM", 1928, 55, 2),
+                        t("YPR", 1946, 35)));
+        out.add(x); out.add(x.reverse("12864", "Yesvantpur Howrah Superfast Express", "07:35", DAILY));
+
+        x = new Spec("12785", "Kacheguda Mysuru Superfast Express", TrainType.SUPERFAST, DAILY, false, "SL:10,3A:4,2A:2", "18:45",
+                List.of(o("KCG"), s("MBNR", 100, 100, 2), s("KRNT", 242, 140, 5), s("DHNE", 294, 60, 2),
+                        s("ATP", 374, 90, 2), s("DMM", 422, 50, 5), s("YPR", 607, 210, 5), s("SBC", 613, 20, 10),
+                        s("MYA", 706, 80, 2), t("MYS", 752, 50)));
+        out.add(x); out.add(x.reverse("12786", "Mysuru Kacheguda Superfast Express", "15:10", DAILY));
+
+        // ---- Mumbai to Kerala on the Konkan line
+        x = new Spec("16345", "Netravati Express", TrainType.MAIL_EXPRESS, DAILY, true, "SL:10,3A:4,2A:2", "11:40",
+                List.of(o("LTT"), s("TNA", 17, 25, 2), s("PNVL", 50, 45, 5), s("RN", 325, 320, 5), s("KUDL", 497, 160, 2),
+                        s("THVM", 557, 55, 2), s("MAO", 604, 50, 10), s("KAWR", 694, 95, 2), s("UD", 870, 180, 2),
+                        s("MAQ", 926, 65, 10), s("CAN", 1059, 150, 3), s("CLT", 1148, 100, 5), s("SRR", 1234, 115, 10),
+                        s("TCR", 1266, 50, 3), s("ERS", 1340, 85, 5), s("QLN", 1500, 200, 3), t("TVC", 1565, 80)));
+        out.add(x); out.add(x.reverse("16346", "Netravati Express", "09:15", DAILY));
+
+        // ---- Ahmedabad to Delhi through Rajasthan
+        x = new Spec("12957", "Swarna Jayanti Rajdhani Express", TrainType.RAJDHANI, DAILY, true, "3A:8,2A:4,1A:1", "17:40",
+                List.of(o("ADI"), s("MSH", 69, 60, 2), s("PNU", 136, 55, 2), s("ABR", 189, 45, 5), s("AII", 489, 270, 10),
+                        s("JP", 624, 120, 10), s("AWR", 774, 130, 2), s("GGN", 912, 125, 2), t("NDLS", 934, 35)));
+        out.add(x); out.add(x.reverse("12958", "Swarna Jayanti Rajdhani Express", "19:55", DAILY));
+
+        // ---- Delhi to Punjab and Uttarakhand
+        x = new Spec("12013", "Amritsar Shatabdi Express", TrainType.SHATABDI, DAILY, false, "CC:10,EC:2", "16:30",
+                List.of(o("NDLS"), s("UMB", 199, 116, 2), s("LDH", 313, 60, 2), s("JUC", 370, 45, 2), t("ASR", 449, 60)));
+        out.add(x); out.add(x.reverse("12014", "Amritsar New Delhi Shatabdi Express", "05:00", DAILY));
+
+        x = new Spec("12017", "Dehradun Shatabdi Express", TrainType.SHATABDI, DAILY, false, "CC:8,EC:1", "06:45",
+                List.of(o("NDLS"), s("MTC", 66, 60, 2), s("MOZ", 122, 45, 2), s("RK", 177, 45, 2), s("HW", 207, 30, 5),
+                        t("DDN", 302, 85)));
+        out.add(x); out.add(x.reverse("12018", "Dehradun New Delhi Shatabdi Express", "17:00", DAILY));
+
+        // ---- Kolkata to the North East
+        x = new Spec("12345", "Saraighat Express", TrainType.SUPERFAST, DAILY, true, "SL:8,3A:4,2A:2", "15:50",
+                List.of(o("HWH"), s("BWN", 95, 80, 3), s("MLDT", 336, 230, 5), s("NJP", 567, 220, 15), t("GHY", 1004, 420)));
+        out.add(x); out.add(x.reverse("12346", "Saraighat Express", "12:30", DAILY));
+
         return out;
     }
 
     private int seedTrains(Map<String, Station> stations) {
         int n = 0;
         for (Spec spec : specs()) {
+            if (trainRepository.existsByNumber(spec.number())) continue;
             trainRepository.save(build(spec, stations));
             n++;
         }

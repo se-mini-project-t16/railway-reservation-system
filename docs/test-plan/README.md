@@ -11,13 +11,13 @@ This folder holds the test plan, the list of automated test cases and the tracea
 
 ## Latest run
 
-We ran `./mvnw clean test` on 09 November 2026 at 13:20 on `dev/shakthi`, which matched `main` after PR #91 plus these updates. Maven reported:
+We ran `./mvnw clean test` on 09 November 2026 at 15:27 on `dev/shakthi`, which matched `main` after PR #91 plus these updates. Maven reported:
 
 ```text
-Tests run: 199, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 202, Failures: 0, Errors: 0, Skipped: 0
 ```
 
-All 199 tests passed. The suite had 256 tests before the rebuild in PR #68 and 146 right after it, when the old classes (`BookingControllerTest`, `PaymentServiceTest`, `AdminServiceTest` and others) were replaced. The Sprint 3 spill-over (PR #74 to PR #88) added the tests for Google sign-in, email codes, Razorpay, booking emails and password reset.
+All 202 tests passed. The suite had 256 tests before the rebuild in PR #68 and 146 right after it, when the old classes (`BookingControllerTest`, `PaymentServiceTest`, `AdminServiceTest` and others) were replaced. The Sprint 3 spill-over (PR #74 to PR #88) added the tests for Google sign-in, email codes, Razorpay, booking emails and password reset.
 
 ## Tests per class
 
@@ -41,24 +41,25 @@ All 199 tests passed. The suite had 256 tests before the rebuild in PR #68 and 1
 | `service` | `DemandSimulatorTest` | 4 | 0 | RRS-F-005 |
 | `controller` | `PasswordProtectionSecurityTest` | 4 | 0 | RRS-SR-001 |
 | `service/google` | `GoogleIdTokenVerifierTest` | 3 | 0 | RRS-F-002 |
+| `config` | `RailDataSeederTest` | 3 | 0 | RRS-F-004 |
 | `security` | `QueryParameterizationTest` | 2 | 0 | RRS-SR-003 |
 | `service/payment` | `RazorpaySignatureTest` | 2 | 0 | RRS-F-008, RRS-F-009 |
 | `(root)` | `RailwayReservationApplicationTests` | 1 | 0 | App start-up |
 | `config` | `SchemaUpgradesTest` | 1 | 0 | RRS-F-008, RRS-F-009 |
-| | **Total** | **199** | **0** | |
+| | **Total** | **202** | **0** | |
 
 Parameterised tests count once per input row, which is why `SafeTextRulesTest` shows 32 tests from 4 methods.
 
 ## Traceability matrix
 
-The SRS has 28 requirements. 27 are covered, 1 partly covered and 0 not covered. Most are covered by the automated tests; search speed, load, accessibility and the 5 minute booking target are covered by the manual runs named in the table. Where the rebuilt app behaves differently from the SRS acceptance criteria we wrote that in the Notes column instead of counting it as a pass.
+The SRS has 28 requirements. 28 are covered, 0 partly covered and 0 not covered. Most are covered by the automated tests; search speed, load, availability, accessibility and the 5 minute booking target are covered by the manual runs named in the table. Where the rebuilt app behaves differently from the SRS acceptance criteria we wrote that in the Notes column instead of counting it as a pass.
 
 | Requirement | Description | Covering tests | Tests run | Status | Notes |
 |---|---|---|---:|---|---|
 | RRS-F-001 | User registration with email verification | TC-REG-01 to 09, UserLoginControllerTest, UserRegistrationControllerTest | 15 | Covered | The account is created only after the 6-digit code emailed to the address is entered; field rules, duplicate email (any case) and BCrypt storage are also tested. |
 | RRS-F-002 | User login (password, linked Google account, password reset) | TC-GGL-01 to 12, TC-PWD-01 to 07, UserLoginControllerTest | 28 | Covered | Email and password give a signed JWT; a Google account linked from the account page can sign in but never creates an account; a forgotten password is reset with an emailed code. |
 | RRS-F-003 | Account lock after 5 failed logins | TC-GGL-07, TC-PWD-06, UserLoginControllerTest | 6 | Covered | The lock applies to Google sign-in too, and a password reset lifts it. The API answers "Invalid credentials." instead of the lock message in the SRS, so the response does not reveal that the account exists. |
-| RRS-F-004 | Train search by source, destination and date | TC-SRC-01 to 11 | 11 | Covered | Includes intermediate stops, running days, nearby stations and bad input (SAME_STATION, past date, more than 60 days). |
+| RRS-F-004 | Train search by source, destination and date | TC-SEED-01 to 03, TC-SRC-01 to 11 | 14 | Covered | Includes intermediate stops, running days, nearby stations and bad input (SAME_STATION, past date, more than 60 days). The seeded timetable of 133 stations and 88 trains is checked route by route (docs/network.md). |
 | RRS-F-005 | Seat availability | TC-DEM-01 to 04, TC-SEAT-01, TC-SEAT-05, TC-SEAT-06, TC-SEAT-11, TC-SRC-01, TC-SRC-06 | 10 | Covered | Availability per class, the availability calendar, and berths freed at an intermediate station. |
 | RRS-F-006 | Book ticket with PNR | TC-ACC-02, TC-BK-01, TC-BK-04, TC-FARE-01 to 08, TC-SEAT-01 to 11, TC-TQ-01 | 23 | Covered | Berth allocation, RAC and waiting list, Tatkal window, server-side fares, a fare quote that matches the booking, saved travellers and a 10-digit PNR. |
 | RRS-F-007 | Passenger details for each seat | TC-BK-02 | 1 | Covered | Missing or invalid name, age or gender is rejected field by field. |
@@ -72,8 +73,8 @@ The SRS has 28 requirements. 27 are covered, 1 partly covered and 0 not covered.
 | RRS-F-015 | Admin add, update, delete trains, routes, fares | TC-ADM-01, TC-ADM-03, TC-ADM-06, TC-ADM-07 | 4 | Covered | Creating, editing (name, running days, classes and route), stopping a train, and the locks once a train has tickets: no deleting, no new route, coaches can be added but not removed. |
 | RRS-F-016 | Admin bookings report by date and train | TC-ADM-04 | 1 | Covered | Report filtered by train 12901 and date, plus the chart and its CSV. |
 | RRS-NF-001 | Search within 3 s for 95% of requests | TC-PERF-01, load test on 09 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.3); earlier JMeter run on 29 Oct 2026 (docs/performance/issue17-search-benchmark.md) | - | Covered | 100 searches sent together, three rounds, on the final build: p95 663 ms and slowest 736 ms, well inside 3 s. The 29 Oct JMeter run (p95 200 ms and 290 ms) was on the old two-train version. |
-| RRS-NF-002 | 99% availability during demo | TC-OPS-01; Uptime monitor on the live site from 09 Nov 2026, one health check a minute, until the demo | 3 | Partly covered | The health endpoint and a burst of parallel health checks are tested. Real uptime is being measured on the live site from 09 Nov up to the demo; the figure will be added when the period ends. |
-| RRS-NF-003 | New user books within 5 minutes | TC-UX-01, usability test on 08 Nov 2026 with the three other team members on the live site, timed from the database (docs/reports/system-validation-report.pdf, section 3.6) | - | Covered | The three other team members each signed up with a new account on the live site and were not helped. They know the project, and Kishan had used an earlier build on 04 Nov, so this is weaker evidence than the outside classmates the SRS asks for. One went from a new account to a paid ticket in 2 min 29 s. One took 13 min 36 s for the first ticket (this included linking Google and a refused attempt with 'book only if all confirmed' ticked) and 3 min 28 s for a second one. One reserved seats but did not pay, so the hold expired. The 5 minute target was met by one of three new users on the first try. |
+| RRS-NF-002 | 99% availability during demo | TC-OPS-01; TC-OPS-04, uptime monitor on the live site on 09 Nov 2026, 14:25 to 15:25, one health check a minute (docs/reports/system-validation-report.pdf, section 3.7) | 3 | Covered | The health endpoint and a burst of parallel health checks are tested. On the live site 61 of 61 health checks in one hour answered UP: 100% against the 99% target. One hour stands in for the demo period. |
+| RRS-NF-003 | New user books within 5 minutes | TC-UX-01, usability tests on the live site on 08 Nov 2026 (three team members) and 09 Nov 2026 (five classmates from outside the team), timed from the server log (docs/reports/system-validation-report.pdf, section 3.6) | - | Covered | Timed from asking for the sign-up code to the payment arriving. All five outside classmates booked a paid ticket within 5 minutes (1 min 40 s to 4 min 39 s, median 2 min 30 s). In the first session with team members, one of three met the target on the first try. Target met. |
 | RRS-NF-004 | 100 concurrent users | TC-OPS-01; TC-PERF-02, load test on 09 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.3) | 1 | Covered | 300 of 300 searches succeeded at 100 concurrent users on the final build, with no errors. The 29 Oct JMeter run with 100 threads also had 0 errors but predates PR #68. |
 | RRS-NF-005 | Log errors with timestamp and user id | TC-OPS-02 | 5 | Covered | ERROR level logs with user id and timestamp, daily rotation in logs/, and no stack traces in responses. |
 | RRS-SR-001 | BCrypt password hashing | PasswordProtectionSecurityTest, UserRegistrationControllerTest | 5 | Covered | Hash format and salt, and the password never appears in responses or logs. Email and reset codes are stored as BCrypt hashes too. |
@@ -83,10 +84,6 @@ The SRS has 28 requirements. 27 are covered, 1 partly covered and 0 not covered.
 | RRS-SR-005 | Session timeout after 15 minutes | TC-SEC-05; Browser check on 09 Nov 2026 with the limit set to 1 minute (docs/reports/system-validation-report.pdf, section 3.4) | 5 | Covered | The API side (401 Session Expired, token renewal) is tested in the suite. In a real browser, activity kept the session alive past the limit, going idle sent the passenger to sign in with the 'session ended' note, and signing in returned them to the same page. |
 | RRS-SR-006 | Guests can search; booking needs sign-in | TC-SEC-06, TC-SRC-01 | 2 | Covered | Guests search trains and check PNRs; booking, paying, history and tickets answer 401 until they sign in. |
 | RRS-NF-006 | Accessibility (keyboard, focus, contrast, labels) | accessibility-audit.md; axe-core sweep on 09 Nov 2026 (docs/reports/system-validation-report.pdf, section 3.5) | - | Covered | The audit's 4 axe findings were fixed in commit 9274510. On 09 Nov 2026 axe-core (WCAG 2.1 A and AA) found 0 violations on all 24 pages as guest, passenger and admin, light and dark, at 1280 and 375 px wide (96 runs), after three more fixes (board contrast on phones, keyboard access to scrolling tables, berth label contrast in the dark reservation chart). There is no automated test in the suite. |
-
-### Gaps
-
-- **RRS-NF-002** (partly covered): The health endpoint and a burst of parallel health checks are tested. Real uptime is being measured on the live site from 09 Nov up to the demo; the figure will be added when the period ends.
 
 ### Tests with no SRS requirement
 
@@ -207,6 +204,14 @@ Every JUnit test that ran, grouped by class. The ID and description come from th
 |---|---|---:|---|---|
 | No ID | `everyCustomQueryUsesNamedParameters` | 1 | Pass | RRS-SR-003 |
 | No ID | `productionCodeDoesNotUseRawSqlApis` | 1 | Pass | RRS-SR-003 |
+
+### `RailDataSeederTest`
+
+| ID | Test | Runs | Result | Requirements |
+|---|---|---:|---|---|
+| TC-SEED-01 | Every seeded route runs forward in distance and time, and every train has a return working | 1 | Pass | RRS-F-004 |
+| TC-SEED-02 | Seeding again adds nothing, so an existing database keeps its data | 1 | Pass | RRS-F-004 |
+| TC-SEED-03 | The wider network is searchable, for example Mumbai to Chennai, Bengaluru, Kolkata and Kochi | 1 | Pass | RRS-F-004 |
 
 ### `RailJourneyIntegrationTest`
 

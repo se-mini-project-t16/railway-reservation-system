@@ -52,12 +52,12 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 - Rebuilt the reservation engine and the whole interface. See the capabilities below.
 - Search and refund boundary tests, an accessibility audit with its fixes, and the four Part 3 test reports. 146 automated tests, 80.0% line coverage and 63.2% branch coverage.
 - **Spill-over (7th and 8th Nov, issues #80 to #86):** sign-in with a linked Google account, email verification at sign-up, Razorpay payments and refunds in place of the simulated gateway, e-ticket and cancellation emails, password reset, a full-site check with its fixes, and updated SRS, SAD, test plan and a deviations document. 195 automated tests, 83.0% line coverage and 65.7% branch coverage.
-- **Testing on the final build (8th and 9th Nov):** a usability test on the live site with the other three team members (`RRS-NF-003`), then the system validation run again: the Postman collection (56 requests), a browser journey with real Razorpay test payments and refunds, a 100-user load test, security checks and an accessibility sweep of all 24 pages. The four Part 3 reports were rebuilt from it, after four more tests for the last gaps (fare quote, saved travellers, train edits, cancel refusals) and a browser check of the idle timeout: 199 automated tests, 84.7% line coverage and 69.0% branch coverage.
+- **Testing on the final build (8th and 9th Nov):** a usability test on the live site with the other three team members (`RRS-NF-003`), then the system validation run again: the Postman collection (56 requests), a browser journey with real Razorpay test payments and refunds, a 100-user load test, security checks and an accessibility sweep of all 24 pages. The four Part 3 reports were rebuilt from it, after four more tests for the last gaps (fare quote, saved travellers, train edits, cancel refusals) and a browser check of the idle timeout. On 9th Nov five classmates from outside the team ran the usability test again (all booked within 5 minutes), the live site was monitored for an hour of uptime, and the seeded network grew to 133 stations and 88 trains ([`docs/network.md`](docs/network.md)): 202 automated tests, 90.3% line coverage and 70.7% branch coverage.
 
 ## System Capabilities
 
 ### Passengers
-- **Search** trains between any two stations on a route, including intermediate stops, with running days, overnight arrivals (+1, +2), an optional search across all stations in a city, filters (class, departure time, train type, available now) and sorting.
+- **Search** trains between any two stations on a route (see [the network](docs/network.md) for what is seeded), including intermediate stops, with running days, overnight arrivals (+1, +2), an optional search across all stations in a city, filters (class, departure time, train type, available now) and sorting.
 - **Availability** per class as a railway shows it: `AVL n`, `RAC n`, `WL n` or `REGRET`, plus a six-day availability calendar. Other booking channels are simulated, so trains fill up realistically closer to departure.
 - **Fares** calculated on the server from distance (tapering rates for long journeys), class, reservation and superfast charges, catering on premium trains, Tatkal charges and 5% GST on AC classes.
 - **Booking** in three steps (travellers, review, payment) for up to six travellers (four for Tatkal), with berth and meal preferences, lower berths for travellers aged 60+ and women aged 45+, groups seated together, saved travellers, and an option to book only if every berth is confirmed. Booking needs sign-in; guests are returned to the same booking after signing in.
@@ -89,7 +89,7 @@ A comprehensive, production-grade web-based Railway Reservation System that allo
 ./mvnw spring-boot:run
 ```
 
-Open http://localhost:8080. The first start seeds 98 stations and 66 long-distance trains; bookings are kept in `./data` between restarts (delete that folder to start fresh).
+Open http://localhost:8080. The first start seeds 133 stations and 88 long-distance trains on 34 routes (listed in [`docs/network.md`](docs/network.md)); bookings are kept in `./data` between restarts (delete that folder to start fresh). A later start adds any seeded station or train that is missing and changes nothing else.
 
 ### Keys and passwords
 
@@ -131,7 +131,7 @@ Version 2.0. Models the 3-tier layered architecture, the Razorpay, Gmail and Goo
 
 ### [3. Software Test Plan (STP)](docs/test-plan/)
 
-Outlines the unit, integration, system, performance, and security testing strategy, test schedule, environment setup, and test cases mapped to the SRS requirements. Version 3.1 lists all 199 automated tests and maps each of the 28 requirements to them, or to the manual runs for load, accessibility and usability.
+Outlines the unit, integration, system, performance, and security testing strategy, test schedule, environment setup, and test cases mapped to the SRS requirements. Version 3.1 lists all 202 automated tests and maps each of the 28 requirements to them, or to the manual runs for load, accessibility and usability.
 
 ### [4. Performance Benchmark](docs/performance/issue17-search-benchmark.md)
 
